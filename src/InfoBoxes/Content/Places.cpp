@@ -9,6 +9,9 @@
 #include "Interface.hpp"
 #include "Language/Language.hpp"
 #include "Formatter/Units.hpp"
+#include "Components.hpp"
+#include "DataComponents.hpp"
+#include "Task/RoutePlannerGlue.hpp"
 
 void
 UpdateInfoBoxHomeDistance(InfoBoxData &data) noexcept
@@ -56,21 +59,64 @@ void
 UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
 {
   const NMEAInfo &basic = CommonInterface::Basic();
-  const FlyingState &flight = CommonInterface::Calculated().flight;
+  const DerivedInfo &calculated = CommonInterface::Calculated(); 
+  const ComputerSettings &computer_settings = CommonInterface::GetComputerSettings();
 
-  if (!basic.location_available || !flight.flying ||
-      !flight.takeoff_location.IsValid()) {
+  const FlyingState &flight = calculated.flight;
+  const GlideSettings &glide_settings= computer_settings.task.glide;
+  const GlidePolar &glide_polar_task = computer_settings.polar.glide_polar_task;
+  const GlidePolar &glide_polar_safety = calculated.glide_polar_safety;
+  const SpeedVector &wind = calculated.GetWindOrZero(); //TODO: reference ok here?
+  const double &height_min_working = calculated.common_stats.height_min_working;
+  const std::optional<double> altitude = basic.GetAnyAltitude();
+
+  if (!basic.location_available
+   || !flight.flying 
+   || !flight.takeoff_location.IsValid()
+   || !altitude.has_value()) {
     data.SetInvalid();
     return;
   }
 
-  // data.SetInvalid();
-  // data.SetValueInvalid();
-  // data.SetCommentInvalid();
+  //TODO: does it detect airspace intersection as well?
 
-  data.SetTitle("title");
-  data.SetValue("value");
-  data.SetComment("comment");
+  // TODO: get values from user config
+  RoutePlannerConfig route_config = {
+    .mode = RoutePlannerConfig::Mode::BOTH,
+    .allow_climb = true,
+    .use_ceiling = false,
+    .safety_height_terrain = 150,
+    .reach_calc_mode = RoutePlannerConfig::ReachMode::STRAIGHT,
+    .reach_polar_mode = RoutePlannerConfig::Polar::SAFETY,
+  };
+
+  RoutePlannerGlue route_planner;
+  route_planner.Reset(); //TODO: call required?
+  route_planner.SetTerrain(&(*data_components->terrain));
+
+  route_planner.UpdatePolar(
+    glide_settings,
+    route_config, 
+    glide_polar_task, 
+    glide_polar_safety, 
+    wind, 
+    height_min_working);
+
+  auto intersection = route_planner.Intersection(
+    AGeoPoint(basic.location, altitude.value()),
+    AGeoPoint(flight.takeoff_location, flight.takeoff_altitude)
+  );
+
+  // data.SetTitle(takeoff_waypoint_name)
+  data.SetValueFromArrival(433.0);
+
+  if (intersection.IsValid()){
+    data.SetComment("Intercept!");
+    data.SetValueColor(2);
+  }else{
+    data.SetCommentInvalid();
+    data.SetValueColor(0);
+  }
 }
 
 #ifdef __clang__
