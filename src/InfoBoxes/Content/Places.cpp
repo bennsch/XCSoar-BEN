@@ -52,6 +52,27 @@ UpdateInfoBoxTakeoffDistance(InfoBoxData &data) noexcept
     data.SetCommentInvalid();
 }
 
+void
+UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
+{
+  const NMEAInfo &basic = CommonInterface::Basic();
+  const FlyingState &flight = CommonInterface::Calculated().flight;
+
+  if (!basic.location_available || !flight.flying ||
+      !flight.takeoff_location.IsValid()) {
+    data.SetInvalid();
+    return;
+  }
+
+  // data.SetInvalid();
+  // data.SetValueInvalid();
+  // data.SetCommentInvalid();
+
+  data.SetTitle("title");
+  data.SetValue("value");
+  data.SetComment("comment");
+}
+
 #ifdef __clang__
 /* gcc gives "redeclaration differs in 'constexpr'" */
 constexpr

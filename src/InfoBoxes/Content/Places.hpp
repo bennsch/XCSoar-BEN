@@ -11,6 +11,9 @@ UpdateInfoBoxHomeDistance(InfoBoxData &data) noexcept;
 void
 UpdateInfoBoxTakeoffDistance(InfoBoxData &data) noexcept;
 
+void
+UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept;
+
 extern const struct InfoBoxPanel atc_infobox_panels[];
 
 void
