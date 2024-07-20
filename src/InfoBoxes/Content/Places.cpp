@@ -85,6 +85,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
 
   //TODO: chose glide polar from user config
   //TODO: select waypoint based on takeoff location (GetNearest()), otherwise AltD will always look slightly off
+  //TODO: don't show "Details" in InfoBox (currently still showing details for Next AltD)
 
   auto target_alt = flight.takeoff_altitude + computer_settings.task.safety_height_arrival;
   auto target_vector = GeoVector(basic.location, flight.takeoff_location); 
