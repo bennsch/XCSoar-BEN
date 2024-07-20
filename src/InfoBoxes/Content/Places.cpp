@@ -11,6 +11,7 @@
 #include "Formatter/Units.hpp"
 #include "Components.hpp"
 #include "DataComponents.hpp"
+#include "BackendComponents.hpp"
 #include "Task/RoutePlannerGlue.hpp"
 #include "Engine/GlideSolvers/MacCready.hpp"
 #include "Engine/GlideSolvers/GlideState.hpp"
@@ -114,6 +115,11 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   RoutePlannerGlue route_planner;
   route_planner.Reset(); //TODO: call required?
   route_planner.SetTerrain(&(*data_components->terrain));
+  // route_planner.Synchronise(
+  //   *data_components->airspaces,
+  //   backend_components->GetAirspaceWarnings(), 
+  //   AGeoPoint(basic.location, altitude.value()), 
+  //   AGeoPoint(flight.takeoff_location, flight.takeoff_altitude)); //TODO: do I need to add safety height to takeoff_altitude?
 
   route_planner.UpdatePolar(
     glide_settings,
@@ -125,7 +131,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
 
   auto intersection = route_planner.Intersection(
     AGeoPoint(basic.location, altitude.value()),
-    AGeoPoint(flight.takeoff_location, flight.takeoff_altitude)
+    AGeoPoint(flight.takeoff_location, flight.takeoff_altitude) //TODO: do I need to add safety height to takeoff_altitude?
   );
 
   // data.SetTitle(takeoff_waypoint_name)
@@ -141,7 +147,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
       data.SetValueColor(2);
       data.SetComment("Intercept!");
     }else{
-      data.SetValueColor(0);
+      data.SetValueColor(3);
     }
   }else {
     data.SetValueInvalid();
