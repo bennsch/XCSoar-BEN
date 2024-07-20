@@ -12,6 +12,11 @@
 #include "Components.hpp"
 #include "DataComponents.hpp"
 #include "Task/RoutePlannerGlue.hpp"
+#include "Engine/GlideSolvers/MacCready.hpp"
+#include "Engine/GlideSolvers/GlideState.hpp"
+#include "Engine/GlideSolvers/GlideResult.hpp"
+
+#include <iostream>
 
 void
 UpdateInfoBoxHomeDistance(InfoBoxData &data) noexcept
@@ -78,6 +83,21 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
     return;
   }
 
+  //TODO: chose glide polar from user config
+  //TODO: select waypoint based on takeoff location (GetNearest()), otherwise AltD will always look slightly off
+
+  auto target_alt = flight.takeoff_altitude + computer_settings.task.safety_height_arrival;
+  auto target_vector = GeoVector(basic.location, flight.takeoff_location); 
+
+  const MacCready mac_cready(computer_settings.task.glide, glide_polar_task);
+  const GlideState glide_state(
+    target_vector,
+    target_alt,
+    altitude.value(),
+    wind);
+  GlideResult glide_result = mac_cready.Solve(glide_state);
+
+
   //TODO: does it detect airspace intersection as well?
 
   // TODO: get values from user config
@@ -108,14 +128,23 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   );
 
   // data.SetTitle(takeoff_waypoint_name)
-  data.SetValueFromArrival(433.0);
 
-  if (intersection.IsValid()){
-    data.SetComment("Intercept!");
-    data.SetValueColor(2);
-  }else{
-    data.SetCommentInvalid();
-    data.SetValueColor(0);
+  if (glide_result.IsOk()){
+    auto altd = glide_result.GetPureGlideAltitudeDifference(altitude.value());
+    // auto altd = glide_result.pure_glide_altitude_difference;
+    data.SetValueFromArrival(altd);
+    if (altd <= 0.0){
+      data.SetValueColor(1);
+      data.SetCommentInvalid();
+    }else if (intersection.IsValid()){
+      data.SetValueColor(2);
+      data.SetComment("Intercept!");
+    }else{
+      data.SetValueColor(0);
+    }
+  }else {
+    data.SetValueInvalid();
+    data.SetComment("Glide result not ok");
   }
 }
 
