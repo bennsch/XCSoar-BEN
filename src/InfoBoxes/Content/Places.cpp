@@ -16,6 +16,7 @@
 #include "Engine/GlideSolvers/MacCready.hpp"
 #include "Engine/GlideSolvers/GlideState.hpp"
 #include "Engine/GlideSolvers/GlideResult.hpp"
+#include "Engine/Waypoint/Waypoints.hpp"
 
 #include <iostream>
 
@@ -75,6 +76,8 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   const SpeedVector &wind = calculated.GetWindOrZero(); //TODO: reference ok here?
   const double &height_min_working = calculated.common_stats.height_min_working;
   const std::optional<double> altitude = basic.GetAnyAltitude();
+  auto &way_points = *data_components->waypoints;
+
 
   if (!basic.location_available
    || !flight.flying 
@@ -84,12 +87,26 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
     return;
   }
 
+  GeoPoint takeoff_location = flight.takeoff_location;
+  double takeoff_altitude = flight.takeoff_altitude;
+  tstring takeoff_name = "Takeoff";
+
+  //TODO: calculate only once and store in global
+  auto toWpt = way_points.GetNearestLandable(takeoff_location, 5000);
+  // auto toWpt = way_points.LookupName(_T("(takeoff)"));
+  if (toWpt != NULL){
+    takeoff_location = toWpt->location;
+    takeoff_altitude = toWpt->GetElevationOrZero();
+    takeoff_name = toWpt->name;
+  }
+
+
   //TODO: chose glide polar from user config
   //TODO: select waypoint based on takeoff location (GetNearest()), otherwise AltD will always look slightly off
   //TODO: don't show "Details" in InfoBox (currently still showing details for Next AltD)
 
-  auto target_alt = flight.takeoff_altitude + computer_settings.task.safety_height_arrival;
-  auto target_vector = GeoVector(basic.location, flight.takeoff_location); 
+  auto target_alt = takeoff_altitude + computer_settings.task.safety_height_arrival;
+  auto target_vector = GeoVector(basic.location, takeoff_location); 
 
   const MacCready mac_cready(computer_settings.task.glide, glide_polar_task);
   const GlideState glide_state(
@@ -98,6 +115,8 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
     altitude.value(),
     wind);
   GlideResult glide_result = mac_cready.Solve(glide_state);
+  // TODO: Should we use SolveStraight() instead?
+  // GlideResult glide_result = mac_cready.SolveStraight(glide_state) 
 
 
   //TODO: does it detect airspace intersection as well?
@@ -119,7 +138,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   //   *data_components->airspaces,
   //   backend_components->GetAirspaceWarnings(), 
   //   AGeoPoint(basic.location, altitude.value()), 
-  //   AGeoPoint(flight.takeoff_location, flight.takeoff_altitude)); //TODO: do I need to add safety height to takeoff_altitude?
+  //   AGeoPoint(takeoff_location, takeoff_altitude)); //TODO: do I need to add safety height to takeoff_altitude?
 
   route_planner.UpdatePolar(
     glide_settings,
@@ -131,10 +150,10 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
 
   auto intersection = route_planner.Intersection(
     AGeoPoint(basic.location, altitude.value()),
-    AGeoPoint(flight.takeoff_location, flight.takeoff_altitude) //TODO: do I need to add safety height to takeoff_altitude?
+    AGeoPoint(takeoff_location, takeoff_altitude) //TODO: do I need to add safety height to takeoff_altitude?
   );
 
-  // data.SetTitle(takeoff_waypoint_name)
+  data.SetTitle(_T(takeoff_name.c_str()));
 
   if (glide_result.IsOk()){
     auto altd = glide_result.GetPureGlideAltitudeDifference(altitude.value());
@@ -145,7 +164,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
       data.SetCommentInvalid();
     }else if (intersection.IsValid()){
       data.SetValueColor(2);
-      data.SetComment("Intercept!");
+      data.SetComment("Terrain!");
     }else{
       data.SetValueColor(3);
     }
