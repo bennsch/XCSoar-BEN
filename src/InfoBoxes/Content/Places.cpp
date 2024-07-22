@@ -66,61 +66,57 @@ void
 UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
 {
   const NMEAInfo &basic = CommonInterface::Basic();
-  const DerivedInfo &calculated = CommonInterface::Calculated(); 
-  const ComputerSettings &computer_settings = CommonInterface::GetComputerSettings();
+  const DerivedInfo &calculated = CommonInterface::Calculated();
+  const ComputerSettings &computer = CommonInterface::GetComputerSettings();
 
   const FlyingState &flight = calculated.flight;
-  const GlideSettings &glide_settings= computer_settings.task.glide;
-  const GlidePolar &glide_polar_task = computer_settings.polar.glide_polar_task;
+  const GlideSettings &glide_settings= computer.task.glide;
+  const GlidePolar &glide_polar_task = computer.polar.glide_polar_task;
   const GlidePolar &glide_polar_safety = calculated.glide_polar_safety;
   const SpeedVector &wind = calculated.GetWindOrZero(); //TODO: reference ok here?
-  const double &height_min_working = calculated.common_stats.height_min_working;
-  const std::optional<double> altitude = basic.GetAnyAltitude();
-  auto &way_points = *data_components->waypoints;
 
+  static WaypointPtr takeoff = NULL;
 
-  if (!basic.location_available
-   || !flight.flying 
-   || !flight.takeoff_location.IsValid()
-   || !altitude.has_value()) {
+  // Determine takeoff waypoint
+  if (takeoff == NULL && 
+      flight.flying &&
+      flight.HasTakenOff()){
+    takeoff = (*data_components->waypoints).GetNearestLandable(flight.takeoff_location, 5000);
+    if (takeoff == NULL){
+      Waypoint wp(flight.takeoff_location);
+      wp.elevation = flight.takeoff_altitude;
+      wp.has_elevation = true;
+      wp.name = "Takeoff";
+      wp.type = Waypoint::Type::OUTLANDING;
+      takeoff = std::make_unique<Waypoint>(wp);
+    }
+  }
+
+  // Check if all required data is available
+  if (takeoff == NULL 
+      || !basic.location_available 
+      || !basic.GetAnyAltitude().has_value()){
     data.SetInvalid();
     return;
   }
 
-  GeoPoint takeoff_location = flight.takeoff_location;
-  double takeoff_altitude = flight.takeoff_altitude;
-  tstring takeoff_name = "Takeoff";
-
-  //TODO: calculate only once and store in global
-  auto toWpt = way_points.GetNearestLandable(takeoff_location, 5000);
-  // auto toWpt = way_points.LookupName(_T("(takeoff)"));
-  if (toWpt != NULL){
-    takeoff_location = toWpt->location;
-    takeoff_altitude = toWpt->GetElevationOrZero();
-    takeoff_name = toWpt->name;
-  }
-
-
   //TODO: chose glide polar from user config
-  //TODO: select waypoint based on takeoff location (GetNearest()), otherwise AltD will always look slightly off
   //TODO: don't show "Details" in InfoBox (currently still showing details for Next AltD)
+  auto target_alt = takeoff->GetElevationOrZero() + computer.task.safety_height_arrival;
+  auto target_vector = GeoVector(basic.location, takeoff->location); 
 
-  auto target_alt = takeoff_altitude + computer_settings.task.safety_height_arrival;
-  auto target_vector = GeoVector(basic.location, takeoff_location); 
-
-  const MacCready mac_cready(computer_settings.task.glide, glide_polar_task);
+  const MacCready mac_cready(computer.task.glide, glide_polar_task);
   const GlideState glide_state(
     target_vector,
     target_alt,
-    altitude.value(),
+    basic.GetAnyAltitude().value(),
     wind);
-  GlideResult glide_result = mac_cready.Solve(glide_state);
   // TODO: Should we use SolveStraight() instead?
+  GlideResult glide_result = mac_cready.Solve(glide_state);
   // GlideResult glide_result = mac_cready.SolveStraight(glide_state) 
 
 
   //TODO: does it detect airspace intersection as well?
-
   // TODO: get values from user config
   RoutePlannerConfig route_config = {
     .mode = RoutePlannerConfig::Mode::BOTH,
@@ -146,30 +142,33 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
     glide_polar_task, 
     glide_polar_safety, 
     wind, 
-    height_min_working);
+    calculated.common_stats.height_min_working);
 
   auto intersection = route_planner.Intersection(
-    AGeoPoint(basic.location, altitude.value()),
-    AGeoPoint(takeoff_location, takeoff_altitude) //TODO: do I need to add safety height to takeoff_altitude?
+    AGeoPoint(basic.location, basic.GetAnyAltitude().value()),
+    AGeoPoint(takeoff->location, takeoff->elevation) //TODO: do I need to add safety height to takeoff_altitude?
   );
 
-  data.SetTitle(_T(takeoff_name.c_str()));
-
+  // Update InfoBox
+  data.SetTitle(_T(takeoff->name.c_str()));
   if (glide_result.IsOk()){
-    auto altd = glide_result.GetPureGlideAltitudeDifference(altitude.value());
-    // auto altd = glide_result.pure_glide_altitude_difference;
-    data.SetValueFromArrival(altd);
-    if (altd <= 0.0){
+    // auto alt_diff = glide_result.GetPureGlideAltitudeDifference(basic.GetAnyAltitude().value());
+    auto alt_diff = glide_result.pure_glide_altitude_difference;
+    data.SetValueFromArrival(alt_diff);
+    if (alt_diff <= 0.0){
       data.SetValueColor(1);
       data.SetCommentInvalid();
     }else if (intersection.IsValid()){
-      data.SetValueColor(2);
+      data.SetValueColor(5);
+      data.SetCommentColor(5);
       data.SetComment("Terrain!");
     }else{
       data.SetValueColor(3);
+      data.SetCommentInvalid();
     }
   }else {
     data.SetValueInvalid();
+    data.SetCommentColor(1);
     data.SetComment("Glide result not ok");
   }
 }
