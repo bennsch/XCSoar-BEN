@@ -65,6 +65,14 @@ UpdateInfoBoxTakeoffDistance(InfoBoxData &data) noexcept
 void
 UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
 {
+  // Display altitude difference to takeoff location. Assuming straight glide
+  // and using the task glide polar (current MC). Shows warning if terrain
+  // would be in glide path.
+
+
+  //TODO: don't show "Details" in InfoBox (currently still showing details for Next AltD)
+  //TODO: Detect airspace intersection
+
   const NMEAInfo &basic = CommonInterface::Basic();
   const DerivedInfo &calculated = CommonInterface::Calculated();
   const ComputerSettings &computer = CommonInterface::GetComputerSettings();
@@ -100,42 +108,31 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
     return;
   }
 
-  //TODO: chose glide polar from user config
-  //TODO: don't show "Details" in InfoBox (currently still showing details for Next AltD)
+  // Calculate arrival altitude difference
   auto target_alt = takeoff->GetElevationOrZero() + computer.task.safety_height_arrival;
   auto target_vector = GeoVector(basic.location, takeoff->location); 
-
   const MacCready mac_cready(computer.task.glide, glide_polar_task);
   const GlideState glide_state(
     target_vector,
     target_alt,
     basic.GetAnyAltitude().value(),
     wind);
-  // TODO: Should we use SolveStraight() instead?
-  GlideResult glide_result = mac_cready.Solve(glide_state);
-  // GlideResult glide_result = mac_cready.SolveStraight(glide_state) 
+  GlideResult glide_result = mac_cready.SolveStraight(glide_state);
 
-
-  //TODO: does it detect airspace intersection as well?
-  // TODO: get values from user config
+  // RoutePlannerConfig &route_config = computer.task.route_planner;
   RoutePlannerConfig route_config = {
-    .mode = RoutePlannerConfig::Mode::BOTH,
-    .allow_climb = true,
+    .mode = RoutePlannerConfig::Mode::TERRAIN,
+    .allow_climb = false,
     .use_ceiling = false,
-    .safety_height_terrain = 150,
+    .safety_height_terrain = computer.task.route_planner.safety_height_terrain,
     .reach_calc_mode = RoutePlannerConfig::ReachMode::STRAIGHT,
-    .reach_polar_mode = RoutePlannerConfig::Polar::SAFETY,
+    .reach_polar_mode = RoutePlannerConfig::Polar::TASK,
   };
 
+  // Check if glide path would intersect with terrain
   RoutePlannerGlue route_planner;
-  route_planner.Reset(); //TODO: call required?
+  route_planner.Reset();
   route_planner.SetTerrain(&(*data_components->terrain));
-  // route_planner.Synchronise(
-  //   *data_components->airspaces,
-  //   backend_components->GetAirspaceWarnings(), 
-  //   AGeoPoint(basic.location, altitude.value()), 
-  //   AGeoPoint(takeoff_location, takeoff_altitude)); //TODO: do I need to add safety height to takeoff_altitude?
-
   route_planner.UpdatePolar(
     glide_settings,
     route_config, 
@@ -144,21 +141,20 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
     wind, 
     calculated.common_stats.height_min_working);
 
-  auto intersection = route_planner.Intersection(
+  auto terrain_intersect = route_planner.Intersection(
     AGeoPoint(basic.location, basic.GetAnyAltitude().value()),
-    AGeoPoint(takeoff->location, takeoff->elevation) //TODO: do I need to add safety height to takeoff_altitude?
+    AGeoPoint(takeoff->location, takeoff->elevation)
   );
 
   // Update InfoBox
   data.SetTitle(_T(takeoff->name.c_str()));
   if (glide_result.IsOk()){
-    // auto alt_diff = glide_result.GetPureGlideAltitudeDifference(basic.GetAnyAltitude().value());
     auto alt_diff = glide_result.pure_glide_altitude_difference;
     data.SetValueFromArrival(alt_diff);
     if (alt_diff <= 0.0){
       data.SetValueColor(1);
       data.SetCommentInvalid();
-    }else if (intersection.IsValid()){
+    }else if (terrain_intersect.IsValid()){
       data.SetValueColor(5);
       data.SetCommentColor(5);
       data.SetComment("Terrain!");
