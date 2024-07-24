@@ -6,6 +6,8 @@
 #include "InfoBoxes/Panel/Panel.hpp"
 #include "InfoBoxes/Panel/ATCReference.hpp"
 #include "InfoBoxes/Panel/ATCSetup.hpp"
+#include "Dialogs/Waypoint/WaypointDialogs.hpp"
+#include "Widget/CallbackWidget.hpp"
 #include "Interface.hpp"
 #include "Language/Language.hpp"
 #include "Formatter/Units.hpp"
@@ -19,6 +21,9 @@
 #include "Engine/Waypoint/Waypoints.hpp"
 
 #include <iostream>
+
+static WaypointPtr takeoff_wp = NULL;
+
 
 void
 UpdateInfoBoxHomeDistance(InfoBoxData &data) noexcept
@@ -70,8 +75,8 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   // would be in glide path.
 
 
-  //TODO: don't show "Details" in InfoBox (currently still showing details for Next AltD)
   //TODO: Detect airspace intersection
+  //TODO: Display distance to takeoff waypoint
 
   const NMEAInfo &basic = CommonInterface::Basic();
   const DerivedInfo &calculated = CommonInterface::Calculated();
@@ -81,27 +86,25 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   const GlideSettings &glide_settings= computer.task.glide;
   const GlidePolar &glide_polar_task = computer.polar.glide_polar_task;
   const GlidePolar &glide_polar_safety = calculated.glide_polar_safety;
-  const SpeedVector &wind = calculated.GetWindOrZero(); //TODO: reference ok here?
-
-  static WaypointPtr takeoff = NULL;
+  const SpeedVector &wind = calculated.GetWindOrZero();
 
   // Determine takeoff waypoint
-  if (takeoff == NULL && 
+  if (takeoff_wp == NULL && 
       flight.flying &&
       flight.HasTakenOff()){
-    takeoff = (*data_components->waypoints).GetNearestLandable(flight.takeoff_location, 5000);
-    if (takeoff == NULL){
+    takeoff_wp = (*data_components->waypoints).GetNearestLandable(flight.takeoff_location, 5000);
+    if (takeoff_wp == NULL){
       Waypoint wp(flight.takeoff_location);
       wp.elevation = flight.takeoff_altitude;
       wp.has_elevation = true;
       wp.name = "Takeoff";
       wp.type = Waypoint::Type::OUTLANDING;
-      takeoff = std::make_unique<Waypoint>(wp);
+      takeoff_wp = std::make_unique<Waypoint>(wp);
     }
   }
 
   // Check if all required data is available
-  if (takeoff == NULL 
+  if (takeoff_wp == NULL 
       || !basic.location_available 
       || !basic.GetAnyAltitude().has_value()){
     data.SetInvalid();
@@ -109,8 +112,8 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   }
 
   // Calculate arrival altitude difference
-  auto target_alt = takeoff->GetElevationOrZero() + computer.task.safety_height_arrival;
-  auto target_vector = GeoVector(basic.location, takeoff->location); 
+  auto target_alt = takeoff_wp->GetElevationOrZero() + computer.task.safety_height_arrival;
+  auto target_vector = GeoVector(basic.location, takeoff_wp->location); 
   const MacCready mac_cready(computer.task.glide, glide_polar_task);
   const GlideState glide_state(
     target_vector,
@@ -143,11 +146,11 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
 
   auto terrain_intersect = route_planner.Intersection(
     AGeoPoint(basic.location, basic.GetAnyAltitude().value()),
-    AGeoPoint(takeoff->location, takeoff->elevation)
+    AGeoPoint(takeoff_wp->location, takeoff_wp->elevation)
   );
 
   // Update InfoBox
-  data.SetTitle(_T(takeoff->name.c_str()));
+  data.SetTitle(_T(takeoff_wp->name.c_str()));
   if (glide_result.IsOk()){
     auto alt_diff = glide_result.pure_glide_altitude_difference;
     data.SetValueFromArrival(alt_diff);
@@ -168,6 +171,31 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
     data.SetComment("Glide result not ok");
   }
 }
+
+static void
+ShowTakeoffAltitudeDiffDetails() noexcept
+{
+  if (takeoff_wp == NULL){
+    return;
+  }
+  dlgWaypointDetailsShowModal(data_components->waypoints.get(),
+                              std::move(takeoff_wp), false);
+}
+
+static std::unique_ptr<Widget>
+LoadTakeoffAltitudeDiffDetailsPanel([[maybe_unused]] unsigned id) noexcept
+{
+  return std::make_unique<CallbackWidget>(ShowTakeoffAltitudeDiffDetails);
+}
+
+#ifdef __clang__
+/* gcc gives "redeclaration differs in 'constexpr'" */
+constexpr
+#endif
+const InfoBoxPanel takeoff_alt_diff_infobox_panels[] = {
+  { N_("Details"), LoadTakeoffAltitudeDiffDetailsPanel },
+  { nullptr, nullptr }
+};
 
 #ifdef __clang__
 /* gcc gives "redeclaration differs in 'constexpr'" */

@@ -995,7 +995,7 @@ static constexpr MetaData meta_data[] = {
     N_("Takeoff AltD"),
     N_("Arrival altitude at the takeoff waypoint relative to the safety arrival height."),
     UpdateInfoBoxTakeoffAltitudeDiff,
-    next_waypoint_infobox_panels,
+    takeoff_alt_diff_infobox_panels,
   },
 
   // CONTEST_SPEED
