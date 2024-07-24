@@ -78,7 +78,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   //TODO: Detect airspace intersection
   //TODO: Display distance to takeoff waypoint
 
-  const NMEAInfo &basic = CommonInterface::Basic();
+  const MoreData &more_data = CommonInterface::Basic();
   const DerivedInfo &calculated = CommonInterface::Calculated();
   const ComputerSettings &computer = CommonInterface::GetComputerSettings();
 
@@ -105,20 +105,20 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
 
   // Check if all required data is available
   if (takeoff_wp == NULL 
-      || !basic.location_available 
-      || !basic.GetAnyAltitude().has_value()){
+      || !more_data.location_available 
+      || !more_data.NavAltitudeAvailable()){
     data.SetInvalid();
     return;
   }
 
   // Calculate arrival altitude difference
   auto target_alt = takeoff_wp->GetElevationOrZero() + computer.task.safety_height_arrival;
-  auto target_vector = GeoVector(basic.location, takeoff_wp->location); 
+  auto target_vector = GeoVector(more_data.location, takeoff_wp->location); 
   const MacCready mac_cready(computer.task.glide, glide_polar_task);
   const GlideState glide_state(
     target_vector,
     target_alt,
-    basic.GetAnyAltitude().value(),
+    more_data.nav_altitude,
     wind);
   GlideResult glide_result = mac_cready.SolveStraight(glide_state);
 
@@ -145,7 +145,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
     calculated.common_stats.height_min_working);
 
   auto terrain_intersect = route_planner.Intersection(
-    AGeoPoint(basic.location, basic.GetAnyAltitude().value()),
+    AGeoPoint(more_data.location, more_data.nav_altitude),
     AGeoPoint(takeoff_wp->location, takeoff_wp->elevation)
   );
 
