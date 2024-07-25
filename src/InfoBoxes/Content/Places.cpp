@@ -81,6 +81,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   const MoreData &more_data = CommonInterface::Basic();
   const DerivedInfo &calculated = CommonInterface::Calculated();
   const ComputerSettings &computer = CommonInterface::GetComputerSettings();
+  const auto &waypoints = *data_components->waypoints;
 
   const FlyingState &flight = calculated.flight;
   const GlideSettings &glide_settings= computer.task.glide;
@@ -88,19 +89,13 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   const GlidePolar &glide_polar_safety = calculated.glide_polar_safety;
   const SpeedVector &wind = calculated.GetWindOrZero();
 
-  // Determine takeoff waypoint
-  if (takeoff_wp == NULL && 
-      flight.flying &&
-      flight.HasTakenOff()){
-    //TODO: sometimes it will find "(takeoff)" waypoint first (race condition?)
-    takeoff_wp = (*data_components->waypoints).GetNearestLandable(flight.takeoff_location, 5000);
+  // Find takeoff waypoint
+  if (takeoff_wp == NULL && flight.flying && flight.HasTakenOff()){
+    takeoff_wp = waypoints.GetNearestLandable(flight.takeoff_location, 5000);
     if (takeoff_wp == NULL){
-      Waypoint wp(flight.takeoff_location);
-      wp.elevation = flight.takeoff_altitude;
-      wp.has_elevation = true;
-      wp.name = "Takeoff";
-      wp.type = Waypoint::Type::OUTLANDING;
-      takeoff_wp = std::make_unique<Waypoint>(wp);
+      // We did not take off near a landable waypoint. Find the auto generated
+      // takeoff waypoint.
+      takeoff_wp = waypoints.LookupName(_T("(takeoff)"));
     }
   }
 
