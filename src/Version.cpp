@@ -40,4 +40,4 @@ const char XCSoar_Version[] = VERSION;
 const TCHAR XCSoar_VersionLong[] = _T(VERSION VERSION_SUFFIX);
 const TCHAR XCSoar_VersionString[] = _T(VERSION VERSION_SUFFIX "-" TARGET);
 const TCHAR XCSoar_VersionStringOld[] = _T(TARGET " " VERSION VERSION_SUFFIX);
-const TCHAR XCSoar_ProductToken[] = _T("XCSoar v" VERSION VERSION_SUFFIX "-" TARGET GIT_SUFFIX);
+const TCHAR XCSoar_ProductToken[] = _T("BenCSoar v1.0  " "(" __DATE__ "--" __TIME__ ")");
