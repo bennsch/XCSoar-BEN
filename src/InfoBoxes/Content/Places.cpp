@@ -150,16 +150,19 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   if (glide_result.IsOk()){
     auto alt_diff = glide_result.pure_glide_altitude_difference;
     data.SetValueFromArrival(alt_diff);
+    data.SetCommentFromDistance(target_vector.distance);
     if (alt_diff <= 0.0){
+      // Below glide path.
       data.SetValueColor(1);
       data.SetCommentInvalid();
     }else if (terrain_intersect.IsValid()){
+      // Above glide path, but glide would intersect terrain.
       data.SetValueColor(5);
       data.SetCommentColor(5);
       data.SetComment("Terrain!");
     }else{
+      // Above glide path and no terrain intersection.
       data.SetValueColor(3);
-      data.SetCommentInvalid();
     }
   }else {
     data.SetValueInvalid();
