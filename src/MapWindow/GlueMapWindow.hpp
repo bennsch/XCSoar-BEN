@@ -242,6 +242,7 @@ private:
   void DrawGesture(Canvas &canvas) const noexcept;
   void DrawMapScale(Canvas &canvas, const PixelRect &rc,
                     const MapWindowProjection &projection) const noexcept;
+  void DrawFlightInfo(Canvas &canvas) const noexcept;
   void DrawFlightMode(Canvas &canvas, const PixelRect &rc) const noexcept;
   void DrawGPSStatus(Canvas &canvas, const PixelRect &rc,
                      const NMEAInfo &info) const noexcept;
