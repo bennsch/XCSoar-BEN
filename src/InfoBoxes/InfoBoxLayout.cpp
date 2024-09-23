@@ -20,6 +20,7 @@ static constexpr unsigned char geometry_counts[] = {
   12, // 3 rows X 4 boxes
   15, // 3 rows X 5 boxes
   18, // 3 rows X 6 boxes
+  6
 };
 
 namespace InfoBoxLayout {
@@ -121,6 +122,22 @@ InfoBoxLayout::Calculate(PixelRect rc, InfoBoxSettings::Geometry geometry) noexc
   unsigned right = rc.right;
 
   switch (geometry) {
+
+  case InfoBoxSettings::Geometry::SPLIT_6:
+    if (layout.landscape) {
+      rc.left = MakeLeftColumn(layout, layout.positions, 3,
+                               rc.left, rc.top, rc.bottom);
+      rc.right = MakeRightColumn(layout, layout.positions + 3, 3,
+                                 rc.right, rc.top, rc.bottom);
+    } else {
+      rc.top = MakeTopRow(layout, layout.positions, 3,
+                          rc.left, rc.right, rc.top);
+      rc.bottom = MakeBottomRow(layout, layout.positions + 3, 3,
+                                rc.left, rc.right, rc.bottom);
+    }
+
+    break;
+
   case InfoBoxSettings::Geometry::SPLIT_8:
   case InfoBoxSettings::Geometry::OBSOLETE_SPLIT_8:
     if (layout.landscape) {
@@ -425,6 +442,7 @@ InfoBoxLayout::ValidateGeometry(InfoBoxSettings::Geometry geometry,
     /* landscape */
 
     switch (geometry) {
+    case InfoBoxSettings::Geometry::SPLIT_6:
     case InfoBoxSettings::Geometry::SPLIT_8:
     case InfoBoxSettings::Geometry::SPLIT_10:
     case InfoBoxSettings::Geometry::SPLIT_3X4:
@@ -464,6 +482,7 @@ InfoBoxLayout::ValidateGeometry(InfoBoxSettings::Geometry geometry,
     /* portrait and square */
 
     switch (geometry) {
+    case InfoBoxSettings::Geometry::SPLIT_6:
     case InfoBoxSettings::Geometry::SPLIT_8:
     case InfoBoxSettings::Geometry::SPLIT_10:
     case InfoBoxSettings::Geometry::SPLIT_3X4:
@@ -537,6 +556,7 @@ InfoBoxLayout::CalcInfoBoxSizes(Layout &layout, PixelSize screen_size,
   const bool landscape = screen_size.width > screen_size.height;
 
   switch (geometry) {
+  case InfoBoxSettings::Geometry::SPLIT_6:
   case InfoBoxSettings::Geometry::SPLIT_8:
   case InfoBoxSettings::Geometry::SPLIT_10:
   case InfoBoxSettings::Geometry::BOTTOM_RIGHT_8:
@@ -654,6 +674,26 @@ InfoBoxLayout::GetBorder(InfoBoxSettings::Geometry geometry, bool landscape,
   unsigned border = 0;
 
   switch (geometry) {
+  case InfoBoxSettings::Geometry::SPLIT_6:
+    if (landscape) {
+      if (i != 2 && i != 6)
+        border |= BORDERBOTTOM;
+
+      if (i < 3)
+        border |= BORDERRIGHT;
+      else
+        border |= BORDERLEFT;
+    } else {
+      if (i < 3)
+        border |= BORDERBOTTOM;
+      else
+        border |= BORDERTOP;
+
+      if (i != 2 && i != 6)
+        border |= BORDERRIGHT;
+    }
+
+    break;
   case InfoBoxSettings::Geometry::SPLIT_8:
     if (landscape) {
       if (i != 3 && i != 7)

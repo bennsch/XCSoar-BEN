@@ -63,6 +63,8 @@ static constexpr StaticEnumChoice display_orientation_list[] = {
 };
 
 static constexpr StaticEnumChoice info_box_geometry_list[] = {
+  { InfoBoxSettings::Geometry::SPLIT_6,
+  N_("6 Split") },
   { InfoBoxSettings::Geometry::SPLIT_8,
     N_("8 Split") },
   { InfoBoxSettings::Geometry::SPLIT_10,
