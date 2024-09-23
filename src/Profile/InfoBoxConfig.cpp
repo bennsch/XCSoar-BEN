@@ -56,6 +56,7 @@ Profile::Load(const ProfileMap &map, InfoBoxSettings &settings)
 
   /* migrate from XCSoar older than 6.7 */
   switch (settings.geometry) {
+  case InfoBoxSettings::Geometry::SPLIT_6:
   case InfoBoxSettings::Geometry::SPLIT_8:
   case InfoBoxSettings::Geometry::SPLIT_10:
   case InfoBoxSettings::Geometry::SPLIT_3X4:
