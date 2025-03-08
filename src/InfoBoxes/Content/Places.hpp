@@ -9,6 +9,9 @@ void
 UpdateInfoBoxHomeDistance(InfoBoxData &data) noexcept;
 
 void
+UpdateInfoBoxHomeAltitudeDiff(InfoBoxData &data) noexcept;
+
+void
 UpdateInfoBoxTakeoffDistance(InfoBoxData &data) noexcept;
 
 void

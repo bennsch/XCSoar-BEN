@@ -26,11 +26,12 @@ BallastProcessTimer() noexcept
   last_fraction = settings.ballast_fraction_available;
 
   if (settings.ballast_overload_available.Modified(last_overload) &&
-      settings.ballast_overload >= 1 &&
-      plane.max_ballast > 0) {
-    auto fraction = ((settings.ballast_overload - 1) *
-                     (plane.empty_mass + polar.GetCrewMass())) / plane.max_ballast;
-    ActionInterface::SetBallast(fraction, false);
+      settings.ballast_overload >= 0.8 && plane.max_ballast > 0) {
+    auto overload =
+        ((settings.ballast_overload * plane.polar_shape.reference_mass) -
+         polar.GetCrewMass() - plane.empty_mass) /
+        plane.max_ballast;
+    ActionInterface::SetBallast(overload, false);
     modified = true;
   }
 
@@ -119,7 +120,7 @@ MacCreadyProcessTimer() noexcept
   }
 
   if (basic.settings.mac_cready_available.Modified(last_external_settings.mac_cready_available)) {
-    ActionInterface::SetMacCready(basic.settings.mac_cready, false);
+    ActionInterface::SetManualMacCready(basic.settings.mac_cready, false);
     modified = true;
   } else if (calculated.auto_mac_cready_available.Modified(last_auto_mac_cready)) {
     last_auto_mac_cready = calculated.auto_mac_cready_available;
@@ -171,10 +172,14 @@ TransponderProcess() noexcept
   const NMEAInfo &basic = CommonInterface::Basic();
 
   static Validity last_transponder_code;
+  static Validity last_transponder_mode;
 
   if (basic.settings.has_transponder_code.Modified(last_transponder_code)) {
-    ActionInterface::SetTransponderCode(basic.settings.transponder_code, false);
+    ActionInterface::SetTransponderCode(basic.settings.transponder_code, basic.settings.transponder_mode, false);
     last_transponder_code = basic.settings.has_transponder_code;
+    if (basic.settings.has_transponder_mode.Modified(last_transponder_mode))
+      last_transponder_mode = basic.settings.has_transponder_mode;
+
     modified = true;
   }
 

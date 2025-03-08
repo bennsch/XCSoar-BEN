@@ -29,7 +29,7 @@
 #include "util/PrintException.hxx"
 
 #ifdef ENABLE_SDL
-/* this is necessary on Mac OS X, to let libSDL bootstrap Quartz
+/* this is necessary on macOS, to let libSDL bootstrap Quartz
    before entering our main() */
 #include <SDL_main.h>
 #endif
@@ -129,7 +129,7 @@ try {
   InitialiseDataPath();
 
   // Write startup note + version to logfile
-  LogFormat(_T("Starting XCSoar %s"), XCSoar_ProductToken);
+  LogFormat(_T("Starting %s"), XCSoar_ProductToken);
 
   // Read options from the command line
   {

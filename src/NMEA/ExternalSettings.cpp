@@ -22,6 +22,7 @@ ExternalSettings::Clear()
   swap_frequencies.Clear();
   has_transponder_code.Clear();
   transponder_code.Clear();
+  transponder_mode.Clear();
   ballast_litres_available.Clear();
 }
 
@@ -99,6 +100,11 @@ ExternalSettings::Complement(const ExternalSettings &add)
     transponder_code = add.transponder_code;
   }
 
+  if (add.has_transponder_mode.Modified(has_transponder_mode) &&
+      add.transponder_mode.IsDefined()) {
+    has_transponder_mode = add.has_transponder_mode;
+    transponder_mode = add.transponder_mode;
+  }
 }
 
 void
@@ -188,7 +194,7 @@ ExternalSettings::ProvideBallastFraction(double value, TimeStamp time) noexcept
 bool
 ExternalSettings::ProvideBallastOverload(double value, TimeStamp time) noexcept
 {
-  if (value < 1 || value > 5)
+  if (value < 0.8 || value > 5)
     /* failed sanity check */
     return false;
 

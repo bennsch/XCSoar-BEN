@@ -104,7 +104,7 @@ ActionInterface::SetBallast(double ballast, bool to_devices) noexcept
     if (plane.empty_mass > 0) {
       auto dry_mass = plane.empty_mass + polar.GetCrewMass();
       auto overload = (dry_mass + ballast * plane.max_ballast) /
-        dry_mass;
+                      plane.polar_shape.reference_mass;
 
       MessageOperationEnvironment env;
       backend_components->devices->PutBallast(ballast, overload, env);
@@ -358,12 +358,16 @@ ActionInterface::ExchangeRadioFrequencies(bool to_devices) noexcept
 }
 
 void
-ActionInterface::SetTransponderCode(TransponderCode code, bool to_devices) noexcept
+ActionInterface::SetTransponderCode(TransponderCode code,
+                                    TransponderMode mode,
+                                    bool to_devices) noexcept
 {
   assert(code.IsDefined());
+  assert(mode.IsDefined());
 
   /* update interface settings */
   SetComputerSettings().transponder.transponder_code = code;
+  SetComputerSettings().transponder.transponder_mode = mode;
 
   /* update InfoBoxes (that might show the code setting) */
   InfoBoxManager::SetDirty();

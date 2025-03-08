@@ -11,6 +11,7 @@ on:
       - 'python/**'
       - '.github/workflows/build-container.yml'
       - '.github/workflows/build-unix.yml'
+      - '.github/workflows/build-translation.yml'
       - '.readthedocs.yaml'
     branches:
       - master
@@ -27,13 +28,14 @@ on:
       - 'python/**'
       - '.github/workflows/build-container.yml'
       - '.github/workflows/build-unix.yml'
+      - '.github/workflows/build-translation.yml'
       - '.readthedocs.yaml'
     branches:
       - master
 
 env:
   DEBUG: y
-  BOOST: boost_1_85_0
+  BOOST: boost_1_87_0
 
 jobs:
   release:
@@ -138,14 +140,6 @@ jobs:
             target_ext: .exe
             target_upload: true
             target_container: debian:bookworm-slim
-          - os: macos-12
-            target: OSX64
-            target_bin: XCSoar
-            target_bin_path: bin
-            target_final: XCSoar
-            target_ext: ''
-            target_upload: false
-            target_container: ''
           - os: macos-14
             target: MACOS
             target_bin: XCSoar
@@ -186,7 +180,7 @@ jobs:
           submodules: true
 
       - name: Cache ccache
-        uses: hendrikmuhs/ccache-action@v1
+        uses: hendrikmuhs/ccache-action@v1.2
         with:
           key: ${{ matrix.target }}-ccache
 

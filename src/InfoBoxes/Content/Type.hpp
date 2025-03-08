@@ -138,7 +138,7 @@ namespace InfoBoxFactory
     e_StandbyRadio, /* Standby Radio Frequency */
     e_Thermal_Time, /* Time in Thermal*/
     e_Alternate_2_GR, /* Geometric gradient to the arrival height above the second alternate. This is not adjusted for total energy */
-    /* 120..127 */
+    /* 120..128 */
     e_HeartRate,
     e_TransponderCode, /* Transponder code */
     e_EngineCHT,  /* Engine Cylinder Head Temperature */
@@ -146,6 +146,7 @@ namespace InfoBoxFactory
     e_EngineRPM,  /* Engine Revolutions Per Minute */
     e_AAT_dT_or_ETA, /* Delta time in AAT task and ETA in racing task */
     e_SpeedTaskEst, /* Estimated (predicted) whole-task average cross-country speed for current task. Affected by MC setting. */
+    e_Home_AltDiff, /* Arrival altitude at the home waypoint (if defined) relative to the safety arrival height */
     e_NUM_TYPES /* Last item */
   };
 
