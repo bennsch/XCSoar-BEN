@@ -110,9 +110,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   // and using the task glide polar (current MC). Shows warning if terrain
   // would be in glide path.
 
-
   //TODO: Detect airspace intersection
-  //TODO: Display distance to takeoff waypoint
 
   const MoreData &more_data = CommonInterface::Basic();
   const DerivedInfo &calculated = CommonInterface::Calculated();
@@ -187,10 +185,10 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
     auto alt_diff = glide_result.pure_glide_altitude_difference;
     data.SetValueFromArrival(alt_diff);
     data.SetCommentFromDistance(target_vector.distance);
+    data.SetCommentColor(0);
     if (alt_diff <= 0.0){
       // Below glide path.
       data.SetValueColor(1);
-      data.SetCommentInvalid();
     }else if (terrain_intersect.IsValid()){
       // Above glide path, but glide would intersect terrain.
       data.SetValueColor(5);
