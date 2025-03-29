@@ -221,7 +221,7 @@ class NativeView extends SurfaceView
     int resourceId = resources.getIdentifier(name, "drawable", "org.xcsoar");
     if (resourceId == 0) {
       resourceId = resources.getIdentifier(name, "drawable",
-                                           "org.xcsoar.bencsoar");
+                                           "org.xcsoar.bozosoar");
       if (resourceId == 0)
         return null;
     }

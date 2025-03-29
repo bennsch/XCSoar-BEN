@@ -55,11 +55,11 @@ ifeq ($(GREYSCALE),y)
   TARGET_CPPFLAGS += -DGREYSCALE
 endif
 
-# When enabled, the Androidpackage org.xcsoar.bencsoar is created, with
+# When enabled, the Androidpackage org.xcsoar.testing is created, with
 # a red Activity icon, to allow simultaneous installation of "stable"
 # and "testing".
 # In the stable branch, this should default to "n".
-TESTING = y
+TESTING = n
 
 ifeq ($(TESTING),y)
   TARGET_CPPFLAGS += -DXCSOAR_TESTING
