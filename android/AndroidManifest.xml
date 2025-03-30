@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="org.xcsoar"
+          package="org.xcsoar.ben"
           android:installLocation="auto"
-          android:versionCode="165"
-          android:versionName="7.44">
+          android:versionCode="1"
+          android:versionName="7.44_BEN_v1.0">
   <application
       android:requestLegacyExternalStorage="true"
       android:preserveLegacyExternalStorage="true"
@@ -11,7 +11,7 @@
       android:appCategory="maps"
       android:icon="@drawable/icon"
       android:label="@string/app_name">
-    <activity android:name=".XCSoar"
+    <activity android:name="org.xcsoar.XCSoar"
               android:showOnLockScreen="true"
               android:showWhenLocked="true"
               android:exported="true"
@@ -45,10 +45,10 @@
                  android:value="2.1"/>
     </activity>
 
-    <service android:name=".MyService" android:foregroundServiceType="location"/>
+    <service android:name="org.xcsoar.MyService" android:foregroundServiceType="location"/>
 
     <!-- this Activity receives scanned QR codes -->
-    <activity android:name=".ReceiveTaskActivity"
+    <activity android:name="org.xcsoar.ReceiveTaskActivity"
               android:exported="true">
       <intent-filter>
         <action android:name="android.intent.action.VIEW" />
@@ -62,13 +62,13 @@
     </activity>
 
     <provider android:name="org.xcsoar.FileProvider"
-              android:authorities="org.xcsoar"
+              android:authorities="org.xcsoar.ben"
               android:exported="false"
               android:grantUriPermissions="true"/>
 
     <provider
-        android:name=".AllFilesDocumentsProvider"
-        android:authorities="org.xcsoar.allfiles"
+        android:name="org.xcsoar.AllFilesDocumentsProvider"
+        android:authorities="org.xcsoar.ben.allfiles"
         android:exported="true"
         android:grantUriPermissions="true"
         android:permission="android.permission.MANAGE_DOCUMENTS">
