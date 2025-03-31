@@ -42,7 +42,7 @@ public class MyService extends Service {
     notificationManager = (NotificationManager)getSystemService(NOTIFICATION_SERVICE);
 
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      String name = "XCSoar";
+      String name = "XCSoar-BEN";
 
       /* this disables sound: */
       int importance = NotificationManager.IMPORTANCE_LOW;
@@ -63,8 +63,8 @@ public class MyService extends Service {
     Notification.Builder builder = createNotificationBuilder(context)
       .setOngoing(true)
       .setContentIntent(intent)
-      .setContentTitle("XCSoar")
-      .setContentText("XCSoar is running")
+      .setContentTitle("XCSoar-BEN")
+      .setContentText("XCSoar-BEN is running")
       .setSmallIcon(R.drawable.notification_icon);
 
     return builder.build();
