@@ -205,6 +205,7 @@ public:
 protected:
   /* virtual methods from class MapWindow */
   void Render(Canvas &canvas, const PixelRect &rc) noexcept override;
+  void DrawFlightInfo(Canvas &canvas) const noexcept;
   void DrawThermalEstimate(Canvas &canvas) const noexcept override;
   void RenderTrail(Canvas &canvas,
                    const PixelPoint aircraft_pos) noexcept override;

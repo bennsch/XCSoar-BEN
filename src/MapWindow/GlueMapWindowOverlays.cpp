@@ -21,6 +21,9 @@
 #include "Look/GestureLook.hpp"
 #include "Input/InputEvents.hpp"
 #include "Renderer/MapScaleRenderer.hpp"
+#include "Interface.hpp"
+#include "Units/Units.hpp"
+#include "Units/Descriptor.hpp"
 
 #include <algorithm> // for std::clamp()
 
@@ -357,6 +360,55 @@ GlueMapWindow::DrawMapScale(Canvas &canvas, const PixelRect &rc,
     mode.shape = LabelShape::OUTLINED;
 
     TextInBox(canvas, buffer, {0, scale_pos.bottom - height}, mode, rc, nullptr);
+  }
+}
+
+void
+GlueMapWindow::DrawFlightInfo(Canvas &canvas) const noexcept
+{
+  if (!render_projection.IsValid())
+    return;
+
+  StaticString<80> buffer;
+  buffer.clear();
+
+  const ComputerSettings &computer = CommonInterface::GetComputerSettings();
+
+  const TCHAR* plane_registration = computer.plane.registration;
+  // const TCHAR* plane_type = computer.plane.type;
+
+  int crew_mass = Units::ToUserUnit(
+    computer.polar.glide_polar_task.GetCrewMass(),
+    Units::GetUserMassUnit());
+  const TCHAR* mass_unit = Units::GetUnitName(Units::GetUserMassUnit());
+
+  // const TaskStats &task_stats = CommonInterface::Calculated().task_stats;
+    // task_stats.total.solution_mc0.v_opt,
+  // int best_ld_speed = Units::ToUserUnit(
+    // computer.polar.glide_polar_task.GetVBestLD(), // Best L/D at current MC setting! But I want at MC0.
+    // Units::GetUserSpeedUnit());
+  // const TCHAR* speed_unit = Units::GetUnitName(Units::GetUserTaskSpeedUnit());
+
+  buffer.AppendFormat(
+      _T("%s, %d %s"),
+      plane_registration, crew_mass, mass_unit);
+
+  if (!buffer.empty()) {
+    const Font &font = *look.overlay.overlay_font;
+    canvas.Select(font);
+    TextInBoxMode mode;
+    mode.vertical_position = TextInBoxMode::VerticalPosition::ABOVE;
+    mode.shape = LabelShape::OUTLINED;
+    // mode.shape = LabelShape::ROUNDED_WHITE;
+    // mode.shape = LabelShape::FILLED;
+    // mode.shape = LabelShape::OUTLINED_INVERTED;
+    // mode.shape = LabelShape::ROUNDED_BLACK;
+
+    PixelRect client_rect = GetClientRect();
+    TextInBox(
+      canvas, buffer,
+      {client_rect.right - (int)canvas.CalcTextSize(buffer).width - 3, client_rect.bottom},
+      mode, client_rect, nullptr);
   }
 }
 
