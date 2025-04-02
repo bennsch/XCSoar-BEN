@@ -15,3 +15,6 @@ extern const TCHAR XCSoar_VersionString[];
 extern const TCHAR XCSoar_VersionStringOld[];
 /** XCSoar v5.2.5F-PC */
 extern const TCHAR XCSoar_ProductToken[];
+
+extern const TCHAR XCSoar_VersionFull[];
+extern const TCHAR XCSoar_GitSuffix[];

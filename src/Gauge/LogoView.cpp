@@ -152,5 +152,6 @@ LogoView::draw(Canvas &canvas, const PixelRect &rc) noexcept
 
   canvas.SetTextColor(COLOR_BLACK);
   canvas.SetBackgroundTransparent();
-  canvas.DrawText({2, 2}, XCSoar_ProductToken);
+  canvas.DrawText({2, 2}, XCSoar_VersionFull);
+  canvas.DrawText({2, 58}, XCSoar_GitSuffix);
 }
