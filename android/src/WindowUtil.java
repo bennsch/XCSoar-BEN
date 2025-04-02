@@ -6,6 +6,7 @@ package org.xcsoar;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.View;
+import android.os.Build;
 
 /**
  * A library of utility functions for class #Window.
@@ -42,6 +43,11 @@ class WindowUtil {
   }
 
   static void enterFullScreenMode(Window window) {
+    /* layoutInDisplayCutoutMode was added in API 28 (Android 9.0) */
+    if (Build.VERSION.SDK_INT >= 28) {
+        window.getAttributes().layoutInDisplayCutoutMode
+         = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS;
+    }
     window.addFlags(FULL_SCREEN_WINDOW_FLAGS);
     enableImmersiveMode(window);
   }
