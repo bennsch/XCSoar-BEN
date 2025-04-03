@@ -125,9 +125,10 @@ namespace InfoBoxFactory
     WP_NOMINAL_DIST, /* The nominal distance to the currently selected waypoint. For AAT tasks, this is the distance to the origin of the AAT sector */
     CIRCLE_DIAMETER,
     TAKEOFF_DISTANCE,
+    e_Takeoff_AltDiff,
     CONTEST_SPEED,
-    FIN_MC0_ALTD,
     /* 110..119 */
+    FIN_MC0_ALTD,
     NEXT_ARROW,
     e_WP_ETA_VMG, /* Estimated arrival time at next waypoint assuming current speed is maintained*/
     e_NonCircling_Climb_Perc,
@@ -137,8 +138,8 @@ namespace InfoBoxFactory
     e_StandbyRadio, /* Standby Radio Frequency */
     e_Thermal_Time, /* Time in Thermal*/
     e_Alternate_2_GR, /* Geometric gradient to the arrival height above the second alternate. This is not adjusted for total energy */
+    /* 120..128 */
     e_HeartRate,
-    /* 120..127 */
     e_TransponderCode, /* Transponder code */
     e_EngineCHT,  /* Engine Cylinder Head Temperature */
     e_EngineEGT,  /* Engine Exhaust Gas Temperature */
