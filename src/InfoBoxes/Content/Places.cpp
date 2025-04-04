@@ -152,32 +152,38 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
     wind);
   GlideResult glide_result = mac_cready.SolveStraight(glide_state);
 
-  // RoutePlannerConfig &route_config = computer.task.route_planner;
-  RoutePlannerConfig route_config = {
-    .mode = RoutePlannerConfig::Mode::TERRAIN,
-    .allow_climb = false,
-    .use_ceiling = false,
-    .safety_height_terrain = computer.task.route_planner.safety_height_terrain,
-    .reach_calc_mode = RoutePlannerConfig::ReachMode::STRAIGHT,
-    .reach_polar_mode = RoutePlannerConfig::Polar::TASK,
-  };
-
   // Check if glide path would intersect with terrain
-  RoutePlannerGlue route_planner;
-  route_planner.Reset();
-  route_planner.SetTerrain(&(*data_components->terrain));
-  route_planner.UpdatePolar(
-    glide_settings,
-    route_config, 
-    glide_polar_task, 
-    glide_polar_safety, 
-    wind, 
-    calculated.common_stats.height_min_working);
+  bool intersects_terrain;
+  if (data_components->terrain.get() == nullptr){
+    intersects_terrain = false;
+  } else {
+    // RoutePlannerConfig &route_config = computer.task.route_planner;
+    RoutePlannerConfig route_config = {
+      .mode = RoutePlannerConfig::Mode::TERRAIN,
+      .allow_climb = false,
+      .use_ceiling = false,
+      .safety_height_terrain = computer.task.route_planner.safety_height_terrain,
+      .reach_calc_mode = RoutePlannerConfig::ReachMode::STRAIGHT,
+      .reach_polar_mode = RoutePlannerConfig::Polar::TASK,
+    };
 
-  auto terrain_intersect = route_planner.Intersection(
-    AGeoPoint(more_data.location, more_data.nav_altitude),
-    AGeoPoint(takeoff_wp->location, takeoff_wp->elevation)
-  );
+    RoutePlannerGlue route_planner;
+    route_planner.Reset();
+    route_planner.SetTerrain(data_components->terrain.get());
+    route_planner.UpdatePolar(
+      glide_settings,
+      route_config, 
+      glide_polar_task, 
+      glide_polar_safety, 
+      wind, 
+      calculated.common_stats.height_min_working);
+
+    auto terrain_intersect = route_planner.Intersection(
+      AGeoPoint(more_data.location, more_data.nav_altitude),
+      AGeoPoint(takeoff_wp->location, takeoff_wp->elevation)
+    );
+    intersects_terrain = terrain_intersect.IsValid();
+  }
 
   // Update InfoBox
   data.SetTitle(_T(takeoff_wp->name.c_str()));
@@ -189,7 +195,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
     if (alt_diff <= 0.0){
       // Below glide path.
       data.SetValueColor(1);
-    }else if (terrain_intersect.IsValid()){
+    }else if (intersects_terrain){
       // Above glide path, but glide would intersect terrain.
       data.SetValueColor(5);
       data.SetCommentColor(5);
