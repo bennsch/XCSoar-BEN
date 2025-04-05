@@ -5,7 +5,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xcsoar\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-28 05:34+0000\n"
+"POT-Creation-Date: 2025-04-05 14:30+0000\n"
 "PO-Revision-Date: 2024-09-09 08:09+0000\n"
 "Last-Translator: Miroslav Burdych <mirek.burdych@gmail.com>\n"
 "Language-Team: Czech <https://hosted.weblate.org/projects/xcsoar/"
@@ -866,6 +866,7 @@ msgstr "Rel. výška"
 #: src/Dialogs/Task/TaskPointDialog.cpp:220
 #: src/Dialogs/Task/AlternatesListDialog.cpp:108
 #: src/Dialogs/Weather/NOAAList.cpp:97 src/InfoBoxes/Content/Task.cpp:51
+#: src/InfoBoxes/Content/Places.cpp:235
 #, no-c-format
 msgid "Details"
 msgstr "Detail"
@@ -993,7 +994,7 @@ msgstr "Ručně"
 #: src/PageSettings.cpp:50 src/PageSettings.cpp:53
 #: src/Dialogs/Settings/Panels/AirspaceConfigPanel.cpp:42
 #: src/Dialogs/Settings/Panels/GaugesConfigPanel.cpp:30
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:140
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:142
 #: src/Dialogs/Settings/Panels/PagesConfigPanel.cpp:186
 #: src/Dialogs/Settings/Panels/PagesConfigPanel.cpp:374
 #: src/Dialogs/Settings/Panels/SymbolsConfigPanel.cpp:67
@@ -1050,7 +1051,7 @@ msgstr "Celá"
 #: src/Dialogs/Settings/Panels/GaugesConfigPanel.cpp:26
 #: src/Dialogs/Settings/Panels/GaugesConfigPanel.cpp:67
 #: src/Dialogs/Settings/Panels/InterfaceConfigPanel.cpp:172
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:142
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:144
 #: src/Dialogs/Settings/Panels/LoggerConfigPanel.cpp:45
 #: src/Dialogs/Settings/Panels/RouteConfigPanel.cpp:111
 #: src/Dialogs/Settings/Panels/RouteConfigPanel.cpp:141
@@ -1071,7 +1072,7 @@ msgstr "Vyp"
 #: src/Dialogs/StatusPanels/SystemStatusPanel.cpp:94
 #: src/Dialogs/Settings/Panels/GaugesConfigPanel.cpp:28
 #: src/Dialogs/Settings/Panels/InterfaceConfigPanel.cpp:173
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:144
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:146
 #: src/Dialogs/Settings/Panels/LoggerConfigPanel.cpp:43
 #: src/Dialogs/Settings/Panels/SymbolsConfigPanel.cpp:66
 #: src/Dialogs/Settings/Panels/TerrainDisplayConfigPanel.cpp:248
@@ -2426,7 +2427,7 @@ msgstr "Databáze překážek"
 #: src/Dialogs/Device/LX/ManageNanoDialog.cpp:60
 #: src/Dialogs/Settings/dlgConfiguration.cpp:148
 #: src/InfoBoxes/Content/Altitude.cpp:28 src/InfoBoxes/Content/MacCready.cpp:31
-#: src/InfoBoxes/Content/Places.cpp:99
+#: src/InfoBoxes/Content/Places.cpp:245
 #, no-c-format
 msgid "Setup"
 msgstr "Nastav"
@@ -5038,220 +5039,225 @@ msgid "Reverse Landscape"
 msgstr "Obráceně na šířku"
 
 #: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:67
-#, no-c-format
-msgid "8 Split"
+#, fuzzy, no-c-format
+msgid "6 Split"
 msgstr "8 rozděleno"
 
 #: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:69
 #, no-c-format
+msgid "8 Split"
+msgstr "8 rozděleno"
+
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:71
+#, no-c-format
 msgid "10 Split"
 msgstr "10 rozděleno"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:71
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:73
 #, no-c-format
 msgid "12 Split in 3 rows"
 msgstr "12 rozděleno / 3 řady"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:73
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:75
 #, no-c-format
 msgid "15 Split in 3 rows"
 msgstr "15 rozděleno / 3 řady"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:75
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:77
 #, no-c-format
 msgid "18 Split in 3 rows"
 msgstr "18 rozděleno / 3 řady"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:77
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:79
 #, no-c-format
 msgid "8 Bottom or Right"
 msgstr "8 dole nebo vpravo"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:79
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:81
 #, no-c-format
 msgid "8 Bottom + Vario (Portrait)"
 msgstr "8 dole + vário (na výšku)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:81
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:83
 #, no-c-format
 msgid "8 Top or Left"
 msgstr "8 nahoře nebo vlevo"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:83
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:85
 #, no-c-format
 msgid "8 Top + Vario (Portrait)"
 msgstr "8 nahoře + vário (na výšku)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:85
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:87
 #, no-c-format
 msgid "9 Right + Vario (Landscape)"
 msgstr "9 vpravo + vário (na šířku)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:87
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:89
 #, no-c-format
 msgid "9 Left + Right + Vario (Landscape)"
 msgstr "9 vlevo + vpravo + vário (na šířku)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:89
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:91
 #, no-c-format
 msgid "12 Left + 3 Right Vario (Landscape)"
 msgstr "12 vlevo + 3 vpravo + vário (na šířku)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:91
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:93
 #, no-c-format
 msgid "5 Right (Square)"
 msgstr "5 vpravo (čtverec)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:93
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:95
 #, no-c-format
 msgid "10 Bottom or Right"
 msgstr "10 dole nebo vpravo"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:95
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:97
 #, no-c-format
 msgid "12 Bottom or Right"
 msgstr "12 dole nebo vpravo"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:97
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:99
 #, no-c-format
 msgid "10 Top or Left"
 msgstr "10 nahoře nebo vlevo"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:99
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:101
 #, no-c-format
 msgid "12 Top or Left"
 msgstr "12 nahoře nebo vlevo"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:101
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:103
 #, no-c-format
 msgid "16 Right (Landscape)"
 msgstr "16 vpravo (na šířku)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:103
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:105
 #, no-c-format
 msgid "24 Bottom or Right"
 msgstr "24 dole nebo vpravo"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:105
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:107
 #, no-c-format
 msgid "4 Top or Left"
 msgstr "4 nahoře nebo vlevo"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:107
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:109
 #, no-c-format
 msgid "4 Bottom or Right"
 msgstr "4 dole nebo vpravo"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:112
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:114
 #, no-c-format
 msgid "Text"
 msgstr "Text"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:113
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:115
 #, no-c-format
 msgid "Show text on tabbed dialogs."
 msgstr "Na záložkách zobrazovat text."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:114
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:116
 #, no-c-format
 msgid "Icons"
 msgstr "Ikony"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:115
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:117
 #, no-c-format
 msgid "Show icons on tabbed dialogs."
 msgstr "Na záložkách zobrazovat ikony."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:120
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:122
 #, no-c-format
 msgid "Center"
 msgstr "Střed"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:121
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:123
 #, no-c-format
 msgid "Center the status message boxes."
 msgstr "Vystředí okno se zprávou."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:122
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:124
 #, no-c-format
 msgid "Topleft"
 msgstr "Nahoře vlevo"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:123
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:125
 #, no-c-format
 msgid "Show status message boxes ina the top left corner."
 msgstr "Zobrazí okno se zprávou v levém horním rohu."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:129
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:131
 #, no-c-format
 msgid "Box"
 msgstr "Box"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:129
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:131
 #, no-c-format
 msgid "Draws boxes around each InfoBox."
 msgstr "Vykreslí okraje kolem každého InfoBoxu."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:131
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:133
 #, no-c-format
 msgid "Tab"
 msgstr "Záložka"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:131
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:133
 #, no-c-format
 msgid "Draws a tab at the top of the InfoBox across the title."
 msgstr "Vykreslí na horní straně InfoBoxu záložku."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:133
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:135
 #, no-c-format
 msgid "Shaded"
 msgstr "Stínování"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:135
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:137
 #, no-c-format
 msgid "Glass"
 msgstr "Sklo"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:141
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:143
 #, no-c-format
 msgid "Use the system-wide setting"
 msgstr "Použije nastavení systému"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:143
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:145
 #, no-c-format
 msgid "Black text on white background"
 msgstr "Černý text na bílém pozadí"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:145
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:147
 #, no-c-format
 msgid "White text on black background"
 msgstr "Bílý text na tmavém pozadí"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:168
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:170
 msgid "Full screen"
 msgstr "Celá obrazovka"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:168
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:170
 msgid "Run XCSoar in full screen mode"
 msgstr "Spustí XCSoar v celoobrazovkovém režimu"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:173
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:175
 msgid "Display orientation"
 msgstr "Orientace displeje"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:173
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:175
 msgid "Rotate the display on devices that support it."
 msgstr "Otočení displeje na zařízení, které to podporují."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:178
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:180
 msgid "Dark mode"
 msgstr "Tmavý mód"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:182
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:184
 msgid "InfoBox geometry"
 msgstr "Geometrie InfoBoxů"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:183
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:185
 msgid ""
 "A list of possible InfoBox layouts. Do some trials to find the best for your "
 "screen size."
@@ -5259,28 +5265,28 @@ msgstr ""
 "Seznam možných rozložení InfoBoxů. Vyzkoušejte si různá nastavení, aby jste "
 "našli nejvhodnější pro vaši velikost obrazovky."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:186
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:188
 #, fuzzy
 msgid "InfoBox title size"
 msgstr "InfoBox názvy"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:186
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:188
 msgid "Zoom factor for InfoBox title and comment text"
 msgstr ""
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:191
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:193
 msgid "Tab dialog style"
 msgstr "Styl záložek"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:194
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:196
 msgid "Message display"
 msgstr "Zobrazení zpráv"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:200
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:202
 msgid "Colored InfoBoxes"
 msgstr "Barevné InfoBoxy"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:201
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:203
 msgid ""
 "If true, certain InfoBoxes will have coloured text.  For example, the active "
 "waypoint InfoBox will be blue when the glider is above final glide."
@@ -5288,41 +5294,41 @@ msgstr ""
 "Pokud je zapnuto, určité InfoBoxy budou mít barevný text. Například aktivní "
 "otočný bod bude modrý, pokud je kluzák nad dokluzovou výškou."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:208
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:210
 msgid "InfoBox border"
 msgstr "Okraje InfoBoxu"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:212
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:214
 msgid "Show Menubutton"
 msgstr "Tlačítko Menu"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:212
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:214
 msgid "Show the Menubutton"
 msgstr "Zobrazuje tlačítko Menu"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:215
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:217
 #, fuzzy
 msgid "Show Zoombutton"
 msgstr "Tlačítko Menu"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:215
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:217
 #, fuzzy
 msgid "Show the Zoombutton"
 msgstr "Zobrazuje tlačítko Menu"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:220
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:222
 msgid "Cursor zoom"
 msgstr "Zvětšení kurzoru"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:220
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:222
 msgid "Cursor zoom factor"
 msgstr "Faktor zvětšení kurzoru"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:222
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:224
 msgid "Invert cursor color"
 msgstr "Inverze barvy kurzoru"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:222
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:224
 msgid "Enable black cursor"
 msgstr "Aktivuje černý kurzor"
 
@@ -9845,16 +9851,33 @@ msgid "Distance to where take-off was detected."
 msgstr "Vzdálenost k detekovanému bodu vzletu."
 
 #: src/InfoBoxes/Content/Factory.cpp:994
+#, fuzzy, no-c-format
+msgid "Takeoff altitude difference"
+msgstr "Rozdíl výšky v úloze"
+
+#: src/InfoBoxes/Content/Factory.cpp:995
+#, fuzzy, no-c-format
+msgid "Takeoff AltD"
+msgstr "Čas startu"
+
+#: src/InfoBoxes/Content/Factory.cpp:996
+#, fuzzy, no-c-format
+msgid ""
+"Arrival altitude at the takeoff waypoint relative to the safety arrival "
+"height."
+msgstr "Výška příletu nad cílový bod trati relativně k bezpečné výšce příletu."
+
+#: src/InfoBoxes/Content/Factory.cpp:1003
 #, no-c-format
 msgid "Contest speed"
 msgstr "Soutěžní rychlost"
 
-#: src/InfoBoxes/Content/Factory.cpp:995
+#: src/InfoBoxes/Content/Factory.cpp:1004
 #, no-c-format
 msgid "Cont Speed"
 msgstr "Cont rychl"
 
-#: src/InfoBoxes/Content/Factory.cpp:996
+#: src/InfoBoxes/Content/Factory.cpp:1005
 #, no-c-format
 msgid ""
 "Instantaneous evaluation of the flown speed according to the configured "
@@ -9862,30 +9885,30 @@ msgid ""
 msgstr ""
 "Okamžité vyhodnocení dosažené rychlosti dle nastavených pravidel soutěže."
 
-#: src/InfoBoxes/Content/Factory.cpp:1001
+#: src/InfoBoxes/Content/Factory.cpp:1010
 #, no-c-format
 msgid "Final MC0 altitude difference"
 msgstr "Cíl - rozdíl výšek při MC0"
 
-#: src/InfoBoxes/Content/Factory.cpp:1002
+#: src/InfoBoxes/Content/Factory.cpp:1011
 #, no-c-format
 msgid "Fin MC0 AltD"
 msgstr "Cíl MC0 AltD"
 
-#: src/InfoBoxes/Content/Factory.cpp:1003
+#: src/InfoBoxes/Content/Factory.cpp:1012
 #, no-c-format
 msgid ""
 "Arrival altitude at the final waypoint with MC 0 setting relative to the "
 "safety arrival height."
 msgstr "Výška příletu do cíle s MC0 a zohledněním bezpečné výšky příletu."
 
-#: src/InfoBoxes/Content/Factory.cpp:1009
-#: src/InfoBoxes/Content/Factory.cpp:1010 src/InfoBoxes/Content/Task.cpp:929
+#: src/InfoBoxes/Content/Factory.cpp:1018
+#: src/InfoBoxes/Content/Factory.cpp:1019 src/InfoBoxes/Content/Task.cpp:929
 #, no-c-format
 msgid "Next arrow"
 msgstr "Šipka k OB"
 
-#: src/InfoBoxes/Content/Factory.cpp:1011
+#: src/InfoBoxes/Content/Factory.cpp:1020
 #, no-c-format
 msgid ""
 "Arrow pointing to the currently selected waypoint. The name of the waypoint "
@@ -9898,17 +9921,17 @@ msgstr ""
 "současné úlohy, střed vybrané jednobodové úlohy (GoTo), nebo cílový bod "
 "uvnitř AAT oblasti."
 
-#: src/InfoBoxes/Content/Factory.cpp:1021
+#: src/InfoBoxes/Content/Factory.cpp:1030
 #, no-c-format
 msgid "Next waypoint arrival time (ground speed)"
 msgstr "Čas příletu na příští otočný bod (rychlost vůči zemi)"
 
-#: src/InfoBoxes/Content/Factory.cpp:1022
+#: src/InfoBoxes/Content/Factory.cpp:1031
 #, no-c-format
 msgid "WP ETA VMG"
 msgstr "OB ETA GS"
 
-#: src/InfoBoxes/Content/Factory.cpp:1023
+#: src/InfoBoxes/Content/Factory.cpp:1032
 #, no-c-format
 msgid ""
 "Estimated arrival time at next waypoint, assuming current ground speed is "
@@ -9917,17 +9940,17 @@ msgstr ""
 "Odhadovaný čas příletu na další otočný bod, za předpokladu udržení současné "
 "rychlosti vůči zemi."
 
-#: src/InfoBoxes/Content/Factory.cpp:1030
+#: src/InfoBoxes/Content/Factory.cpp:1039
 #, no-c-format
 msgid "Percentage non-circling climb"
 msgstr "Procentní hodnota stoupání v přímém letu"
 
-#: src/InfoBoxes/Content/Factory.cpp:1031
+#: src/InfoBoxes/Content/Factory.cpp:1040
 #, no-c-format
 msgid "% Str Climb"
 msgstr "% Stoupání v přímém letu"
 
-#: src/InfoBoxes/Content/Factory.cpp:1032
+#: src/InfoBoxes/Content/Factory.cpp:1041
 #, no-c-format
 msgid ""
 "Percentage of time spent climbing without circling. These statistics are "
@@ -9936,17 +9959,17 @@ msgstr ""
 "Procentní hodnota času stráveném ve stoupání bez kroužení. Statistika se "
 "vynuluje při startu úlohy."
 
-#: src/InfoBoxes/Content/Factory.cpp:1038
+#: src/InfoBoxes/Content/Factory.cpp:1047
 #, no-c-format
 msgid "Percentage climb chart"
 msgstr "Procentuální graf stoupání"
 
-#: src/InfoBoxes/Content/Factory.cpp:1039
+#: src/InfoBoxes/Content/Factory.cpp:1048
 #, no-c-format
 msgid "Climb %"
 msgstr "Stoupání %"
 
-#: src/InfoBoxes/Content/Factory.cpp:1040
+#: src/InfoBoxes/Content/Factory.cpp:1049
 #, no-c-format
 msgid ""
 "Pie chart of time circling and climbing, circling and descending, and "
@@ -9955,17 +9978,17 @@ msgstr ""
 "Koláčový graf času stráveného kroužením a stoupáním, kroužením a klesáním a "
 "stoupáním v přímém letu."
 
-#: src/InfoBoxes/Content/Factory.cpp:1046
+#: src/InfoBoxes/Content/Factory.cpp:1055
 #, no-c-format
 msgid "Number of used satellites"
 msgstr "Počet používaných satelitů"
 
-#: src/InfoBoxes/Content/Factory.cpp:1047
+#: src/InfoBoxes/Content/Factory.cpp:1056
 #, no-c-format
 msgid "Satellites"
 msgstr "Satelity"
 
-#: src/InfoBoxes/Content/Factory.cpp:1048
+#: src/InfoBoxes/Content/Factory.cpp:1057
 #, no-c-format
 msgid ""
 "The number of actually used (seen) satellites by GPS module. If this "
@@ -9974,62 +9997,62 @@ msgstr ""
 "Počet používaných (viditelných) satelitů GPS modulu. Pokud tato informace "
 "není k dispozici, je zobrazeno '---'."
 
-#: src/InfoBoxes/Content/Factory.cpp:1054
+#: src/InfoBoxes/Content/Factory.cpp:1063
 #, no-c-format
 msgid "Active Radio Frequency"
 msgstr "Aktivní radiofrekvence"
 
-#: src/InfoBoxes/Content/Factory.cpp:1055
+#: src/InfoBoxes/Content/Factory.cpp:1064
 #, no-c-format
 msgid "Act Freq"
 msgstr "Akt freq"
 
-#: src/InfoBoxes/Content/Factory.cpp:1056
+#: src/InfoBoxes/Content/Factory.cpp:1065
 #, no-c-format
 msgid "The currently active Radio Frequency"
 msgstr "Aktivní radiofrekvence"
 
-#: src/InfoBoxes/Content/Factory.cpp:1061
+#: src/InfoBoxes/Content/Factory.cpp:1070
 #, no-c-format
 msgid "Standby Radio Frequency"
 msgstr "Záložní radiofrekvence"
 
-#: src/InfoBoxes/Content/Factory.cpp:1062
+#: src/InfoBoxes/Content/Factory.cpp:1071
 #, no-c-format
 msgid "Stby Freq"
 msgstr "Zál freq"
 
-#: src/InfoBoxes/Content/Factory.cpp:1063
+#: src/InfoBoxes/Content/Factory.cpp:1072
 #, no-c-format
 msgid "The currently standby Radio Frequency"
 msgstr "Záložní radiofrekvence"
 
-#: src/InfoBoxes/Content/Factory.cpp:1069
+#: src/InfoBoxes/Content/Factory.cpp:1078
 #, no-c-format
 msgid "Thermal time"
 msgstr "Čas kroužení"
 
-#: src/InfoBoxes/Content/Factory.cpp:1070
+#: src/InfoBoxes/Content/Factory.cpp:1079
 #, no-c-format
 msgid "TC Time"
 msgstr "STS Čas"
 
-#: src/InfoBoxes/Content/Factory.cpp:1071
+#: src/InfoBoxes/Content/Factory.cpp:1080
 #, no-c-format
 msgid "The time spend in the current thermal."
 msgstr "Čas strávený v současném stoupavém proudu."
 
-#: src/InfoBoxes/Content/Factory.cpp:1077
+#: src/InfoBoxes/Content/Factory.cpp:1086
 #, no-c-format
 msgid "Alternate 2 GR"
 msgstr "Alternativa 2 - klouzavý poměr"
 
-#: src/InfoBoxes/Content/Factory.cpp:1078
+#: src/InfoBoxes/Content/Factory.cpp:1087
 #, no-c-format
 msgid "Altn2 GR"
 msgstr "Altn2 KP"
 
-#: src/InfoBoxes/Content/Factory.cpp:1079
+#: src/InfoBoxes/Content/Factory.cpp:1088
 #, no-c-format
 msgid ""
 "Geometric gradient to the arrival height above the second alternate. This is "
@@ -10038,92 +10061,92 @@ msgstr ""
 "Geometrický gradient do výšky příletu k druhému nejvhodnějšímu záložnímu "
 "místu přistání. Není kompenzováno na celkovou energii TE."
 
-#: src/InfoBoxes/Content/Factory.cpp:1085
+#: src/InfoBoxes/Content/Factory.cpp:1094
 #, no-c-format
 msgid "Heart Rate"
 msgstr "Srdeční tep"
 
-#: src/InfoBoxes/Content/Factory.cpp:1086
+#: src/InfoBoxes/Content/Factory.cpp:1095
 #, no-c-format
 msgid "Heart"
 msgstr "Kardiograf"
 
-#: src/InfoBoxes/Content/Factory.cpp:1087
+#: src/InfoBoxes/Content/Factory.cpp:1096
 #, no-c-format
 msgid "Heart rate in beats per minute."
 msgstr "Srdeční tep v úderech za minutu."
 
-#: src/InfoBoxes/Content/Factory.cpp:1093
+#: src/InfoBoxes/Content/Factory.cpp:1102
 #, no-c-format
 msgid "Transponder Code"
 msgstr "Kód odpovídače"
 
-#: src/InfoBoxes/Content/Factory.cpp:1094
+#: src/InfoBoxes/Content/Factory.cpp:1103
 #, no-c-format
 msgid "XPDR Code"
 msgstr "XPDR kód"
 
-#: src/InfoBoxes/Content/Factory.cpp:1095
+#: src/InfoBoxes/Content/Factory.cpp:1104
 #, no-c-format
 msgid "The currently set Transponder code"
 msgstr "Nastavený kód odpovídače"
 
-#: src/InfoBoxes/Content/Factory.cpp:1101
+#: src/InfoBoxes/Content/Factory.cpp:1110
 #, no-c-format
 msgid "Engine CHT"
 msgstr "Teplota ECHT"
 
-#: src/InfoBoxes/Content/Factory.cpp:1102
+#: src/InfoBoxes/Content/Factory.cpp:1111
 #, no-c-format
 msgid "CHT"
 msgstr "CHT"
 
-#: src/InfoBoxes/Content/Factory.cpp:1103
+#: src/InfoBoxes/Content/Factory.cpp:1112
 #, no-c-format
 msgid "Engine Cylinder Head Temperature"
 msgstr "Teplota hlav válců motoru"
 
-#: src/InfoBoxes/Content/Factory.cpp:1109
+#: src/InfoBoxes/Content/Factory.cpp:1118
 #, no-c-format
 msgid "Engine EGT"
 msgstr "Teplota EGT"
 
-#: src/InfoBoxes/Content/Factory.cpp:1110
+#: src/InfoBoxes/Content/Factory.cpp:1119
 #, no-c-format
 msgid "EGT"
 msgstr "EGT"
 
-#: src/InfoBoxes/Content/Factory.cpp:1111
+#: src/InfoBoxes/Content/Factory.cpp:1120
 #, no-c-format
 msgid "Engine Exhaust Gas Temperature"
 msgstr "Teplota výfukových plynů motoru"
 
-#: src/InfoBoxes/Content/Factory.cpp:1117
+#: src/InfoBoxes/Content/Factory.cpp:1126
 #, no-c-format
 msgid "Engine Revolutions Per Minute"
 msgstr "Počet otáček motoru za minutu"
 
-#: src/InfoBoxes/Content/Factory.cpp:1118
+#: src/InfoBoxes/Content/Factory.cpp:1127
 #, no-c-format
 msgid "RPM"
 msgstr "RPM"
 
-#: src/InfoBoxes/Content/Factory.cpp:1119
+#: src/InfoBoxes/Content/Factory.cpp:1128
 #, no-c-format
 msgid "Engine Revolutions Per Minute."
 msgstr "Počet otáček motoru za minutu."
 
-#: src/InfoBoxes/Content/Factory.cpp:1125
+#: src/InfoBoxes/Content/Factory.cpp:1134
 #, no-c-format
 msgid "AAT dT and task ETA"
 msgstr "AAT Δčasů a ETA úlohy"
 
-#: src/InfoBoxes/Content/Factory.cpp:1126
+#: src/InfoBoxes/Content/Factory.cpp:1135
 #, no-c-format
 msgid "AATdeltaOrETA"
 msgstr "AAT Δt/ETA"
 
-#: src/InfoBoxes/Content/Factory.cpp:1127
+#: src/InfoBoxes/Content/Factory.cpp:1136
 #, no-c-format
 msgid ""
 "Shows AAT delta time and estimated time of arrival in case of AAT task, and "
@@ -10132,17 +10155,17 @@ msgstr ""
 "Zobrazuje delta čas AAT + odhadovaný čas příletu v případě úlohy AAT nebo "
 "odhadovaný čas příletu v případě rychlostní úlohy."
 
-#: src/InfoBoxes/Content/Factory.cpp:1133
+#: src/InfoBoxes/Content/Factory.cpp:1142
 #, fuzzy, no-c-format
 msgid "Speed task estimated"
 msgstr "Rychlost odhadovaná"
 
-#: src/InfoBoxes/Content/Factory.cpp:1134
+#: src/InfoBoxes/Content/Factory.cpp:1143
 #, fuzzy, no-c-format
 msgid "V Task Est"
 msgstr "V Pirker"
 
-#: src/InfoBoxes/Content/Factory.cpp:1135
+#: src/InfoBoxes/Content/Factory.cpp:1144
 #, fuzzy, no-c-format
 msgid ""
 "Estimated average cross-country speed for current task as of task "
@@ -10151,17 +10174,17 @@ msgstr ""
 "Odhadovaný lokální čas při příletu do koncového bodu trati. Předpokládá let "
 "dle ideálního MacCreadyho cyklu stoupání/přeskoků."
 
-#: src/InfoBoxes/Content/Factory.cpp:1141
+#: src/InfoBoxes/Content/Factory.cpp:1150
 #, fuzzy, no-c-format
 msgid "Home altitude difference"
 msgstr "Rozdílová výška nad dalším bodem"
 
-#: src/InfoBoxes/Content/Factory.cpp:1142
+#: src/InfoBoxes/Content/Factory.cpp:1151
 #, fuzzy, no-c-format
 msgid "Home AltD"
 msgstr "Domů vzdál"
 
-#: src/InfoBoxes/Content/Factory.cpp:1143
+#: src/InfoBoxes/Content/Factory.cpp:1152
 #, fuzzy, no-c-format
 msgid ""
 "Arrival altitude at the home waypoint relative to the safety arrival height."
@@ -10172,7 +10195,7 @@ msgid "Altn {}"
 msgstr "Altn {}"
 
 #: src/InfoBoxes/Content/Altitude.cpp:26
-#: src/MapWindow/GlueMapWindowOverlays.cpp:333
+#: src/MapWindow/GlueMapWindowOverlays.cpp:336
 #, no-c-format
 msgid "Simulator"
 msgstr "Simulátor"
@@ -10234,7 +10257,16 @@ msgstr "Otevřeno"
 msgid "Waiting"
 msgstr "Čekající"
 
-#: src/InfoBoxes/Content/Places.cpp:98
+#: src/InfoBoxes/Content/Places.cpp:202
+#, fuzzy
+msgid "Terrain!"
+msgstr "Terén"
+
+#: src/InfoBoxes/Content/Places.cpp:210
+msgid "Glide result not ok"
+msgstr ""
+
+#: src/InfoBoxes/Content/Places.cpp:244
 #, no-c-format
 msgid "Reference"
 msgstr "Odkaz"
@@ -10265,15 +10297,15 @@ msgstr ""
 msgid "There is nothing interesting near this location."
 msgstr "V blízkosti této pozice není nic zajímavého."
 
-#: src/MapWindow/GlueMapWindowOverlays.cpp:113
+#: src/MapWindow/GlueMapWindowOverlays.cpp:116
 msgid "Elevation: "
 msgstr "Nadmořská výška: "
 
-#: src/MapWindow/GlueMapWindowOverlays.cpp:152
+#: src/MapWindow/GlueMapWindowOverlays.cpp:155
 msgid "GPS not connected"
 msgstr "GPS není připojen"
 
-#: src/MapWindow/GlueMapWindowOverlays.cpp:155
+#: src/MapWindow/GlueMapWindowOverlays.cpp:158
 msgid "GPS waiting for fix"
 msgstr "GPS čeká na fix"
 
@@ -11304,9 +11336,6 @@ msgstr "XCSoar"
 #~ "Enable voice read-back of the distance to next waypoint when in cruise "
 #~ "mode."
 #~ msgstr "Povolí hlasové čtení vzdálenosti k dalšímu bodu v režimu přeskoku."
-
-#~ msgid "Task altitude difference"
-#~ msgstr "Rozdíl výšky v úloze"
 
 #~ msgid ""
 #~ "Enable voice read-back of height above/below final glide when in final "
