@@ -186,7 +186,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   }
 
   // Update InfoBox
-  data.SetTitle(_T(takeoff_wp->name.c_str()));
+  data.SetTitle(takeoff_wp->name.c_str());
   if (glide_result.IsOk()){
     auto alt_diff = glide_result.pure_glide_altitude_difference;
     data.SetValueFromArrival(alt_diff);
@@ -199,7 +199,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
       // Above glide path, but glide would intersect terrain.
       data.SetValueColor(5);
       data.SetCommentColor(5);
-      data.SetComment("Terrain!");
+      data.SetComment(_("Terrain!"));
     }else{
       // Above glide path and no terrain intersection.
       data.SetValueColor(3);
@@ -207,7 +207,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   }else {
     data.SetValueInvalid();
     data.SetCommentColor(1);
-    data.SetComment("Glide result not ok");
+    data.SetComment(_("Glide result not ok"));
   }
 }
 
