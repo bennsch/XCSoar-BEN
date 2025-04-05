@@ -28,7 +28,7 @@ jobs:
           ./ide/provisioning/install-debian-packages.sh UPDATE
           ./ide/provisioning/install-debian-packages.sh BASE
       - name: make working directory a safe commit dir
-        run: git config --global --add safe.directory /__w/XCSoar/XCSoar
+        run: git config --global --add safe.directory /__w/XCSoar-BEN/XCSoar-BEN
       - name: Copy xcsoar.pot
         run: cp po/xcsoar.pot po/xcsoar.old
       - name: Update pot and po files
