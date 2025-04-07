@@ -8,5 +8,5 @@ if [ -z "${STARTLINENUMBER}" ]; then
   exit 1
 fi
 FINLINENUMBER=$(tail -n +"${STARTLINENUMBER}" NEWS.txt | grep -E '^$' -n | head -n 1| cut -f1 -d:)
-FINLINENUMBER=$(( "${STARTLINENUMBER}" + "${FINLINENUMBER}" - 2 ))
+FINLINENUMBER=$(( "${STARTLINENUMBER}" + "${FINLINENUMBER}" + 1 ))
 sed -n "${STARTLINENUMBER}","${FINLINENUMBER}"p NEWS.txt
