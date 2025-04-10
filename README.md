@@ -1,4 +1,6 @@
-## XCSoar-BEN
+## <img src="./Data/graphics/logo.svg" width="5%" alt="XCSoar Logo"> XCSoar-BEN
+
+
 
 This is a fork of [XCSoar](https://github.com/XCSoar/XCSoar). 
 
