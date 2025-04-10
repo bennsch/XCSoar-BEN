@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xcsoar\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-03-28 05:34+0000\n"
+"POT-Creation-Date: 2025-04-10 00:36+0000\n"
 "PO-Revision-Date: 2022-06-24 07:20+0000\n"
 "Last-Translator: Artem <artem@molotov.work>\n"
 "Language-Team: Ukrainian <https://hosted.weblate.org/projects/xcsoar/"
@@ -886,6 +886,7 @@ msgstr "Відн.Вис."
 #: src/Dialogs/Task/TaskPointDialog.cpp:220
 #: src/Dialogs/Task/AlternatesListDialog.cpp:108
 #: src/Dialogs/Weather/NOAAList.cpp:97 src/InfoBoxes/Content/Task.cpp:51
+#: src/InfoBoxes/Content/Places.cpp:235
 #, no-c-format
 msgid "Details"
 msgstr "Подробиці"
@@ -1013,7 +1014,7 @@ msgstr "Вручну"
 #: src/PageSettings.cpp:50 src/PageSettings.cpp:53
 #: src/Dialogs/Settings/Panels/AirspaceConfigPanel.cpp:42
 #: src/Dialogs/Settings/Panels/GaugesConfigPanel.cpp:30
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:140
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:142
 #: src/Dialogs/Settings/Panels/PagesConfigPanel.cpp:186
 #: src/Dialogs/Settings/Panels/PagesConfigPanel.cpp:374
 #: src/Dialogs/Settings/Panels/SymbolsConfigPanel.cpp:67
@@ -1070,7 +1071,7 @@ msgstr "Повний"
 #: src/Dialogs/Settings/Panels/GaugesConfigPanel.cpp:26
 #: src/Dialogs/Settings/Panels/GaugesConfigPanel.cpp:67
 #: src/Dialogs/Settings/Panels/InterfaceConfigPanel.cpp:172
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:142
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:144
 #: src/Dialogs/Settings/Panels/LoggerConfigPanel.cpp:45
 #: src/Dialogs/Settings/Panels/RouteConfigPanel.cpp:111
 #: src/Dialogs/Settings/Panels/RouteConfigPanel.cpp:141
@@ -1091,7 +1092,7 @@ msgstr "Вимк"
 #: src/Dialogs/StatusPanels/SystemStatusPanel.cpp:94
 #: src/Dialogs/Settings/Panels/GaugesConfigPanel.cpp:28
 #: src/Dialogs/Settings/Panels/InterfaceConfigPanel.cpp:173
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:144
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:146
 #: src/Dialogs/Settings/Panels/LoggerConfigPanel.cpp:43
 #: src/Dialogs/Settings/Panels/SymbolsConfigPanel.cpp:66
 #: src/Dialogs/Settings/Panels/TerrainDisplayConfigPanel.cpp:248
@@ -2411,7 +2412,7 @@ msgstr "База даних висотних перешкод"
 #: src/Dialogs/Device/LX/ManageNanoDialog.cpp:60
 #: src/Dialogs/Settings/dlgConfiguration.cpp:148
 #: src/InfoBoxes/Content/Altitude.cpp:28 src/InfoBoxes/Content/MacCready.cpp:31
-#: src/InfoBoxes/Content/Places.cpp:99
+#: src/InfoBoxes/Content/Places.cpp:245
 #, no-c-format
 msgid "Setup"
 msgstr "Налаштування"
@@ -5042,221 +5043,226 @@ msgid "Reverse Landscape"
 msgstr "Зворотня альбомна"
 
 #: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:67
+#, fuzzy, no-c-format
+msgid "6 Split"
+msgstr "8 блоком"
+
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:69
 #, no-c-format
 msgid "8 Split"
 msgstr "8 блоком"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:69
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:71
 #, fuzzy, no-c-format
 msgid "10 Split"
 msgstr "8 блоком"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:71
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:73
 #, no-c-format
 msgid "12 Split in 3 rows"
 msgstr ""
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:73
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:75
 #, no-c-format
 msgid "15 Split in 3 rows"
 msgstr ""
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:75
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:77
 #, no-c-format
 msgid "18 Split in 3 rows"
 msgstr ""
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:77
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:79
 #, no-c-format
 msgid "8 Bottom or Right"
 msgstr "8 внизу або праворуч"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:79
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:81
 #, no-c-format
 msgid "8 Bottom + Vario (Portrait)"
 msgstr "8 внизу + варіо (портретна)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:81
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:83
 #, no-c-format
 msgid "8 Top or Left"
 msgstr "8 вгорі або ліворуч"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:83
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:85
 #, no-c-format
 msgid "8 Top + Vario (Portrait)"
 msgstr "8 вгорі + варіо (портретна)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:85
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:87
 #, no-c-format
 msgid "9 Right + Vario (Landscape)"
 msgstr "9 праворуч + варіо (альбомна)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:87
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:89
 #, no-c-format
 msgid "9 Left + Right + Vario (Landscape)"
 msgstr "9 ліворуч + праворуч + варіо (альбомна)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:89
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:91
 #, no-c-format
 msgid "12 Left + 3 Right Vario (Landscape)"
 msgstr "12 ліворуч + 3 праворуч варіо (альбомна)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:91
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:93
 #, no-c-format
 msgid "5 Right (Square)"
 msgstr "5 праворуч (прямокутник)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:93
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:95
 #, fuzzy, no-c-format
 msgid "10 Bottom or Right"
 msgstr "12 внизу або праворуч"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:95
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:97
 #, no-c-format
 msgid "12 Bottom or Right"
 msgstr "12 внизу або праворуч"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:97
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:99
 #, fuzzy, no-c-format
 msgid "10 Top or Left"
 msgstr "12 вгорі або ліворуч"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:99
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:101
 #, no-c-format
 msgid "12 Top or Left"
 msgstr "12 вгорі або ліворуч"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:101
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:103
 #, no-c-format
 msgid "16 Right (Landscape)"
 msgstr "16 праворуч (альбомна)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:103
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:105
 #, fuzzy, no-c-format
 msgid "24 Bottom or Right"
 msgstr "4 внизу або праворуч"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:105
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:107
 #, no-c-format
 msgid "4 Top or Left"
 msgstr "4 вгорі або ліворуч"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:107
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:109
 #, no-c-format
 msgid "4 Bottom or Right"
 msgstr "4 внизу або праворуч"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:112
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:114
 #, no-c-format
 msgid "Text"
 msgstr "Текст"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:113
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:115
 #, no-c-format
 msgid "Show text on tabbed dialogs."
 msgstr "Показати текст на вкладках діалогів."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:114
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:116
 #, no-c-format
 msgid "Icons"
 msgstr "Піктограми"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:115
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:117
 #, no-c-format
 msgid "Show icons on tabbed dialogs."
 msgstr "Показати піктограми на вкладках діалогів."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:120
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:122
 #, no-c-format
 msgid "Center"
 msgstr "По центру"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:121
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:123
 #, no-c-format
 msgid "Center the status message boxes."
 msgstr "Повідомлення про статус по центру."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:122
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:124
 #, no-c-format
 msgid "Topleft"
 msgstr "Вгорі ліворуч"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:123
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:125
 #, no-c-format
 msgid "Show status message boxes ina the top left corner."
 msgstr "Показувати повідомлення про статус вгорі ліворуч."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:129
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:131
 #, no-c-format
 msgid "Box"
 msgstr ""
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:129
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:131
 #, no-c-format
 msgid "Draws boxes around each InfoBox."
 msgstr "Малює рамку навколо кожного ІнфоБокса."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:131
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:133
 #, no-c-format
 msgid "Tab"
 msgstr "Вкладка"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:131
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:133
 #, no-c-format
 msgid "Draws a tab at the top of the InfoBox across the title."
 msgstr "Малює вкладку вгорі ІнфоБоксів вздовж назви."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:133
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:135
 #, no-c-format
 msgid "Shaded"
 msgstr "Відтінено"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:135
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:137
 #, no-c-format
 msgid "Glass"
 msgstr "Скло"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:141
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:143
 #, no-c-format
 msgid "Use the system-wide setting"
 msgstr ""
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:143
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:145
 #, no-c-format
 msgid "Black text on white background"
 msgstr ""
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:145
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:147
 #, no-c-format
 msgid "White text on black background"
 msgstr ""
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:168
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:170
 msgid "Full screen"
 msgstr "Повноекранно"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:168
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:170
 msgid "Run XCSoar in full screen mode"
 msgstr "Запустити XCSoar у повноекранному режимі"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:173
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:175
 msgid "Display orientation"
 msgstr "Орієнтація дисплея"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:173
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:175
 msgid "Rotate the display on devices that support it."
 msgstr "Повертати дисплей на екранах, які це підтримують."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:178
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:180
 #, fuzzy
 msgid "Dark mode"
 msgstr "Режим досяжності"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:182
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:184
 msgid "InfoBox geometry"
 msgstr "Геометрія ІнфоБоксів"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:183
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:185
 msgid ""
 "A list of possible InfoBox layouts. Do some trials to find the best for your "
 "screen size."
@@ -5264,28 +5270,28 @@ msgstr ""
 "Перелік можливих розташувань ІнфоБоксів. Спробуйте варіанти, щоб знайти "
 "найкращий для свого екрану."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:186
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:188
 #, fuzzy
 msgid "InfoBox title size"
 msgstr "Назви ІнфоБоксів"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:186
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:188
 msgid "Zoom factor for InfoBox title and comment text"
 msgstr ""
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:191
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:193
 msgid "Tab dialog style"
 msgstr "Стиль діалогу: Вкладки"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:194
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:196
 msgid "Message display"
 msgstr "Дисплей повідомлень"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:200
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:202
 msgid "Colored InfoBoxes"
 msgstr "Кольорові ІнфоБокси"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:201
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:203
 msgid ""
 "If true, certain InfoBoxes will have coloured text.  For example, the active "
 "waypoint InfoBox will be blue when the glider is above final glide."
@@ -5293,41 +5299,41 @@ msgstr ""
 "Якщо так, деякі ІнфоБокси матимуть кольоровий текст. Наприклад, активнаий "
 "ППМ буде синім, коли планер буде над глісадою дольоту."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:208
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:210
 msgid "InfoBox border"
 msgstr "Рамка ІнфоБоксу"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:212
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:214
 msgid "Show Menubutton"
 msgstr "Показати кнопку меню"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:212
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:214
 msgid "Show the Menubutton"
 msgstr "Показати кнопку меню"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:215
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:217
 #, fuzzy
 msgid "Show Zoombutton"
 msgstr "Показати кнопку меню"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:215
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:217
 #, fuzzy
 msgid "Show the Zoombutton"
 msgstr "Показати кнопку меню"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:220
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:222
 msgid "Cursor zoom"
 msgstr "Масштаб курсора"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:220
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:222
 msgid "Cursor zoom factor"
 msgstr "Коефіцієнт масштабування курсора"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:222
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:224
 msgid "Invert cursor color"
 msgstr "Інвертувати колір курсора"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:222
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:224
 msgid "Enable black cursor"
 msgstr "Увімкнути чорний курсор"
 
@@ -9861,15 +9867,32 @@ msgstr "Відстань до точки, де було зафіксовано �
 
 #: src/InfoBoxes/Content/Factory.cpp:994
 #, fuzzy, no-c-format
+msgid "Takeoff altitude difference"
+msgstr "Різниця висот завдання"
+
+#: src/InfoBoxes/Content/Factory.cpp:995
+#, fuzzy, no-c-format
+msgid "Takeoff AltD"
+msgstr "Час злету"
+
+#: src/InfoBoxes/Content/Factory.cpp:996
+#, fuzzy, no-c-format
+msgid ""
+"Arrival altitude at the takeoff waypoint relative to the safety arrival "
+"height."
+msgstr "Висота прибуття на фінішний ППМ відносно безпечної висоти прибуття."
+
+#: src/InfoBoxes/Content/Factory.cpp:1003
+#, fuzzy, no-c-format
 msgid "Contest speed"
 msgstr "Швидкість OLC"
 
-#: src/InfoBoxes/Content/Factory.cpp:995
+#: src/InfoBoxes/Content/Factory.cpp:1004
 #, fuzzy, no-c-format
 msgid "Cont Speed"
 msgstr "Швидкість"
 
-#: src/InfoBoxes/Content/Factory.cpp:996
+#: src/InfoBoxes/Content/Factory.cpp:1005
 #, fuzzy, no-c-format
 msgid ""
 "Instantaneous evaluation of the flown speed according to the configured "
@@ -9878,30 +9901,30 @@ msgstr ""
 "Поточна оцінка пройденої відстані відповідно до конфігурації налаштувань "
 "правил OLC."
 
-#: src/InfoBoxes/Content/Factory.cpp:1001
+#: src/InfoBoxes/Content/Factory.cpp:1010
 #, no-c-format
 msgid "Final MC0 altitude difference"
 msgstr "Остаточна різниця висот MC0"
 
-#: src/InfoBoxes/Content/Factory.cpp:1002
+#: src/InfoBoxes/Content/Factory.cpp:1011
 #, no-c-format
 msgid "Fin MC0 AltD"
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1003
+#: src/InfoBoxes/Content/Factory.cpp:1012
 #, no-c-format
 msgid ""
 "Arrival altitude at the final waypoint with MC 0 setting relative to the "
 "safety arrival height."
 msgstr "Висота прибуття на фінішний ППМ відносно безпечної висоти прибуття."
 
-#: src/InfoBoxes/Content/Factory.cpp:1009
-#: src/InfoBoxes/Content/Factory.cpp:1010 src/InfoBoxes/Content/Task.cpp:929
+#: src/InfoBoxes/Content/Factory.cpp:1018
+#: src/InfoBoxes/Content/Factory.cpp:1019 src/InfoBoxes/Content/Task.cpp:929
 #, no-c-format
 msgid "Next arrow"
 msgstr "Наступна стрілка"
 
-#: src/InfoBoxes/Content/Factory.cpp:1011
+#: src/InfoBoxes/Content/Factory.cpp:1020
 #, no-c-format
 msgid ""
 "Arrow pointing to the currently selected waypoint. The name of the waypoint "
@@ -9910,17 +9933,17 @@ msgid ""
 "waypoint or the target within the AAT sector for AAT tasks."
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1021
+#: src/InfoBoxes/Content/Factory.cpp:1030
 #, no-c-format
 msgid "Next waypoint arrival time (ground speed)"
 msgstr "Час прибуття до наступного ППМ (швидкість відносно землі)"
 
-#: src/InfoBoxes/Content/Factory.cpp:1022
+#: src/InfoBoxes/Content/Factory.cpp:1031
 #, no-c-format
 msgid "WP ETA VMG"
 msgstr "ППМ ЕТА"
 
-#: src/InfoBoxes/Content/Factory.cpp:1023
+#: src/InfoBoxes/Content/Factory.cpp:1032
 #, no-c-format
 msgid ""
 "Estimated arrival time at next waypoint, assuming current ground speed is "
@@ -9929,17 +9952,17 @@ msgstr ""
 "Розрахунковий час прибуття на наступний ППМ, за умови утримування поточної "
 "швидкість відносно землі."
 
-#: src/InfoBoxes/Content/Factory.cpp:1030
+#: src/InfoBoxes/Content/Factory.cpp:1039
 #, no-c-format
 msgid "Percentage non-circling climb"
 msgstr "Процент набору висоти за межами спіралі"
 
-#: src/InfoBoxes/Content/Factory.cpp:1031
+#: src/InfoBoxes/Content/Factory.cpp:1040
 #, fuzzy, no-c-format
 msgid "% Str Climb"
 msgstr "% набору"
 
-#: src/InfoBoxes/Content/Factory.cpp:1032
+#: src/InfoBoxes/Content/Factory.cpp:1041
 #, no-c-format
 msgid ""
 "Percentage of time spent climbing without circling. These statistics are "
@@ -9948,34 +9971,34 @@ msgstr ""
 "Процент часу в наборі висоти без спіралі. Ця статистика обнуляється перед "
 "стартом нового завдання."
 
-#: src/InfoBoxes/Content/Factory.cpp:1038
+#: src/InfoBoxes/Content/Factory.cpp:1047
 #, fuzzy, no-c-format
 msgid "Percentage climb chart"
 msgstr "Процент часу набору висоти"
 
-#: src/InfoBoxes/Content/Factory.cpp:1039
+#: src/InfoBoxes/Content/Factory.cpp:1048
 #, no-c-format
 msgid "Climb %"
 msgstr "Набір висоти %"
 
-#: src/InfoBoxes/Content/Factory.cpp:1040
+#: src/InfoBoxes/Content/Factory.cpp:1049
 #, no-c-format
 msgid ""
 "Pie chart of time circling and climbing, circling and descending, and "
 "climbing non-circling."
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1046
+#: src/InfoBoxes/Content/Factory.cpp:1055
 #, no-c-format
 msgid "Number of used satellites"
 msgstr "Кількість використаних супутників"
 
-#: src/InfoBoxes/Content/Factory.cpp:1047
+#: src/InfoBoxes/Content/Factory.cpp:1056
 #, no-c-format
 msgid "Satellites"
 msgstr "Супутники"
 
-#: src/InfoBoxes/Content/Factory.cpp:1048
+#: src/InfoBoxes/Content/Factory.cpp:1057
 #, no-c-format
 msgid ""
 "The number of actually used (seen) satellites by GPS module. If this "
@@ -9984,62 +10007,62 @@ msgstr ""
 "Кількість фактично використаних (побачених) супутників GPS-модулем. Якщо ці "
 "відомості недоступні, відображається значення «---»."
 
-#: src/InfoBoxes/Content/Factory.cpp:1054
+#: src/InfoBoxes/Content/Factory.cpp:1063
 #, no-c-format
 msgid "Active Radio Frequency"
 msgstr "Активна частота радіо"
 
-#: src/InfoBoxes/Content/Factory.cpp:1055
+#: src/InfoBoxes/Content/Factory.cpp:1064
 #, no-c-format
 msgid "Act Freq"
 msgstr "Акт Част"
 
-#: src/InfoBoxes/Content/Factory.cpp:1056
+#: src/InfoBoxes/Content/Factory.cpp:1065
 #, no-c-format
 msgid "The currently active Radio Frequency"
 msgstr "Активна на даний момент Частота Радіо"
 
-#: src/InfoBoxes/Content/Factory.cpp:1061
+#: src/InfoBoxes/Content/Factory.cpp:1070
 #, no-c-format
 msgid "Standby Radio Frequency"
 msgstr "Частота Радіо в режимі очікування"
 
-#: src/InfoBoxes/Content/Factory.cpp:1062
+#: src/InfoBoxes/Content/Factory.cpp:1071
 #, no-c-format
 msgid "Stby Freq"
 msgstr "Очік Част"
 
-#: src/InfoBoxes/Content/Factory.cpp:1063
+#: src/InfoBoxes/Content/Factory.cpp:1072
 #, no-c-format
 msgid "The currently standby Radio Frequency"
 msgstr "Поточна Частота Радіо в режимі очікування"
 
-#: src/InfoBoxes/Content/Factory.cpp:1069
+#: src/InfoBoxes/Content/Factory.cpp:1078
 #, fuzzy, no-c-format
 msgid "Thermal time"
 msgstr "Час в останньому терміку"
 
-#: src/InfoBoxes/Content/Factory.cpp:1070
+#: src/InfoBoxes/Content/Factory.cpp:1079
 #, fuzzy, no-c-format
 msgid "TC Time"
 msgstr "TL час"
 
-#: src/InfoBoxes/Content/Factory.cpp:1071
+#: src/InfoBoxes/Content/Factory.cpp:1080
 #, fuzzy, no-c-format
 msgid "The time spend in the current thermal."
 msgstr "Висота, набрана/втрачена в цьому терміку."
 
-#: src/InfoBoxes/Content/Factory.cpp:1077
+#: src/InfoBoxes/Content/Factory.cpp:1086
 #, no-c-format
 msgid "Alternate 2 GR"
 msgstr "Запасний 2 GR"
 
-#: src/InfoBoxes/Content/Factory.cpp:1078
+#: src/InfoBoxes/Content/Factory.cpp:1087
 #, fuzzy, no-c-format
 msgid "Altn2 GR"
 msgstr "Запас 1 GR"
 
-#: src/InfoBoxes/Content/Factory.cpp:1079
+#: src/InfoBoxes/Content/Factory.cpp:1088
 #, fuzzy, no-c-format
 msgid ""
 "Geometric gradient to the arrival height above the second alternate. This is "
@@ -10048,109 +10071,109 @@ msgstr ""
 "Геометричний градієнт для висоти прибуття над місцем найкращої запасної "
 "посадки. Не враховано повну енергію."
 
-#: src/InfoBoxes/Content/Factory.cpp:1085
+#: src/InfoBoxes/Content/Factory.cpp:1094
 #, no-c-format
 msgid "Heart Rate"
 msgstr "Пульс"
 
-#: src/InfoBoxes/Content/Factory.cpp:1086
+#: src/InfoBoxes/Content/Factory.cpp:1095
 #, no-c-format
 msgid "Heart"
 msgstr "Серце"
 
-#: src/InfoBoxes/Content/Factory.cpp:1087
+#: src/InfoBoxes/Content/Factory.cpp:1096
 #, no-c-format
 msgid "Heart rate in beats per minute."
 msgstr "Пульс в ударах за хвилину."
 
-#: src/InfoBoxes/Content/Factory.cpp:1093
+#: src/InfoBoxes/Content/Factory.cpp:1102
 #, fuzzy, no-c-format
 msgid "Transponder Code"
 msgstr "Приймач відповідача"
 
-#: src/InfoBoxes/Content/Factory.cpp:1094
+#: src/InfoBoxes/Content/Factory.cpp:1103
 #, no-c-format
 msgid "XPDR Code"
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1095
+#: src/InfoBoxes/Content/Factory.cpp:1104
 #, fuzzy, no-c-format
 msgid "The currently set Transponder code"
 msgstr "Поточна Частота Радіо в режимі очікування"
 
-#: src/InfoBoxes/Content/Factory.cpp:1101
+#: src/InfoBoxes/Content/Factory.cpp:1110
 #, no-c-format
 msgid "Engine CHT"
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1102
+#: src/InfoBoxes/Content/Factory.cpp:1111
 #, no-c-format
 msgid "CHT"
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1103
+#: src/InfoBoxes/Content/Factory.cpp:1112
 #, no-c-format
 msgid "Engine Cylinder Head Temperature"
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1109
+#: src/InfoBoxes/Content/Factory.cpp:1118
 #, no-c-format
 msgid "Engine EGT"
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1110
+#: src/InfoBoxes/Content/Factory.cpp:1119
 #, no-c-format
 msgid "EGT"
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1111
+#: src/InfoBoxes/Content/Factory.cpp:1120
 #, fuzzy, no-c-format
 msgid "Engine Exhaust Gas Temperature"
 msgstr "Прогноз температури"
 
-#: src/InfoBoxes/Content/Factory.cpp:1117
+#: src/InfoBoxes/Content/Factory.cpp:1126
 #, no-c-format
 msgid "Engine Revolutions Per Minute"
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1118
+#: src/InfoBoxes/Content/Factory.cpp:1127
 #, no-c-format
 msgid "RPM"
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1119
+#: src/InfoBoxes/Content/Factory.cpp:1128
 #, no-c-format
 msgid "Engine Revolutions Per Minute."
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1125
+#: src/InfoBoxes/Content/Factory.cpp:1134
 #, no-c-format
 msgid "AAT dT and task ETA"
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1126
+#: src/InfoBoxes/Content/Factory.cpp:1135
 #, no-c-format
 msgid "AATdeltaOrETA"
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1127
+#: src/InfoBoxes/Content/Factory.cpp:1136
 #, no-c-format
 msgid ""
 "Shows AAT delta time and estimated time of arrival in case of AAT task, and "
 "estimated time of arrival in case of racing task"
 msgstr ""
 
-#: src/InfoBoxes/Content/Factory.cpp:1133
+#: src/InfoBoxes/Content/Factory.cpp:1142
 #, fuzzy, no-c-format
 msgid "Speed task estimated"
 msgstr "Розрахункова швидкість"
 
-#: src/InfoBoxes/Content/Factory.cpp:1134
+#: src/InfoBoxes/Content/Factory.cpp:1143
 #, fuzzy, no-c-format
 msgid "V Task Est"
 msgstr "V Завд.Митт"
 
-#: src/InfoBoxes/Content/Factory.cpp:1135
+#: src/InfoBoxes/Content/Factory.cpp:1144
 #, fuzzy, no-c-format
 msgid ""
 "Estimated average cross-country speed for current task as of task "
@@ -10159,17 +10182,17 @@ msgstr ""
 "Розрахунковий місцевий час завершення завдання, з урахуванням ідеальних умов "
 "циклу MacCready перехід/набір висоти."
 
-#: src/InfoBoxes/Content/Factory.cpp:1141
+#: src/InfoBoxes/Content/Factory.cpp:1150
 #, fuzzy, no-c-format
 msgid "Home altitude difference"
 msgstr "Запас висоти на наступному ППМ"
 
-#: src/InfoBoxes/Content/Factory.cpp:1142
+#: src/InfoBoxes/Content/Factory.cpp:1151
 #, fuzzy, no-c-format
 msgid "Home AltD"
 msgstr "Відст Додому"
 
-#: src/InfoBoxes/Content/Factory.cpp:1143
+#: src/InfoBoxes/Content/Factory.cpp:1152
 #, fuzzy, no-c-format
 msgid ""
 "Arrival altitude at the home waypoint relative to the safety arrival height."
@@ -10181,7 +10204,7 @@ msgid "Altn {}"
 msgstr "Запас 1"
 
 #: src/InfoBoxes/Content/Altitude.cpp:26
-#: src/MapWindow/GlueMapWindowOverlays.cpp:333
+#: src/MapWindow/GlueMapWindowOverlays.cpp:336
 #, no-c-format
 msgid "Simulator"
 msgstr "Імітатор"
@@ -10243,7 +10266,16 @@ msgstr "Відкрито"
 msgid "Waiting"
 msgstr "Очікування"
 
-#: src/InfoBoxes/Content/Places.cpp:98
+#: src/InfoBoxes/Content/Places.cpp:202
+#, fuzzy
+msgid "Terrain!"
+msgstr "Ландшафт"
+
+#: src/InfoBoxes/Content/Places.cpp:210
+msgid "Glide result not ok"
+msgstr ""
+
+#: src/InfoBoxes/Content/Places.cpp:244
 #, no-c-format
 msgid "Reference"
 msgstr "Відносно"
@@ -10273,15 +10305,15 @@ msgstr ""
 msgid "There is nothing interesting near this location."
 msgstr "Біля цього місця нема нічого цікавого."
 
-#: src/MapWindow/GlueMapWindowOverlays.cpp:113
+#: src/MapWindow/GlueMapWindowOverlays.cpp:116
 msgid "Elevation: "
 msgstr "Висота: "
 
-#: src/MapWindow/GlueMapWindowOverlays.cpp:152
+#: src/MapWindow/GlueMapWindowOverlays.cpp:155
 msgid "GPS not connected"
 msgstr "GPS не підключено"
 
-#: src/MapWindow/GlueMapWindowOverlays.cpp:155
+#: src/MapWindow/GlueMapWindowOverlays.cpp:158
 msgid "GPS waiting for fix"
 msgstr "GPS чекає на сигнал"
 
@@ -11330,9 +11362,6 @@ msgstr ""
 #~ "mode."
 #~ msgstr ""
 #~ "Вмикає голосові зчитування відстані до наступної ППМ в режимі переходу."
-
-#~ msgid "Task altitude difference"
-#~ msgstr "Різниця висот завдання"
 
 #~ msgid ""
 #~ "Enable voice read-back of height above/below final glide when in final "
