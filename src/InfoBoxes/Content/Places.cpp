@@ -197,8 +197,8 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
       data.SetValueColor(1);
     }else if (intersects_terrain){
       // Above glide path, but glide would intersect terrain.
-      data.SetValueColor(5);
-      data.SetCommentColor(5);
+      data.SetValueColor(1);
+      data.SetCommentColor(1);
       data.SetComment(_("Terrain!"));
     }else{
       // Above glide path and no terrain intersection.
