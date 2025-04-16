@@ -1,3 +1,10 @@
+Version 1.1 
+* "Low Battery" warning threshold increased to 30%
+* InfoBox "Takeoff AltD": Terrain warning color changed from magenta to red
+
+_based on XCSoar 7.44 - git: [0df5df1](https://github.com/XCSoar/XCSoar/tree/0df5df11e075cd372ae84d694f4b75b71c7e1a2e)_
+
+
 Version 1.0 
 * New InfoBox "Takeoff Altitude Difference"
 * Display tail number and crew weight
