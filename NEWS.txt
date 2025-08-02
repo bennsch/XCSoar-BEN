@@ -1,3 +1,9 @@
+Version 1.2 
+* Merged latest XCSoar changes
+
+_based on XCSoar 7.44 - git: [491fa00](https://github.com/XCSoar/XCSoar/tree/491fa007d68837331f0e24e9103a021b902d74ed)_ (07/19/2025)
+
+
 Version 1.1 
 * "Low Battery" warning threshold increased to 30%
 * InfoBox "Takeoff AltD": Terrain warning color changed from magenta to red

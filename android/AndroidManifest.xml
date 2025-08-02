@@ -2,8 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="org.xcsoar.ben"
           android:installLocation="auto"
-          android:versionCode="2"
-          android:versionName="7.44_BEN_v1.1">
+          android:versionCode="3"
+          android:versionName="7.44_BEN_v1.2">
   <application
       android:requestLegacyExternalStorage="true"
       android:preserveLegacyExternalStorage="true"
