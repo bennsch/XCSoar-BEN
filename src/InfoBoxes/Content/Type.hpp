@@ -147,6 +147,7 @@ namespace InfoBoxFactory
     e_AAT_dT_or_ETA, /* Delta time in AAT task and ETA in racing task */
     e_SpeedTaskEst, /* Estimated (predicted) whole-task average cross-country speed for current task. Affected by MC setting. */
     e_Home_AltDiff, /* Arrival altitude at the home waypoint (if defined) relative to the safety arrival height */
+    e_SpeedTaskLeg, /* Average cross country speed while on current task leg, not compensated for altitude */
     e_NUM_TYPES /* Last item */
   };
 

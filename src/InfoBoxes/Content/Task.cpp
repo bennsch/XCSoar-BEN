@@ -461,6 +461,19 @@ UpdateInfoBoxTaskSpeed(InfoBoxData &data) noexcept
 }
 
 void
+UpdateInfoBoxTaskSpeedLeg(InfoBoxData &data) noexcept
+{
+  const TaskStats &task_stats = CommonInterface::Calculated().task_stats;
+  if (!task_stats.task_valid || !task_stats.current_leg.travelled.IsDefined()) {
+    data.SetInvalid();
+    return;
+  }
+
+  // Set Value and unit
+  data.SetValueFromTaskSpeed(task_stats.current_leg.travelled.GetSpeed());
+}
+
+void
 UpdateInfoBoxTaskSpeedAchieved(InfoBoxData &data) noexcept
 {
   const TaskStats &task_stats = CommonInterface::Calculated().task_stats;
@@ -821,7 +834,7 @@ UpdateInfoBoxCruiseEfficiency(InfoBoxData &data) noexcept
 }
 
 static constexpr unsigned
-SecondsUntil(TimeStamp now, RoughTime until) noexcept
+SecondsUntil(TimeStamp now, FineTime until) noexcept
 {
   auto d = TimeStamp{until} - now;
   if (d.count() < 0)
@@ -836,7 +849,7 @@ UpdateInfoBoxStartOpen(InfoBoxData &data) noexcept
   const auto &calculated = CommonInterface::Calculated();
   const TaskStats &task_stats = calculated.ordered_task_stats;
   const CommonStats &common_stats = CommonInterface::Calculated().common_stats;
-  const RoughTimeSpan &open = common_stats.start_open_time_span;
+  const TimeSpan &open = common_stats.start_open_time_span;
 
   /* reset color that may have been set by a previous call */
   data.SetValueColor(0);
@@ -849,7 +862,7 @@ UpdateInfoBoxStartOpen(InfoBoxData &data) noexcept
   }
 
   const auto now_s = basic.time;
-  const RoughTime now{now_s};
+  const FineTime now{now_s};
 
   if (open.HasEnded(now)) {
     data.SetValueInvalid();
@@ -880,7 +893,7 @@ UpdateInfoBoxStartOpenArrival(InfoBoxData &data) noexcept
   const GlideResult &current_remaining =
     task_stats.current_leg.solution_remaining;
   const CommonStats &common_stats = CommonInterface::Calculated().common_stats;
-  const RoughTimeSpan &open = common_stats.start_open_time_span;
+  const TimeSpan &open = common_stats.start_open_time_span;
 
   /* reset color that may have been set by a previous call */
   data.SetValueColor(0);
@@ -894,7 +907,7 @@ UpdateInfoBoxStartOpenArrival(InfoBoxData &data) noexcept
   }
 
   const auto arrival_s = basic.time + current_remaining.time_elapsed;
-  const RoughTime arrival{arrival_s};
+  const FineTime arrival{arrival_s};
 
   if (open.HasEnded(arrival)) {
     data.SetValueInvalid();

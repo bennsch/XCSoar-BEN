@@ -102,6 +102,10 @@ ifeq ($(TARGET),ANDROIDFAT)
   override TARGET_FLAVOR = ANDROID
 endif
 
+ifeq ($(ANDROID_BUNDLE_BUILD),y)
+  override TARGET_FLAVOR = ANDROID_BUNDLE
+endif
+
 # real targets
 
 ifeq ($(TARGET),PC)
@@ -341,7 +345,12 @@ ifeq ($(TARGET),UNIX)
 endif
 
 ifeq ($(TARGET),ANDROID)
-  ANDROID_NDK ?= $(HOME)/opt/android-ndk-r26d
+  ifeq ($(HOST_IS_DARWIN),y)
+    ANDROID_SDK ?= $(HOME)/Library/Android/sdk
+    ANDROID_NDK ?= $(shell ls -d $(ANDROID_SDK)/ndk/26.* 2>/dev/null | head -n 1)
+  else
+    ANDROID_NDK ?= $(HOME)/opt/android-ndk-r26d
+  endif
 
   ANDROID_SDK_PLATFORM = android-33
   ANDROID_NDK_API = 21
@@ -386,7 +395,7 @@ ifeq ($(TARGET),ANDROID)
   override LIBCXX = y
 
   ifeq ($(HOST_IS_DARWIN),y)
-    ifeq ($(UNAME_M),x86_64)
+    ifneq (,$(filter $(UNAME_M),x86_64 arm64))
       ANDROID_HOST_TAG = darwin-x86_64
     else
       ANDROID_HOST_TAG = darwin-x86
