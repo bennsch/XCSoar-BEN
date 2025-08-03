@@ -60,9 +60,9 @@ LogoPageWindow::OnPaint(Canvas &canvas) noexcept
 
   Font font;
   if (width > 360)
-    font.Load(FontDescription(Layout::VptScale(16)));
+    font.Load(FontDescription(Layout::VptScale(12)));
   else
-    font.Load(FontDescription(Layout::VptScale(8)));
+    font.Load(FontDescription(Layout::VptScale(6)));
   canvas.Select(font);
   canvas.SetBackgroundTransparent();
 
@@ -90,8 +90,22 @@ LogoPageWindow::OnPaint(Canvas &canvas) noexcept
   y += ts.height + Layout::FastScale(2);
 #endif
 
-  y += Layout::FastScale(8);
-  const TCHAR *visit = _T("Visit us at:");
+  y += Layout::FastScale(24);
+  const TCHAR *github = _T("XCSoar-BEN:");
+  const TCHAR *githubUrl = _T("https://github.com/bennsch/XCSoar-BEN");
+  ts = canvas.CalcTextSize(github);
+  ts2 = canvas.CalcTextSize(githubUrl);
+  x = middle - (ts.width / 2);
+  y += ts.height;
+  canvas.SetTextColor(COLOR_BLACK);
+  canvas.DrawText({x, y}, github);
+  x = middle - (ts2.width / 2);
+  y += ts2.height;
+  canvas.SetTextColor(COLOR_XCSOAR);
+  canvas.DrawText({x, y}, githubUrl);
+
+  y += Layout::FastScale(16);
+  const TCHAR *visit = _T("Visit the official XCSoar project:");
   const TCHAR *url = _T("https://xcsoar.org");
   ts = canvas.CalcTextSize(visit);
   ts2 = canvas.CalcTextSize(url);
