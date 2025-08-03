@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: xcsoar\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-06-17 22:14+0000\n"
+"POT-Creation-Date: 2025-08-03 22:57+0000\n"
 "PO-Revision-Date: 2024-01-09 11:06+0000\n"
 "Last-Translator: l diaz <ldiazz@yahoo.com>\n"
 "Language-Team: Spanish <https://hosted.weblate.org/projects/xcsoar/"
@@ -662,6 +662,7 @@ msgstr "Alt. Rel."
 #: src/Dialogs/Task/TaskPointDialog.cpp:220
 #: src/Dialogs/Task/AlternatesListDialog.cpp:108
 #: src/Dialogs/Weather/NOAAList.cpp:97 src/InfoBoxes/Content/Task.cpp:51
+#: src/InfoBoxes/Content/Places.cpp:235
 #, no-c-format
 msgid "Details"
 msgstr "Detalles"
@@ -789,7 +790,7 @@ msgstr "Manual"
 #: src/PageSettings.cpp:50 src/PageSettings.cpp:53
 #: src/Dialogs/Settings/Panels/AirspaceConfigPanel.cpp:42
 #: src/Dialogs/Settings/Panels/GaugesConfigPanel.cpp:30
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:140
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:142
 #: src/Dialogs/Settings/Panels/PagesConfigPanel.cpp:186
 #: src/Dialogs/Settings/Panels/PagesConfigPanel.cpp:374
 #: src/Dialogs/Settings/Panels/SymbolsConfigPanel.cpp:67
@@ -846,7 +847,7 @@ msgstr "Completo"
 #: src/Dialogs/Settings/Panels/GaugesConfigPanel.cpp:26
 #: src/Dialogs/Settings/Panels/GaugesConfigPanel.cpp:67
 #: src/Dialogs/Settings/Panels/InterfaceConfigPanel.cpp:172
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:142
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:144
 #: src/Dialogs/Settings/Panels/LoggerConfigPanel.cpp:45
 #: src/Dialogs/Settings/Panels/RouteConfigPanel.cpp:111
 #: src/Dialogs/Settings/Panels/RouteConfigPanel.cpp:141
@@ -867,7 +868,7 @@ msgstr "Desactivado"
 #: src/Dialogs/StatusPanels/SystemStatusPanel.cpp:94
 #: src/Dialogs/Settings/Panels/GaugesConfigPanel.cpp:28
 #: src/Dialogs/Settings/Panels/InterfaceConfigPanel.cpp:173
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:144
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:146
 #: src/Dialogs/Settings/Panels/LoggerConfigPanel.cpp:43
 #: src/Dialogs/Settings/Panels/SymbolsConfigPanel.cpp:66
 #: src/Dialogs/Settings/Panels/TerrainDisplayConfigPanel.cpp:248
@@ -2248,7 +2249,7 @@ msgstr "Base de datos de obstáculos"
 #: src/Dialogs/Device/LX/ManageNanoDialog.cpp:60
 #: src/Dialogs/Settings/dlgConfiguration.cpp:148
 #: src/InfoBoxes/Content/Altitude.cpp:28 src/InfoBoxes/Content/MacCready.cpp:31
-#: src/InfoBoxes/Content/Places.cpp:99
+#: src/InfoBoxes/Content/Places.cpp:245
 #, no-c-format
 msgid "Setup"
 msgstr "Ajustes"
@@ -4967,222 +4968,227 @@ msgid "Reverse Landscape"
 msgstr "Horizontal invertido"
 
 #: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:67
-#, no-c-format
-msgid "8 Split"
+#, fuzzy, no-c-format
+msgid "6 Split"
 msgstr "8 Divididos"
 
 #: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:69
 #, no-c-format
+msgid "8 Split"
+msgstr "8 Divididos"
+
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:71
+#, no-c-format
 msgid "10 Split"
 msgstr "10 Divididos"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:71
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:73
 #, no-c-format
 msgid "12 Split in 3 rows"
 msgstr "12 dividido en 3 líneas"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:73
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:75
 #, no-c-format
 msgid "15 Split in 3 rows"
 msgstr "12 en 3 líneas"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:75
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:77
 #, no-c-format
 msgid "18 Split in 3 rows"
 msgstr "18 dividido en 3 líneas"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:77
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:79
 #, no-c-format
 msgid "8 Bottom or Right"
 msgstr "8 Abajo o Derecha"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:79
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:81
 #, no-c-format
 msgid "8 Bottom + Vario (Portrait)"
 msgstr "8 Abajo + Vario (Vertical)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:81
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:83
 #, no-c-format
 msgid "8 Top or Left"
 msgstr "8 Arriba o Izquierda"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:83
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:85
 #, no-c-format
 msgid "8 Top + Vario (Portrait)"
 msgstr "8 Arriba + Vario (Vertical)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:85
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:87
 #, no-c-format
 msgid "9 Right + Vario (Landscape)"
 msgstr "9 Derecha + Vario (Horizontal)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:87
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:89
 #, no-c-format
 msgid "9 Left + Right + Vario (Landscape)"
 msgstr "9 Izquierda + Derecha + Vario (Horizontal)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:89
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:91
 #, no-c-format
 msgid "12 Left + 3 Right Vario (Landscape)"
 msgstr "12 Izquierda + 3 Derecha + Vario (Horizontal)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:91
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:93
 #, no-c-format
 msgid "5 Right (Square)"
 msgstr "5 Derecha (Cuadrado)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:93
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:95
 #, no-c-format
 msgid "10 Bottom or Right"
 msgstr "10 Abajo o Derecha"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:95
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:97
 #, no-c-format
 msgid "12 Bottom or Right"
 msgstr "12 Abajo o Derecha"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:97
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:99
 #, no-c-format
 msgid "10 Top or Left"
 msgstr "10 Arriba o Izquierda"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:99
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:101
 #, no-c-format
 msgid "12 Top or Left"
 msgstr "12 Arriba o Izquierda"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:101
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:103
 #, no-c-format
 msgid "16 Right (Landscape)"
 msgstr "16 Derecho (Apaisado)"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:103
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:105
 #, no-c-format
 msgid "24 Bottom or Right"
 msgstr "4 Abajo o a Derecha"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:105
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:107
 #, no-c-format
 msgid "4 Top or Left"
 msgstr "4 Arriba o Izquierda"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:107
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:109
 #, no-c-format
 msgid "4 Bottom or Right"
 msgstr "4 Abajo o Derecha"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:112
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:114
 #, no-c-format
 msgid "Text"
 msgstr "Texto"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:113
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:115
 #, no-c-format
 msgid "Show text on tabbed dialogs."
 msgstr "Mostrar texto en cuadros de diálogo con pestañas."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:114
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:116
 #, no-c-format
 msgid "Icons"
 msgstr "Iconos"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:115
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:117
 #, no-c-format
 msgid "Show icons on tabbed dialogs."
 msgstr "Mostrar iconos en los diálogos con pestañas."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:120
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:122
 #, no-c-format
 msgid "Center"
 msgstr "Centrar"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:121
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:123
 #, no-c-format
 msgid "Center the status message boxes."
 msgstr "Centrar los mensajes de los cuadros de estado."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:122
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:124
 #, no-c-format
 msgid "Topleft"
 msgstr "Arriba Izquierda"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:123
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:125
 #, no-c-format
 msgid "Show status message boxes ina the top left corner."
 msgstr "Mostrar cuadros de mensaje de estado en la esquina superior izquierda."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:129
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:131
 #, no-c-format
 msgid "Box"
 msgstr "Caja"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:129
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:131
 #, no-c-format
 msgid "Draws boxes around each InfoBox."
 msgstr "Dibuja cajas alrededor de cada InfoBox."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:131
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:133
 #, no-c-format
 msgid "Tab"
 msgstr "Tabulador"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:131
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:133
 #, no-c-format
 msgid "Draws a tab at the top of the InfoBox across the title."
 msgstr ""
 "Dibuja una pestaña en la parte superior del cuadro de información a lo largo "
 "del título."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:133
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:135
 #, no-c-format
 msgid "Shaded"
 msgstr "Sombreado"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:135
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:137
 #, no-c-format
 msgid "Glass"
 msgstr "Cristal"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:141
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:143
 #, no-c-format
 msgid "Use the system-wide setting"
 msgstr "Utilizar la configuración de todo el sistema"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:143
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:145
 #, no-c-format
 msgid "Black text on white background"
 msgstr "Texto negro sobre fondo blanco"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:145
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:147
 #, no-c-format
 msgid "White text on black background"
 msgstr "Texto blanco sobre fondo negro"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:168
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:170
 msgid "Full screen"
 msgstr "Pantalla completa"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:168
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:170
 msgid "Run XCSoar in full screen mode"
 msgstr "Ejecutar XCSoar a pantalla completa"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:173
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:175
 msgid "Display orientation"
 msgstr "Orientación de la pantalla"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:173
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:175
 msgid "Rotate the display on devices that support it."
 msgstr "Gire la pantalla en los dispositivos que lo admiten."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:178
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:180
 msgid "Dark mode"
 msgstr "Modo oscuro"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:182
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:184
 msgid "InfoBox geometry"
 msgstr "Geometría de InfoBox"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:183
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:185
 msgid ""
 "A list of possible InfoBox layouts. Do some trials to find the best for your "
 "screen size."
@@ -5190,28 +5196,28 @@ msgstr ""
 "Una lista de posibles diseños de InfoBox. Haga algunos ensayos para "
 "encontrar el mejor para su tamaño de pantalla."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:186
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:188
 #, fuzzy
 msgid "InfoBox title size"
 msgstr "Conjuntos de InfoBox"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:186
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:188
 msgid "Zoom factor for InfoBox title and comment text"
 msgstr ""
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:191
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:193
 msgid "Tab dialog style"
 msgstr "Estilo de las pestañas"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:194
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:196
 msgid "Message display"
 msgstr "Visualización de mensajes"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:200
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:202
 msgid "Colored InfoBoxes"
 msgstr "Infoboxes coloreadas"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:201
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:203
 msgid ""
 "If true, certain InfoBoxes will have coloured text.  For example, the active "
 "waypoint InfoBox will be blue when the glider is above final glide."
@@ -5220,41 +5226,41 @@ msgstr ""
 "InfoBox del waypoint activo será azul cuando el planeador esté por encima "
 "del planeo final."
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:208
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:210
 msgid "InfoBox border"
 msgstr "Borde de InfoBox"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:212
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:214
 msgid "Show Menubutton"
 msgstr "Mostrar botón de menú"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:212
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:214
 msgid "Show the Menubutton"
 msgstr "Mostrar el botón Menú"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:215
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:217
 #, fuzzy
 msgid "Show Zoombutton"
 msgstr "Mostrar botón de menú"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:215
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:217
 #, fuzzy
 msgid "Show the Zoombutton"
 msgstr "Mostrar el botón Menú"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:220
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:222
 msgid "Cursor zoom"
 msgstr "Zoom del cursor"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:220
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:222
 msgid "Cursor zoom factor"
 msgstr "Factor de zoom del cursor"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:222
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:224
 msgid "Invert cursor color"
 msgstr "Invertir el color del cursor"
 
-#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:222
+#: src/Dialogs/Settings/Panels/LayoutConfigPanel.cpp:224
 msgid "Enable black cursor"
 msgstr "Activar el cursor negro"
 
@@ -7787,7 +7793,7 @@ msgstr "METAR y TAF"
 msgid "Field"
 msgstr "Campo"
 
-#: src/Dialogs/dlgCredits.cpp:145 Data/Input/default.xci:893
+#: src/Dialogs/dlgCredits.cpp:159 Data/Input/default.xci:893
 msgid "Credits"
 msgstr "Créditos"
 
@@ -9880,33 +9886,52 @@ msgid "Distance to where take-off was detected."
 msgstr "Distancia al lugar dónde se detectó el decolaje."
 
 #: src/InfoBoxes/Content/Factory.cpp:994
+#, fuzzy, no-c-format
+msgid "Takeoff altitude difference"
+msgstr "Diferencia de altitud de la tarea"
+
+#: src/InfoBoxes/Content/Factory.cpp:995
+#, fuzzy, no-c-format
+msgid "Takeoff AltD"
+msgstr "Hora de despegue"
+
+#: src/InfoBoxes/Content/Factory.cpp:996
+#, fuzzy, no-c-format
+msgid ""
+"Arrival altitude at the takeoff waypoint relative to the safety arrival "
+"height."
+msgstr ""
+"Altitud de llegada en el punto de viraje final de la tarea en relación con "
+"la altura de llegada de seguridad."
+
+#: src/InfoBoxes/Content/Factory.cpp:1003
 #, no-c-format
 msgid "Contest speed"
 msgstr "Velocidad de tarea"
 
-#: src/InfoBoxes/Content/Factory.cpp:995
+#: src/InfoBoxes/Content/Factory.cpp:1004
 #, no-c-format
 msgid "Cont Speed"
 msgstr "V Tarea"
 
-#: src/InfoBoxes/Content/Factory.cpp:996
+#: src/InfoBoxes/Content/Factory.cpp:1005
 #, no-c-format
 msgid ""
 "Instantaneous evaluation of the flown speed according to the configured "
 "Contest rule set."
 msgstr "Velocidad instantánea conforme con las reglas de la tarea."
 
-#: src/InfoBoxes/Content/Factory.cpp:1001
+#: src/InfoBoxes/Content/Factory.cpp:1010
 #, no-c-format
 msgid "Final MC0 altitude difference"
 msgstr "Diferencia de altitud MC0 final"
 
-#: src/InfoBoxes/Content/Factory.cpp:1002
+#: src/InfoBoxes/Content/Factory.cpp:1011
 #, no-c-format
 msgid "Fin MC0 AltD"
 msgstr "Altitud de llegada con MC 0"
 
-#: src/InfoBoxes/Content/Factory.cpp:1003
+#: src/InfoBoxes/Content/Factory.cpp:1012
 #, no-c-format
 msgid ""
 "Arrival altitude at the final waypoint with MC 0 setting relative to the "
@@ -9915,13 +9940,13 @@ msgstr ""
 "Altitud de llegada al waypoint final con MC 0 relativo a la altura de "
 "llegada de seguridad."
 
-#: src/InfoBoxes/Content/Factory.cpp:1009
-#: src/InfoBoxes/Content/Factory.cpp:1010 src/InfoBoxes/Content/Task.cpp:942
+#: src/InfoBoxes/Content/Factory.cpp:1018
+#: src/InfoBoxes/Content/Factory.cpp:1019 src/InfoBoxes/Content/Task.cpp:953
 #, no-c-format
 msgid "Next arrow"
 msgstr "Siguiente flecha"
 
-#: src/InfoBoxes/Content/Factory.cpp:1011
+#: src/InfoBoxes/Content/Factory.cpp:1020
 #, no-c-format
 msgid ""
 "Arrow pointing to the currently selected waypoint. The name of the waypoint "
@@ -9934,17 +9959,17 @@ msgstr ""
 "la tarea, el centro de un GOTO seleccionado o el destino dentro del sector "
 "TAA."
 
-#: src/InfoBoxes/Content/Factory.cpp:1021
+#: src/InfoBoxes/Content/Factory.cpp:1030
 #, no-c-format
 msgid "Next waypoint arrival time (ground speed)"
 msgstr "Hora de llegada al siguiente waypoint (velocidad respecto al suelo)"
 
-#: src/InfoBoxes/Content/Factory.cpp:1022
+#: src/InfoBoxes/Content/Factory.cpp:1031
 #, no-c-format
 msgid "WP ETA VMG"
 msgstr "WP ETE VMG"
 
-#: src/InfoBoxes/Content/Factory.cpp:1023
+#: src/InfoBoxes/Content/Factory.cpp:1032
 #, no-c-format
 msgid ""
 "Estimated arrival time at next waypoint, assuming current ground speed is "
@@ -9953,17 +9978,17 @@ msgstr ""
 "Hora de llegada estimada al siguiente waypoint si se mantiene la velocidad "
 "sobre el terreno."
 
-#: src/InfoBoxes/Content/Factory.cpp:1030
+#: src/InfoBoxes/Content/Factory.cpp:1039
 #, no-c-format
 msgid "Percentage non-circling climb"
 msgstr "Porcentaje de ascenso no circular"
 
-#: src/InfoBoxes/Content/Factory.cpp:1031
+#: src/InfoBoxes/Content/Factory.cpp:1040
 #, no-c-format
 msgid "% Str Climb"
 msgstr "% Ascenso"
 
-#: src/InfoBoxes/Content/Factory.cpp:1032
+#: src/InfoBoxes/Content/Factory.cpp:1041
 #, no-c-format
 msgid ""
 "Percentage of time spent climbing without circling. These statistics are "
@@ -9972,17 +9997,17 @@ msgstr ""
 "Porcentaje de tiempo en ascenso sin virajes. Estas estadísticas son "
 "reiniciadas al comienzo de la tarea."
 
-#: src/InfoBoxes/Content/Factory.cpp:1038
+#: src/InfoBoxes/Content/Factory.cpp:1047
 #, no-c-format
 msgid "Percentage climb chart"
 msgstr "Tabla de porcentaje de ascenso"
 
-#: src/InfoBoxes/Content/Factory.cpp:1039
+#: src/InfoBoxes/Content/Factory.cpp:1048
 #, no-c-format
 msgid "Climb %"
 msgstr "% Ascenso"
 
-#: src/InfoBoxes/Content/Factory.cpp:1040
+#: src/InfoBoxes/Content/Factory.cpp:1049
 #, no-c-format
 msgid ""
 "Pie chart of time circling and climbing, circling and descending, and "
@@ -9991,17 +10016,17 @@ msgstr ""
 "Gráfica circular compuesta con el tiempo virando en ascenso, virando en "
 "descenso y ascendiendo sin virar."
 
-#: src/InfoBoxes/Content/Factory.cpp:1046
+#: src/InfoBoxes/Content/Factory.cpp:1055
 #, no-c-format
 msgid "Number of used satellites"
 msgstr "Número de satélites usados"
 
-#: src/InfoBoxes/Content/Factory.cpp:1047
+#: src/InfoBoxes/Content/Factory.cpp:1056
 #, no-c-format
 msgid "Satellites"
 msgstr "Satélites"
 
-#: src/InfoBoxes/Content/Factory.cpp:1048
+#: src/InfoBoxes/Content/Factory.cpp:1057
 #, no-c-format
 msgid ""
 "The number of actually used (seen) satellites by GPS module. If this "
@@ -10010,62 +10035,62 @@ msgstr ""
 "El número de satélites realmente usados (vistos) por el módulo GPS. Si esta "
 "información no está disponible, el valor mostrado será '---'."
 
-#: src/InfoBoxes/Content/Factory.cpp:1054
+#: src/InfoBoxes/Content/Factory.cpp:1063
 #, no-c-format
 msgid "Active Radio Frequency"
 msgstr "Frecuencia de radio activa"
 
-#: src/InfoBoxes/Content/Factory.cpp:1055
+#: src/InfoBoxes/Content/Factory.cpp:1064
 #, no-c-format
 msgid "Act Freq"
 msgstr "Frec Act"
 
-#: src/InfoBoxes/Content/Factory.cpp:1056
+#: src/InfoBoxes/Content/Factory.cpp:1065
 #, no-c-format
 msgid "The currently active Radio Frequency"
 msgstr "Frecuencia de radio activa"
 
-#: src/InfoBoxes/Content/Factory.cpp:1061
+#: src/InfoBoxes/Content/Factory.cpp:1070
 #, no-c-format
 msgid "Standby Radio Frequency"
 msgstr "Frecuencia de radio alternativa"
 
-#: src/InfoBoxes/Content/Factory.cpp:1062
+#: src/InfoBoxes/Content/Factory.cpp:1071
 #, no-c-format
 msgid "Stby Freq"
 msgstr "Frec Alt"
 
-#: src/InfoBoxes/Content/Factory.cpp:1063
+#: src/InfoBoxes/Content/Factory.cpp:1072
 #, no-c-format
 msgid "The currently standby Radio Frequency"
 msgstr "Frecuencia de radio alternativa actual"
 
-#: src/InfoBoxes/Content/Factory.cpp:1069
+#: src/InfoBoxes/Content/Factory.cpp:1078
 #, no-c-format
 msgid "Thermal time"
 msgstr "Tiempo en la térmica actual"
 
-#: src/InfoBoxes/Content/Factory.cpp:1070
+#: src/InfoBoxes/Content/Factory.cpp:1079
 #, no-c-format
 msgid "TC Time"
 msgstr "Tiempo Term"
 
-#: src/InfoBoxes/Content/Factory.cpp:1071
+#: src/InfoBoxes/Content/Factory.cpp:1080
 #, no-c-format
 msgid "The time spend in the current thermal."
 msgstr "El tiempo gastado en la térmica actual."
 
-#: src/InfoBoxes/Content/Factory.cpp:1077
+#: src/InfoBoxes/Content/Factory.cpp:1086
 #, no-c-format
 msgid "Alternate 2 GR"
 msgstr "RP Alternativo 2"
 
-#: src/InfoBoxes/Content/Factory.cpp:1078
+#: src/InfoBoxes/Content/Factory.cpp:1087
 #, no-c-format
 msgid "Altn2 GR"
 msgstr "RP Altn2"
 
-#: src/InfoBoxes/Content/Factory.cpp:1079
+#: src/InfoBoxes/Content/Factory.cpp:1088
 #, no-c-format
 msgid ""
 "Geometric gradient to the arrival height above the second alternate. This is "
@@ -10074,92 +10099,92 @@ msgstr ""
 "Gradiente geométrico a la altura de llegada al segundo alternativo. No está "
 "ajustado para la energía total."
 
-#: src/InfoBoxes/Content/Factory.cpp:1085
+#: src/InfoBoxes/Content/Factory.cpp:1094
 #, no-c-format
 msgid "Heart Rate"
 msgstr "Ritmo cardiaco"
 
-#: src/InfoBoxes/Content/Factory.cpp:1086
+#: src/InfoBoxes/Content/Factory.cpp:1095
 #, no-c-format
 msgid "Heart"
 msgstr "Corazón"
 
-#: src/InfoBoxes/Content/Factory.cpp:1087
+#: src/InfoBoxes/Content/Factory.cpp:1096
 #, no-c-format
 msgid "Heart rate in beats per minute."
 msgstr "Ritmo cardiaco en latidos por minuto."
 
-#: src/InfoBoxes/Content/Factory.cpp:1093
+#: src/InfoBoxes/Content/Factory.cpp:1102
 #, no-c-format
 msgid "Transponder Code"
 msgstr "Código del transpondedor"
 
-#: src/InfoBoxes/Content/Factory.cpp:1094
+#: src/InfoBoxes/Content/Factory.cpp:1103
 #, no-c-format
 msgid "XPDR Code"
 msgstr "Código XPDR"
 
-#: src/InfoBoxes/Content/Factory.cpp:1095
+#: src/InfoBoxes/Content/Factory.cpp:1104
 #, no-c-format
 msgid "The currently set Transponder code"
 msgstr "El código de transpondedor ajustado actualmente"
 
-#: src/InfoBoxes/Content/Factory.cpp:1101
+#: src/InfoBoxes/Content/Factory.cpp:1110
 #, no-c-format
 msgid "Engine CHT"
 msgstr "CHT del motor"
 
-#: src/InfoBoxes/Content/Factory.cpp:1102
+#: src/InfoBoxes/Content/Factory.cpp:1111
 #, no-c-format
 msgid "CHT"
 msgstr "CHT"
 
-#: src/InfoBoxes/Content/Factory.cpp:1103
+#: src/InfoBoxes/Content/Factory.cpp:1112
 #, no-c-format
 msgid "Engine Cylinder Head Temperature"
 msgstr "Temperatura de la culata del motor"
 
-#: src/InfoBoxes/Content/Factory.cpp:1109
+#: src/InfoBoxes/Content/Factory.cpp:1118
 #, no-c-format
 msgid "Engine EGT"
 msgstr "EGT del motor"
 
-#: src/InfoBoxes/Content/Factory.cpp:1110
+#: src/InfoBoxes/Content/Factory.cpp:1119
 #, no-c-format
 msgid "EGT"
 msgstr "EGT"
 
-#: src/InfoBoxes/Content/Factory.cpp:1111
+#: src/InfoBoxes/Content/Factory.cpp:1120
 #, no-c-format
 msgid "Engine Exhaust Gas Temperature"
 msgstr "Temperatura de los gases de escape del motor"
 
-#: src/InfoBoxes/Content/Factory.cpp:1117
+#: src/InfoBoxes/Content/Factory.cpp:1126
 #, no-c-format
 msgid "Engine Revolutions Per Minute"
 msgstr "Revoluciones por minuto del motor"
 
-#: src/InfoBoxes/Content/Factory.cpp:1118
+#: src/InfoBoxes/Content/Factory.cpp:1127
 #, no-c-format
 msgid "RPM"
 msgstr "RPM"
 
-#: src/InfoBoxes/Content/Factory.cpp:1119
+#: src/InfoBoxes/Content/Factory.cpp:1128
 #, no-c-format
 msgid "Engine Revolutions Per Minute."
 msgstr "Revoluciones por minuto del motor."
 
-#: src/InfoBoxes/Content/Factory.cpp:1125
+#: src/InfoBoxes/Content/Factory.cpp:1134
 #, no-c-format
 msgid "AAT dT and task ETA"
 msgstr "AAT dT y ETA de la tarea"
 
-#: src/InfoBoxes/Content/Factory.cpp:1126
+#: src/InfoBoxes/Content/Factory.cpp:1135
 #, no-c-format
 msgid "AATdeltaOrETA"
 msgstr "AATdeltaoETA"
 
-#: src/InfoBoxes/Content/Factory.cpp:1127
+#: src/InfoBoxes/Content/Factory.cpp:1136
 #, no-c-format
 msgid ""
 "Shows AAT delta time and estimated time of arrival in case of AAT task, and "
@@ -10168,17 +10193,17 @@ msgstr ""
 "Muestra el tiempo delta de AAT y la hora estimada de llegada en caso de "
 "tarea de AAT, y la hora estimada de llegada en caso de tarea de carrera"
 
-#: src/InfoBoxes/Content/Factory.cpp:1133
+#: src/InfoBoxes/Content/Factory.cpp:1142
 #, fuzzy, no-c-format
 msgid "Speed task estimated"
 msgstr "Velocidad estimada"
 
-#: src/InfoBoxes/Content/Factory.cpp:1134
+#: src/InfoBoxes/Content/Factory.cpp:1143
 #, fuzzy, no-c-format
 msgid "V Task Est"
 msgstr "V Tar Inst"
 
-#: src/InfoBoxes/Content/Factory.cpp:1135
+#: src/InfoBoxes/Content/Factory.cpp:1144
 #, fuzzy, no-c-format
 msgid ""
 "Estimated average cross-country speed for current task as of task "
@@ -10187,17 +10212,17 @@ msgstr ""
 "Hora local estimada de llegada al finalizar la tarea, suponiendo un "
 "rendimiento MacCready ideal del ciclo planeo/ascenso."
 
-#: src/InfoBoxes/Content/Factory.cpp:1141
+#: src/InfoBoxes/Content/Factory.cpp:1150
 #, fuzzy, no-c-format
 msgid "Home altitude difference"
 msgstr "Siguiente diferencia de altitud"
 
-#: src/InfoBoxes/Content/Factory.cpp:1142
+#: src/InfoBoxes/Content/Factory.cpp:1151
 #, fuzzy, no-c-format
 msgid "Home AltD"
 msgstr "Dist Base"
 
-#: src/InfoBoxes/Content/Factory.cpp:1143
+#: src/InfoBoxes/Content/Factory.cpp:1152
 #, fuzzy, no-c-format
 msgid ""
 "Arrival altitude at the home waypoint relative to the safety arrival height."
@@ -10205,17 +10230,17 @@ msgstr ""
 "Altitud de llegada en el punto de viraje final de la tarea en relación con "
 "la altura de llegada de seguridad."
 
-#: src/InfoBoxes/Content/Factory.cpp:1149
+#: src/InfoBoxes/Content/Factory.cpp:1158
 #, fuzzy, no-c-format
 msgid "Speed task leg"
 msgstr "Velocidad promedio de la tarea"
 
-#: src/InfoBoxes/Content/Factory.cpp:1150
+#: src/InfoBoxes/Content/Factory.cpp:1159
 #, fuzzy, no-c-format
 msgid "V Task Leg"
 msgstr "V Tarea Prom"
 
-#: src/InfoBoxes/Content/Factory.cpp:1151
+#: src/InfoBoxes/Content/Factory.cpp:1160
 #, fuzzy, no-c-format
 msgid ""
 "Average cross country speed while on current task leg, not compensated for "
@@ -10227,7 +10252,7 @@ msgid "Altn {}"
 msgstr "Altn {}"
 
 #: src/InfoBoxes/Content/Altitude.cpp:26
-#: src/MapWindow/GlueMapWindowOverlays.cpp:333
+#: src/MapWindow/GlueMapWindowOverlays.cpp:336
 #, no-c-format
 msgid "Simulator"
 msgstr "Simulador"
@@ -10273,23 +10298,32 @@ msgstr "DELFÍN"
 msgid "Next"
 msgstr "Siguiente"
 
-#: src/InfoBoxes/Content/Task.cpp:730
+#: src/InfoBoxes/Content/Task.cpp:738
 msgid "Time Below"
 msgstr "Tiempo Debajo"
 
-#: src/InfoBoxes/Content/Task.cpp:858 src/InfoBoxes/Content/Task.cpp:903
+#: src/InfoBoxes/Content/Task.cpp:869 src/InfoBoxes/Content/Task.cpp:914
 msgid "Closed"
 msgstr "Cerrado"
 
-#: src/InfoBoxes/Content/Task.cpp:867 src/InfoBoxes/Content/Task.cpp:912
+#: src/InfoBoxes/Content/Task.cpp:878 src/InfoBoxes/Content/Task.cpp:923
 msgid "Open"
 msgstr "Abierto"
 
-#: src/InfoBoxes/Content/Task.cpp:872 src/InfoBoxes/Content/Task.cpp:917
+#: src/InfoBoxes/Content/Task.cpp:883 src/InfoBoxes/Content/Task.cpp:928
 msgid "Waiting"
 msgstr "En Espera"
 
-#: src/InfoBoxes/Content/Places.cpp:98
+#: src/InfoBoxes/Content/Places.cpp:202
+#, fuzzy
+msgid "Terrain!"
+msgstr "Terreno"
+
+#: src/InfoBoxes/Content/Places.cpp:210
+msgid "Glide result not ok"
+msgstr ""
+
+#: src/InfoBoxes/Content/Places.cpp:244
 #, no-c-format
 msgid "Reference"
 msgstr "Referencia"
@@ -10320,15 +10354,15 @@ msgstr ""
 msgid "There is nothing interesting near this location."
 msgstr "No hay nada interesante cerca de esta posición."
 
-#: src/MapWindow/GlueMapWindowOverlays.cpp:113
+#: src/MapWindow/GlueMapWindowOverlays.cpp:116
 msgid "Elevation: "
 msgstr "Elevación: "
 
-#: src/MapWindow/GlueMapWindowOverlays.cpp:152
+#: src/MapWindow/GlueMapWindowOverlays.cpp:155
 msgid "GPS not connected"
 msgstr "GPS no conectado"
 
-#: src/MapWindow/GlueMapWindowOverlays.cpp:155
+#: src/MapWindow/GlueMapWindowOverlays.cpp:158
 msgid "GPS waiting for fix"
 msgstr "Esperando señal GPS"
 
@@ -11470,9 +11504,6 @@ msgstr ""
 
 #~ msgid "Waypoint distance"
 #~ msgstr "Distancia al Waypoint"
-
-#~ msgid "Task altitude difference"
-#~ msgstr "Diferencia de altitud de la tarea"
 
 #~ msgid "MacCready"
 #~ msgstr "MacCready"
