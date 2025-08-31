@@ -38,7 +38,9 @@ InfoBoxContentAltitude::GetDialogContent() noexcept
 void
 UpdateInfoBoxAltitudeNav(InfoBoxData &data) noexcept
 {
+  const DerivedInfo &calculated = CommonInterface::Calculated();
   const MoreData &basic = CommonInterface::Basic();
+  const ComputerSettings &settings_computer = CommonInterface::GetComputerSettings();
 
   if (!basic.NavAltitudeAvailable()) {
     data.SetInvalid();
@@ -49,16 +51,25 @@ UpdateInfoBoxAltitudeNav(InfoBoxData &data) noexcept
     return;
   }
 
-  const ComputerSettings &settings_computer = CommonInterface::GetComputerSettings();
-
+  // MSL
   if (basic.baro_altitude_available &&
-      settings_computer.features.nav_baro_altitude_enabled)
+      settings_computer.features.nav_baro_altitude_enabled){
     data.SetTitle(InfoBoxFactory::GetCaption(InfoBoxFactory::e_H_Baro));
-  else
+  }
+  else {
     data.SetTitle(InfoBoxFactory::GetCaption(InfoBoxFactory::e_HeightGPS));
-
+  }
   data.SetValueFromAltitude(basic.nav_altitude);
-  data.SetCommentFromAlternateAltitude(basic.nav_altitude);
+
+  // AGL
+  if (calculated.altitude_agl_valid) {
+    data.SetCommentFromAltitude(calculated.altitude_agl);
+    // Set Color (red/black)
+    data.SetCommentColor(calculated.altitude_agl <
+        CommonInterface::GetComputerSettings().task.route_planner.safety_height_terrain ? 1 : 0);
+  } else {
+    data.SetCommentInvalid();
+  }
 }
 
 void

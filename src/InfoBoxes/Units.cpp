@@ -48,6 +48,12 @@ InfoBoxData::SetCommentFromDistance(double new_value) noexcept
 }
 
 void
+InfoBoxData::SetCommentFromAltitude(double new_value) noexcept
+{
+  FormatUserAltitude(new_value, comment.buffer());
+}
+
+void
 InfoBoxData::SetCommentFromAlternateAltitude(double new_value) noexcept
 {
   FormatAlternateUserAltitude(new_value, comment.buffer());

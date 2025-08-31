@@ -216,7 +216,12 @@ struct InfoBoxData {
   void SetCommentFromTaskSpeed(double value, bool precision=true) noexcept;
 
   /**
-   * Set the InfoBox value to the specified altitude in the alternate
+   * Set the InfoBox comment to the specified altitude.
+   */
+  void SetCommentFromAltitude(double value) noexcept;
+
+  /**
+   * Set the InfoBox comment to the specified altitude in the alternate
    * altitude unit.
    */
   void SetCommentFromAlternateAltitude(double value) noexcept;
