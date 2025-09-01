@@ -188,7 +188,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   // Update InfoBox
   data.SetTitle(takeoff_wp->name.c_str());
   if (glide_result.IsOk()){
-    auto alt_diff = glide_result.pure_glide_altitude_difference;
+    auto alt_diff = glide_result.SelectAltitudeDifference(glide_settings);
     data.SetValueFromArrival(alt_diff);
     data.SetCommentFromDistance(target_vector.distance);
     data.SetCommentColor(0);
