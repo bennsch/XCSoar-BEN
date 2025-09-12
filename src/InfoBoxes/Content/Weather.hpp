@@ -39,3 +39,11 @@ public:
   void OnCustomPaint(Canvas &canvas, const PixelRect &rc) noexcept override;
   const InfoBoxPanel *GetDialogContent() noexcept override;
 };
+
+class InfoBoxContentMyBox: public InfoBoxContent
+{
+public:
+  void Update(InfoBoxData &data) noexcept override;
+  void OnCustomPaint(Canvas &canvas, const PixelRect &rc) noexcept override;
+  // const InfoBoxPanel *GetDialogContent() noexcept override;
+};

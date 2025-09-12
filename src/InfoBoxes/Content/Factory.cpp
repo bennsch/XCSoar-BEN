@@ -919,7 +919,8 @@ static constexpr MetaData meta_data[] = {
     N_("Wind arrow"),
     N_("Wind"),
     N_("Wind speed estimated by XCSoar. Manual adjustment is possible with the connected InfoBox dialogue. Pressing the up/down cursor keys to cycle through settings, adjust the values with left/right cursor keys."),
-    IBFHelper<InfoBoxContentWindArrow>::Create,
+    // IBFHelper<InfoBoxContentWindArrow>::Create,
+    IBFHelper<InfoBoxContentMyBox>::Create,
   },
 
   {
