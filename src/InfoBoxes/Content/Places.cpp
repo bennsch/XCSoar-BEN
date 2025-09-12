@@ -124,6 +124,16 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
   const GlidePolar &glide_polar_safety = calculated.glide_polar_safety;
   const SpeedVector &wind = calculated.GetWindOrZero();
 
+
+  data.SetValueFromSpeed(more_data.ground_speed, false);
+  data.SetValue2FromAltitude(calculated.altitude_agl);
+  data.SetValueColor(2);
+  data.SetCommentColor(3);
+  // data.SetDual(true);
+  return;
+
+
+
   // Find takeoff waypoint
   if (takeoff_wp == NULL && flight.flying && flight.HasTakenOff()){
     takeoff_wp = waypoints.GetNearestLandable(flight.takeoff_location, 5000);

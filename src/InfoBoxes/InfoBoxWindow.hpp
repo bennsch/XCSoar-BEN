@@ -62,6 +62,7 @@ class InfoBoxWindow : public LazyPaintWindow
   PixelRect value_and_comment_rect;
 
   unsigned unit_width = 0;
+  unsigned unit2_width = 0;
 
   /**
    * Paints the InfoBox title to the given canvas
@@ -72,7 +73,9 @@ class InfoBoxWindow : public LazyPaintWindow
    * Paints the InfoBox value to the given canvas
    * @param canvas The canvas to paint on
    */
+  void PaintMyText(Canvas &canvas, Color background_color);
   void PaintValue(Canvas &canvas, Color background_color);
+  void PaintDualValue(Canvas &canvas, Color background_color);
   /**
    * Paints the InfoBox comment on the given canvas
    * @param canvas The canvas to paint on

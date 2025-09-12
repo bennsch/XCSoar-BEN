@@ -21,6 +21,13 @@ InfoBoxData::SetValueFromAltitude(double new_value) noexcept
 }
 
 void
+InfoBoxData::SetValue2FromAltitude(double new_value) noexcept
+{
+  FormatUserAltitude(new_value, value2.buffer(), false);
+  SetValue2Unit(Units::current.altitude_unit);
+}
+
+void
 InfoBoxData::SetValueFromArrival(double new_value) noexcept
 {
   FormatRelativeUserAltitude(new_value, value.buffer(), false);

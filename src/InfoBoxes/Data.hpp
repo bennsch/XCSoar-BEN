@@ -32,11 +32,14 @@ struct InfoBoxData {
 
   StaticString<32> title;
   StaticString<32> value;
+  StaticString<32> value2;
   StaticString<32> comment;
+  StaticString<32> myText;
+  bool dual;
 
-  Unit value_unit;
+  Unit value_unit, value2_unit;
 
-  uint8_t title_color, value_color, comment_color;
+  uint8_t title_color, value_color, value2_color, comment_color;
 
   void Clear() noexcept;
 
@@ -60,12 +63,16 @@ struct InfoBoxData {
    */
   void SetValueInvalid() noexcept;
 
+  void SetValue2Invalid() noexcept;
+  
   /**
    * Clears comment
    */
   void SetCommentInvalid() noexcept {
     comment.clear();
   }
+
+  
 
   /**
    * calls SetValueInvalid() then SetCommentInvalid()
@@ -106,6 +113,9 @@ struct InfoBoxData {
    * @param Value New value of the InfoBox value
    */
   void SetValue(const TCHAR *value) noexcept;
+  void SetValue2(const TCHAR *value) noexcept;
+  void SetMyText(const TCHAR *value) noexcept;
+  void SetDual(const bool dual) noexcept;
 
   void VFmtValue(fmt_tstring_view format_str, fmt_tformat_args args) noexcept {
     auto [p, _] = fmt::vformat_to_n(value.begin(), value.capacity() - 1,
@@ -146,6 +156,7 @@ struct InfoBoxData {
    * Set the InfoBox value to the specified altitude.
    */
   void SetValueFromAltitude(double value) noexcept;
+  void SetValue2FromAltitude(double value) noexcept;
 
   /**
    * Set the InfoBox value to the specified arrival altitude.
@@ -254,6 +265,10 @@ struct InfoBoxData {
     value_unit = _value_unit;
   }
 
+  void SetValue2Unit(Unit _value_unit) noexcept {
+    value2_unit = _value_unit;
+  }
+
   /**
    * Sets the color of the InfoBox value to the given value
    * @param value New color of the InfoBox value
@@ -264,6 +279,12 @@ struct InfoBoxData {
     value_color = _color;
   }
 
+
+  void SetValue2Color(unsigned _color) noexcept {
+    assert(_color < COLOR_COUNT);
+
+    value2_color = _color;
+  }
   /**
    * Sets the color of the InfoBox comment to the given value
    * @param value New color of the InfoBox comment
@@ -293,5 +314,6 @@ struct InfoBoxData {
 
   bool CompareTitle(const InfoBoxData &other) const noexcept;
   bool CompareValue(const InfoBoxData &other) const noexcept;
+  bool CompareValue2(const InfoBoxData &other) const noexcept;
   bool CompareComment(const InfoBoxData &other) const noexcept;
 };

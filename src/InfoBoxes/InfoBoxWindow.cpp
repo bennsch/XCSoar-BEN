@@ -15,6 +15,9 @@
 #include "Asset.hpp"
 
 #include <algorithm>
+#include <winuser.h>
+#include <iostream>
+
 
 /** timeout of infobox focus */
 static constexpr std::chrono::steady_clock::duration FOCUS_TIMEOUT_MAX = std::chrono::seconds(20);
@@ -106,12 +109,12 @@ InfoBoxWindow::PaintValue(Canvas &canvas, [[maybe_unused]] Color background_colo
 
   PixelSize value_size = canvas.CalcTextSize(data.value);
   if (unsigned(value_size.width + unit_width) > value_rect.GetWidth()) {
-    canvas.Select(look.small_value_font);
-    ascent_height = look.small_value_font.GetAscentHeight();
+      canvas.Select(look.small_value_font);
+      ascent_height = look.small_value_font.GetAscentHeight();
     value_size = canvas.CalcTextSize(data.value);
-  }
+    }
 
-  const PixelSize value_unit_size = value_size + PixelSize{unit_width, 0u};
+    const PixelSize value_unit_size = value_size + PixelSize{unit_width, 0u};
 
   auto value_p = value_rect.CenteredTopLeft(value_unit_size);
   if (value_p.x < 0)
@@ -133,12 +136,147 @@ InfoBoxWindow::PaintValue(Canvas &canvas, [[maybe_unused]] Color background_colo
 }
 
 void
+InfoBoxWindow::PaintDualValue(Canvas &canvas, [[maybe_unused]] Color background_color)
+{
+  if (data.value.empty() || data.value2.empty()){
+    return;
+  }
+
+  canvas.DrawHLine(value_and_comment_rect.left, value_and_comment_rect.right, value_and_comment_rect.top + value_and_comment_rect.GetHeight() / 2.0f, COLOR_BLACK);
+
+  PixelPoint value_p;
+  PixelSize value_size;
+
+  if (!data.value.empty()) {
+    canvas.SetTextColor(look.GetValueColor(data.value_color));
+    canvas.Select(look.dual_value_font);
+    int ascent_height = look.dual_value_font.GetAscentHeight();
+    value_size = canvas.CalcTextSize(data.value);
+    if (unsigned(value_size.width + unit_width) > value_and_comment_rect.GetWidth()) {
+      canvas.Select(look.small_dual_value_font);
+      ascent_height = look.small_dual_value_font.GetAscentHeight();
+      value_size = canvas.CalcTextSize(data.value);
+    }
+    const PixelSize value_unit_size = value_size + PixelSize{unit_width, 0u};
+    value_p = value_and_comment_rect.CenteredTopLeft(value_unit_size);
+    value_p.y = value_and_comment_rect.top;
+
+    if (value_p.x < 0){
+      value_p.x = 0;
+    }
+    canvas.TextAutoClipped(value_p, data.value);
+    if (unit_width != 0) {
+      const int unit_height = UnitSymbolRenderer::GetAscentHeight(look.unit_font, data.value_unit);
+      const auto unit_p = value_p.At(value_size.width, ascent_height - unit_height);
+      canvas.Select(look.unit_font);
+      UnitSymbolRenderer::Draw(canvas, unit_p, data.value_unit, look.unit_fraction_pen);
+    }
+  }
+
+  if (!data.value2.empty()){
+    canvas.SetTextColor(look.GetValueColor(data.value2_color));
+    canvas.Select(look.dual_value_font);
+    int ascent2_height = look.dual_value_font.GetAscentHeight();
+    PixelSize value2_size = canvas.CalcTextSize(data.value2);
+    if (unsigned(value2_size.width + unit2_width) > value_and_comment_rect.GetWidth()) {
+      canvas.Select(look.small_dual_value_font);
+      ascent2_height = look.small_dual_value_font.GetAscentHeight();
+      value2_size = canvas.CalcTextSize(data.value2);
+    }
+    const PixelSize value2_unit_size = value2_size + PixelSize{unit2_width, 0u};
+    auto value2_p = value_and_comment_rect.CenteredTopLeft(value2_unit_size);
+    // value2_p.x = value_p.x;
+    // value2_p.y = value_and_comment_rect.top;
+    // value2_p.y += value_size.height;
+    // value2_p.y += look.dual_value_font.GetCapitalHeight();
+    value2_p.y += look.dual_value_font.GetAscentHeight();
+    if (value2_p.x < 0){
+      value2_p.x = 0;
+    }
+    value2_p.y -= 10;
+    canvas.TextAutoClipped(value2_p, data.value2);
+    if (unit2_width != 0) {
+      const int unit2_height = UnitSymbolRenderer::GetAscentHeight(look.unit_font, data.value2_unit);
+      const auto unit2_p = value2_p.At(value2_size.width, ascent2_height - unit2_height);
+      canvas.Select(look.unit_font);
+      UnitSymbolRenderer::Draw(canvas, unit2_p, data.value2_unit, look.unit_fraction_pen);
+    }
+  }
+
+
+
+  // PixelRect my_rect;
+  // StaticString<32> my_value;
+  // Unit my_unit;
+  // bool centered;
+
+  // my_rect = value_and_comment_rect;
+  // my_value = data.value;
+  // my_unit = data.value_unit;
+  // centered = false;
+
+  // std::cout << "value: " << data.value << std::endl;
+  // std::cout << "value2: " << data.value2 << std::endl;
+
+
+  // if (my_value.empty() || data.value2.empty())
+  //   return;
+
+  // canvas.SetTextColor(look.GetValueColor(data.value_color));
+  // canvas.Select(look.value_font);
+
+
+  // PixelPoint value_p;
+  // PixelSize value_size = canvas.CalcTextSize(my_value);
+  // PixelSize value2_size = canvas.CalcTextSize(data.value2);
+  // int ascent_height = look.value_font.GetAscentHeight();
+  // if (centered){
+  //   if (unsigned(value_size.width + unit_width) > my_rect.GetWidth()) {
+  //     canvas.Select(look.small_value_font);
+  //     ascent_height = look.small_value_font.GetAscentHeight();
+  //     value_size = canvas.CalcTextSize(my_value);
+  //     std::cout << "SMALL" << std::endl;
+  //   }
+  //   const PixelSize value_unit_size = value_size + PixelSize{unit_width, 0u};
+  //   value_p = my_rect.CenteredTopLeft(value_unit_size);
+  // } else {
+  //   value_p = my_rect.GetTopLeft();
+  // }
+  // if (value_p.x < 0)
+  //   value_p.x = 0;
+
+  // int hh = look.value_font.GetCapitalHeight();
+  // canvas.TextAutoClipped(value_p, my_value);
+  // if (unit_width != 0) {
+  //   const int unit_height =
+  //     UnitSymbolRenderer::GetAscentHeight(look.unit_font, my_unit);
+
+  //   const auto unit_p = value_p.At(value_size.width,
+  //                                  ascent_height - unit_height);
+
+  //   canvas.Select(look.unit_font);
+  //   UnitSymbolRenderer::Draw(canvas, unit_p,
+  //                            my_unit, look.unit_fraction_pen);
+  // }
+
+  // canvas.Select(look.value_font);
+  // canvas.TextAutoClipped({value_p.x, value_p.y + hh + 2}, data.value2);
+  // if (unit2_width != 0) {
+  //   const int unit2_height = UnitSymbolRenderer::GetAscentHeight(look.unit_font, data.value2_unit);
+  //   const auto unit2_p = value_p.At(value_size.width, ascent_height - unit2_height);
+  //   canvas.Select(look.unit_font);
+  //   UnitSymbolRenderer::Draw(canvas, unit2_p, data.value2_unit, look.unit_fraction_pen);
+  // }
+}
+
+void
 InfoBoxWindow::PaintComment(Canvas &canvas)
 {
   if (data.comment.empty())
     return;
 
   canvas.SetTextColor(look.GetCommentColor(data.comment_color));
+
 
   const Font &font = look.title_font;
   canvas.Select(font);
@@ -178,7 +316,14 @@ InfoBoxWindow::Paint(Canvas &canvas)
 
   PaintTitle(canvas);
   PaintComment(canvas);
-  PaintValue(canvas, background_color);
+
+  StaticString<32> inv("---");
+
+  if (inv != data.value2){
+    PaintDualValue(canvas, background_color);
+  } else {
+    PaintValue(canvas, background_color);
+  }
 
   if (border_kind != 0) {
     canvas.Select(look.border_pen);
@@ -229,7 +374,7 @@ InfoBoxWindow::UpdateContent()
       Invalidate();
   } else {
 #ifdef ENABLE_OPENGL
-    if (!data.CompareTitle(old) || !data.CompareValue(old) ||
+    if (!data.CompareTitle(old) || !data.CompareValue(old) || !data.CompareValue2(old) ||
         !data.CompareComment(old))
       Invalidate();
 #else
@@ -237,12 +382,16 @@ InfoBoxWindow::UpdateContent()
       Invalidate(title_rect);
     if (!data.CompareValue(old))
       Invalidate(value_rect);
+    if (!data.CompareValue2(old))
+      Invalidate(value_and_comment_rect);
     if (!data.CompareComment(old))
       Invalidate(comment_rect);
 #endif
 
     unit_width = UnitSymbolRenderer::GetSize(look.unit_font,
                                              data.value_unit).width;
+    unit2_width = UnitSymbolRenderer::GetSize(look.unit_font,
+                                             data.value2_unit).width;
   }
 }
 

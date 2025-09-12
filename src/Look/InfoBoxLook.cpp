@@ -72,6 +72,14 @@ InfoBoxLook::ReinitialiseLayout(unsigned width, unsigned scale_title_font)
   AutoSizeFont(small_value_font_d, width, _T("12345m"));
   small_value_font.Load(small_value_font_d);
 
+  FontDescription dual_value_font_d(10);
+  dual_value_font_d.SetHeight(value_font_d.GetHeight() * 0.9f);
+  dual_value_font.Load(dual_value_font_d);
+
+  FontDescription small_dual_value_font_d(10);
+  small_dual_value_font_d.SetHeight(small_value_font_d.GetHeight() * 0.9f);
+  small_dual_value_font.Load(small_dual_value_font_d);
+
   unsigned unit_font_height = std::max(value_font_d.GetHeight() * 2u / 5u, 7u);
   unit_font.Load(FontDescription(unit_font_height));
 
