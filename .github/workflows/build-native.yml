@@ -157,14 +157,14 @@ jobs:
             target_ext: ''
             target_upload: false
             target_container: ''
-          - os: macos-14
-            target: IOS64
-            target_bin: XCSoar
-            target_bin_path: bin
-            target_final: XCSoar
-            target_ext: ''
-            target_upload: false
-            target_container: ''
+          # - os: macos-14
+          #   target: IOS64
+          #   target_bin: XCSoar
+          #   target_bin_path: bin
+          #   target_final: XCSoar
+          #   target_ext: ''
+          #   target_upload: false
+          #   target_container: ''
 
     steps:
       - name: Install checkout dependencies
