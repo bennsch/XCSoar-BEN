@@ -1,3 +1,10 @@
+Version 1.3 
+* InfoBox "Altitude (Auto)": Show AGL altitude in comment
+* InfoBox "Next altitude difference": Show waypoint name and distance
+
+_based on XCSoar 7.44 - git: [ef9ba0a](https://github.com/XCSoar/XCSoar/tree/ef9ba0abc1a3923995012b989d7f591da020da22)_ (08/24/2025)
+
+
 Version 1.2 
 * Merged latest XCSoar changes
 
