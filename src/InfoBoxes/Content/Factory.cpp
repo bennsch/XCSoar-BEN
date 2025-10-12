@@ -23,6 +23,7 @@
 #include "InfoBoxes/Content/Airspace.hpp"
 #include "InfoBoxes/Content/Radio.hpp"
 #include "InfoBoxes/Content/Engine.hpp"
+#include "InfoBoxes/Content/Multi.hpp"
 
 #include "util/Macros.hpp"
 #include "Language/Language.hpp"
@@ -919,8 +920,7 @@ static constexpr MetaData meta_data[] = {
     N_("Wind arrow"),
     N_("Wind"),
     N_("Wind speed estimated by XCSoar. Manual adjustment is possible with the connected InfoBox dialogue. Pressing the up/down cursor keys to cycle through settings, adjust the values with left/right cursor keys."),
-    // IBFHelper<InfoBoxContentWindArrow>::Create,
-    IBFHelper<InfoBoxContentMyBox>::Create,
+    IBFHelper<InfoBoxContentWindArrow>::Create,
   },
 
   {
@@ -1162,6 +1162,13 @@ static constexpr MetaData meta_data[] = {
     UpdateInfoBoxTaskSpeedLeg,
   },
 
+  // e_MultiDummy
+  {
+    N_("MultiDummy"),
+    N_("MulDum"),
+    N_("This is the MultiDummy"),
+    IBFHelper<InfoBoxContentMultiDummy>::Create,
+  },
 };
 
 static_assert(ARRAY_SIZE(meta_data) == NUM_TYPES,
