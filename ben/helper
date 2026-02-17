@@ -1,0 +1,210 @@
+#!/bin/bash
+
+# Note: Images are stored separately for each user (root or other)
+PRIVGL="" # Requries docker to run in rootless mode
+# PRIVGL=sudo
+
+# Get absolute path of the directory of this script
+SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+# Path of the XCSoar-BEN repo
+REPO_DIR=$(dirname $SCRIPT_DIR)
+
+# Latest docker container (will be downloaded from online repo)
+#DOCKER_CONTAINER=ghcr.io/xcsoar/xcsoar/xcsoar-build:latest
+# Docker container specific to this commit
+DOCKER_CONTAINER=ghcr.io/xcsoar/xcsoar/xcsoar-build@sha256:e042c547c1d4f14706af730fd9d8eceff835fac8878da5533feb28bfe14a5d77
+
+# Keystores can be created with Android Studio.
+# The script expects "debug.keystore" and "signing-key.jks" to be in the parent directory of XCSoar-BEN 
+DEBUG_KEYSTORE="debug.keystore"
+DEBUG_KEYSTORE_PATH=$(dirname $REPO_DIR)
+RELEASE_KEYSTORE="signing-key.jks"
+RELEASE_KEYSTORE_PATH=$(dirname $REPO_DIR)
+# Needs to match the alias provided in signing-key.jks
+RELEASE_KEY_ALIAS="xcsoarben" 
+
+error() {
+    echo -e "\nERROR: $1"
+    exit 1
+}
+
+case "$1" in
+    "CLEAN")
+        # sudo required because files created by docker are owned by "root"
+        $PRIVGL make -C $REPO_DIR clean
+    ;;
+    "DOCKER-BASH")
+        # Enter a bash session in the docker container used for build
+        $PRIVGL docker run --mount type=bind,source="$REPO_DIR",target=/opt/xcsoar \
+        -it $DOCKER_CONTAINER /bin/bash
+    ;;
+    "LAUNCH-EMULATOR")
+        if [ -n "$2" ]; then
+            ~/Android/Sdk/emulator/emulator -avd $2 
+        else
+            echo "No AVD provided. Options are:"
+            ~/Android/Sdk/emulator/emulator -list-avds
+        fi        
+    ;;
+    "BUILD")
+        # Note: The "xcsoar-compile" script will assign the max. number of CPUs
+        case "$2" in
+            "UNIX")
+                if [[ "$3" == "DEBUG" ]]; then
+                    DBG="y"
+                elif [[ "$4" == "RELEASE" ]]; then
+                    DBG="n"
+                else
+                    echo "Invalid target \"$3\""
+                    exit 1
+                fi
+                $PRIVGL docker run --mount type=bind,source="$REPO_DIR",target=/opt/xcsoar \
+                -it $DOCKER_CONTAINER xcsoar-compile UNIX DEBUG=$DBG WERROR=n
+            ;;
+            "ANDROID")
+                if [[ "$3" == "TESTING" ]]; then
+                    TESTING="y"
+                    DEBUG="y"
+                    KEYSTORE_NAME=$DEBUG_KEYSTORE
+                    KEYSTORE_PATH=$DEBUG_KEYSTORE_PATH
+                    ARGS=""
+                elif [[ "$3" == "RELEASE" ]]; then
+                    TESTING="n"
+                    DEBUG="n"
+                    KEYSTORE_NAME=$RELEASE_KEYSTORE
+                    KEYSTORE_PATH=$RELEASE_KEYSTORE_PATH
+                    ARGS="ANDROID_KEYSTORE=~/.android/$KEYSTORE_NAME ANDROID_KEY_ALIAS=$RELEASE_KEY_ALIAS output/ANDROID/bin/XCSoar.apk"
+                else
+                    error "Invalid build type \"$3\""
+                fi
+
+                if [[ "$4" == "EMULATOR" ]]; then
+                    ARCH="ANDROIDX64"
+                elif [[ "$4" == "SAMSUNG" ]]; then
+                    ARCH="ANDROIDAARCH64"
+                elif [[ "$4" == "ALL" ]]; then
+                    ARCH="ANDROIDFAT"
+                else
+                    error "Invalid architecture \"$4\""
+                fi
+
+                # -Build is done by using the script "xcsoar-compile", which is part
+                #  of the docker container. Since the docker container is downloaded, modifying the local
+                #  script has no effect. However, we can override "TARGET"
+                # -TESTING=y will create the package org.xcsoar.testing
+                # -My local keystore will be copied into the container, so that the same keystore
+                #  is used for every build (containers are read-only).
+                #  Otherwise .apk cannot be installed without installing the current app first
+                # -Using /bin/bash to be able to execute multiple commands during docker run
+                # -When using the release keystore, you will be prompted to enter the password
+                # -Release build is triggered by providing "output/ANDROID/bin/XCSoar.apk" as argument
+
+                $PRIVGL docker run \
+                --mount type=bind,source="$REPO_DIR",target=/opt/xcsoar \
+                --mount type=bind,source="$KEYSTORE_PATH",target=/opt/xcsoar/my_keystore \
+                -it $DOCKER_CONTAINER /bin/bash -c \
+                "cp /opt/xcsoar/my_keystore/$KEYSTORE_NAME ~/.android/$KEYSTORE_NAME \
+                && xcsoar-compile ANDROID TARGET=$ARCH DEBUG=$DEBUG WERROR=n TESTING=$TESTING \
+                $ARGS"
+            ;;
+            *)
+                error "Invalid target \"$2\""
+            ;;
+        esac
+        if [ $? -eq 0 ]; then
+            echo -e "\nBUILD SUCCESSFUL"
+        else
+            error "BUILD FAILED"
+        fi
+    ;;
+    "RUN")
+        case "$2" in
+            "UNIX")
+                $PRIVGL docker run \
+                --mount type=bind,source="$REPO_DIR",target=/opt/xcsoar \
+                -v /tmp/.X11-unix:/tmp/.X11-unix \
+                --volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
+                -v $HOME/.xcsoar/:/root/.xcsoar \
+                --env="DISPLAY" --net=host \
+                -it $DOCKER_CONTAINER /opt/xcsoar/output/UNIX/bin/xcsoar --portrait --simulator 
+            ;;
+            "ANDROID-TESTING")
+                ~/Android/Sdk/platform-tools/adb install $REPO_DIR/output/ANDROID/bin/XCSoar-debug.apk
+                ~/Android/Sdk/platform-tools/adb shell am start -W -S -n org.xcsoar.testing/org.xcsoar.XCSoar
+                # adb logcat -s BENNI
+                # adb logcat | grep org.bencsoar
+            ;;
+            "ANDROID")
+                ~/Android/Sdk/platform-tools/adb install $REPO_DIR/output/ANDROID/bin/XCSoar-debug.apk
+                ~/Android/Sdk/platform-tools/adb shell am start -W -S -n org.xcsoar.ben/org.xcsoar.XCSoar
+            ;;
+            *)
+                error "Invalid target \"$2\""
+            ;;
+        esac
+    ;;
+    *)
+        error "Invalid command \"$1\""
+    ;;
+esac
+
+
+
+# The following parameters may be specified on the "make" command
+# line:
+#
+#   TARGET      The name of the target platform.  See the TARGETS variable
+#               in build/targets.mk for a list of valid target platforms.
+#
+#   HEADLESS    If set to "y", no UI is available.
+#
+#   VFB         "y" means software rendering to non-interactive virtual
+#               frame buffer
+#
+#   USE_FB      "y" means software rendering to /dev/fb0
+#
+#   ENABLE_SDL  If set to "y", the UI is drawn with libSDL.
+#
+#   ENABLE_MESA_KMS If set to "y", the program uses KMS to switch to graphics mode.
+#               Use this option when the program runs on a text-mode system
+#               without graphics and window system like X11 or Wayland.
+#               Default for Rasperry PI 4, optional for Cubieboard.
+#
+#   OPENGL      "y" means render with OpenGL.
+#
+#   GLES2       "y" means render with OpenGL/ES 2.0.
+#
+#   GREYSCALE   "y" means render 8-bit greyscale internally
+#
+#   DITHER      "y" means dither to 1-bit black&white
+#
+#   EYE_CANDY   "n" disables eye candy rendering.
+#
+#   ICF         "y" enables Identical Code Folding (gold --icf=all)
+#
+#   DEBUG       If set to "y", the debugging version of XCSoar is built
+#               (default is "y")
+#
+#   WERROR      Make all compiler warnings fatal (default is $DEBUG)
+#
+#   V           Verbosity; 1 is the default, and prints terse information.
+#               0 means quiet, and 2 prints the full compiler commands.
+#
+#   LTO         "y" enables gcc's link-time optimization flag (experimental,
+#               requires gcc 4.5)
+#
+#   THIN_LTO    "y" enables ThinLTO (https://clang.llvm.org/docs/ThinLTO.html)
+#
+#   CLANG       "y" to use clang instead of gcc
+#
+#   ANALYZER    "y" to support the clang analyzer
+#
+#   LLVM        "y" to compile LLVM bitcode with clang
+#
+#   LIBCXX      "y" to compile with libc++, or the absolute path of the
+#               libc++ svn/git working directory.
+#
+#   IWYU        "y" to run "include-what-you-use" on all sources
+#
+#   USE_CCACHE  "y" to build with ccache
+#

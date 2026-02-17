@@ -1,0 +1,14 @@
+- Show permanent notification that XCSoar is running (later than Android 12?)
+- Infobox: Takeoff alt diff: use amber instead of red for "out of reach"
+- Infobox: Radio freq. of next WP (or maybe of closest landable)
+- Glide reach ring not displayed properly sometimes
+- Show Best L/D next to pilot weight (Mc0 with no wind)
+- Don't draw pilot weight over that small symbol
+- Infobox: Combined Altitude & ground speed
+- New setting: low battery warning threshold
+- low battery color
+- change logo (add "BEN")
+- Show warning that COM port device is enabled
+	or that built-in sensors are disabled
+	- show ip addr if com port device is enabled
+- Infobox: Home WP alt diff: Display WP name

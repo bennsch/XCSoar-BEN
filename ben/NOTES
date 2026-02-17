@@ -1,0 +1,129 @@
+
+##########################################################################################################
+							BUILD
+##########################################################################################################
+
+-> Docker:
+
+	Ubuntu (same for WSL):
+
+		1) git clone https://github.com/bennsch/XCSoar-BEN.git --recurse-submodules
+
+		2) Install docker: https://docs.docker.com/engine/install/ubuntu/
+
+		3) Run docker without sudo: https://docs.docker.com/engine/install/linux-postinstall
+
+		4) ben/helper BUILD UNIX DEBUG
+
+		5) ben/helper RUN UNIX
+
+		6) For Android build: Make sure the keystore files are present (not stored in the git repo)
+
+		7) ben/helper BUILD ANDROID TESTING EMULATOR
+
+
+-> Local build:
+
+	-UNIX-DEBUG:
+	 	(Use gcc-12 and g++-12, otherwise terrain reach and working line will not be displayed)
+		make CC=gcc-12 CPP=g++-12 CXX=g++-12 LD=g++-12 TARGET=UNIX DEBUG=y WERROR=n -j12
+	-UNIX-RELEASE:
+		make CC=gcc-12 CPP=g++-12 CXX=g++-12 LD=g++-12 TARGET=UNIX DEBUG=n WERROR=y -j12
+	-ANDROID(Emulator)-DEBUG:
+		make TARGET=ANDROIDX64 DEBUG=y ANDROID_SDK=/home/ben/Android/Sdk/ ANDROID_NDK=/home/ben/Android/Sdk/ndk/26.3.11579264/ -j12
+	-ANDROID(Emulator)-RELEASE:
+		make TARGET=ANDROIDX64 DEBUG=n ANDROID_SDK=/home/ben/Android/Sdk/ ANDROID_NDK=/home/ben/Android/Sdk/ndk/26.3.11579264/ -j12
+	-ANDROID(Samsung S10e)-DEBUG:
+		make TARGET=ANDROIDAARCH64 DEBUG=y ANDROID_SDK=/home/ben/Android/Sdk/ ANDROID_NDK=/home/ben/Android/Sdk/ndk/26.3.11579264/ -j12 
+	-ANDROID(Samsung S10e)-RELEASE:
+		make TARGET=ANDROIDAARCH64 DEBUG=n ANDROID_SDK=/home/ben/Android/Sdk/ ANDROID_NDK=/home/ben/Android/Sdk/ndk/26.3.11579264/ -j12 
+	-ANDROID FAT(for all architectures):
+		make TARGET=ANDROIDFAT DEBUG=n ANDROID_SDK=/home/ben/Android/Sdk/ ANDROID_NDK=/home/ben/Android/Sdk/ndk/26.3.11579264/ -j12 
+
+
+##########################################################################################################
+							RELEASE (GITHUB)
+##########################################################################################################
+
+-create tag and push?
+
+##########################################################################################################
+							VSCODE
+##########################################################################################################
+
+	- Use "WSL" extenstion to connect to WSL folder
+	- For Intellisense to find system header files:
+		- Run "ide/provisioning/install-debian-packages.sh" to install local packages
+		  (or at least "build-essential")
+		- Or use "devcontainer" extension
+	   
+
+##########################################################################################################
+							MISCELLANEOUS
+##########################################################################################################
+
+Docker: 
+	-Check ide/docker/README.md
+	-Latest container: ghcr.io/xcsoar/xcsoar/xcsoar-build:latest
+	 (alternatively build the local docker image via Dockerfile)
+
+Enable Android "testing" package build:
+	/home/ben/xcsoar_dev/XCSoar/build/options.mk
+		-> TESTING = y
+
+All build flags and option are in /Makefile
+
+Error: "dirstamp not a directory":
+	clean -fdx
+	build for unix first
+	build for android
+
+Error: dirstamp
+	build again (no clean)
+
+Error: download failed
+	build again (no clean)
+
+Apk-Signing:
+	- For debug build, the docker container will generate a new debug.keystore for each build,
+	  that's why the app cannot be updated without being uninstalled first (key conflict)
+	  To resolve this, the same debug.keystore must be provided externally to the docker container
+	- debug.keystore can be generated using Android Studio
+
+	- Github actions require 3 secrets to be setup in the repo: 
+	  XCSOAR_UPLOAD_KEY_JKS_BASE64, XCSOAR_UPLOAD_KEY_JKS_KEY_ALIAS and XCSOAR_UPLOAD_KEY_JKS_PASSWORD
+	- XCSOAR_UPLOAD_KEY_JKS_BASE64 is the base64 of the .jks file (e.g. signing-key.jks): output of command "base64 signing-key.jks"
+	- signing-key.jks can be generated using Android Studio
+	- Use the same password for keystore and key!!
+
+Android-Emulator:
+	-Launch emulator
+	-adb logcat -s "MY TAG"
+	-adb install output/ANDROID/bin/XCSoar-debug.apk
+
+Simulate display cutout:
+	Developer Options -> Display Cutout
+	(you need to rotate screen to make change effective)
+	(you need to restart the emulator to make getSafeInset*() work properly)
+
+Config->Glide Computer->Route->Reach polar: 
+	determines if SafetyMC or CurrentMC is used for AltD next to waypoint on map
+
+Vagrant/Virtualbox:
+	sudo apt install virtualbox
+	sudo apt install virtualbox-ext-pack 	(required for remote display?)
+	Guest additions:
+		sudo apt install virtualbox-guest-additions-iso
+		Open virtualbox gui: In settings for the vagrant machine, add " /usr/share/virtualbox/VBoxGuestAdditions.iso" 
+		On the vagrant machine:
+			mount /dev/sr0 /path_to_some_folder 
+			cd /path_to_some_folder
+			sudo ./VBoxLinuxAdditions.run
+	sudo apt install vagrant 				(check vagrant website to add servers)
+	create ~/.xcsoar folder if not exists
+	In case of VMX_ROOT_MODE error:
+		Temporary KVM Module Unload:
+			Identify KVM modules: Use lsmod | grep kvm to check for kvm_intel (for Intel) or kvm_amd (for AMD).
+			Unload the module: Execute sudo modprobe -r kvm_intel or sudo modprobe -r kvm_amd.
+			(Note: This is temporary and needs to be repeated after each reboot) 
+	It's possible to run xcsoar on X-server (install x-server in local machine, start it, right click->start terminal, run xcsoar)
