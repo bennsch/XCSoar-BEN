@@ -47,8 +47,11 @@ GetLogoText(bool dark_title) noexcept
     "![XCSoar](resource:%s)\n\n"
     "**Version %s**\n\n"
     "git: %s\n\n"
-    "Visit us at:\n"
-    "[https://xcsoar.org](https://xcsoar.org)",
+    "XCSoar-BEN:\n"
+    "[https://github.com/bennsch/XCSoar-BEN](https://github.com/bennsch/XCSoar-BEN)\n\n"
+    "**This is a fork of XCSoar**\n"
+    "Visit the official XCSoar project:\n"
+    "[https://xcsoar.org](https://xcsoar.org)\n\n",
     title_res,
     XCSoar_VersionString,
     GIT_COMMIT_ID);
@@ -57,8 +60,11 @@ GetLogoText(bool dark_title) noexcept
     "![XCSoar Logo](resource:IDB_LOGO_HD)\n\n"
     "![XCSoar](resource:%s)\n\n"
     "**Version %s**\n\n"
-    "Visit us at:\n"
-    "[https://xcsoar.org](https://xcsoar.org)",
+    "XCSoar-BEN:\n"
+    "[https://github.com/bennsch/XCSoar-BEN](https://github.com/bennsch/XCSoar-BEN)\n\n"
+    "**This is a fork of XCSoar**\n"
+    "Visit the official XCSoar project:\n"
+    "[https://xcsoar.org](https://xcsoar.org)\n\n",
     title_res,
     XCSoar_VersionString);
 #endif
