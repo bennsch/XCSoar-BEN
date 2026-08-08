@@ -40,9 +40,9 @@
 #define XCSOAR_NAME "XCSoar"
 
 const char XCSoar_Version[] = VERSION;
-const TCHAR XCSoar_VersionLong[] = _T(VERSION VERSION_SUFFIX);
-const TCHAR XCSoar_VersionString[] = _T(VERSION VERSION_SUFFIX "-" TARGET);
-const TCHAR XCSoar_VersionStringOld[] = _T(TARGET " " VERSION VERSION_SUFFIX);
-const TCHAR XCSoar_VersionFull[] = _T(XCSOAR_NAME " v" VERSION VERSION_SUFFIX "-" TARGET);
-const TCHAR XCSoar_ProductToken[] = _T(XCSOAR_NAME " v" VERSION VERSION_SUFFIX "-" TARGET GIT_SUFFIX);
-const TCHAR XCSoar_GitSuffix[] = _T(GIT_SUFFIX);
+const char XCSoar_VersionLong[] = VERSION VERSION_SUFFIX;
+const char XCSoar_VersionString[] = VERSION VERSION_SUFFIX "-" TARGET;
+const char XCSoar_VersionStringOld[] = TARGET " " VERSION VERSION_SUFFIX;
+const char XCSoar_VersionFull[] = XCSOAR_NAME " v" VERSION VERSION_SUFFIX "-" TARGET;
+const char XCSoar_ProductToken[] = XCSOAR_NAME " v" VERSION VERSION_SUFFIX "-" TARGET GIT_SUFFIX;
+const char XCSoar_GitSuffix[] = GIT_SUFFIX;

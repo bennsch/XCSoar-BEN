@@ -14,8 +14,8 @@ extern const char XCSoar_VersionStringOld[];
 /** XCSoar v5.2.5F-PC */
 extern const char XCSoar_ProductToken[];
 
-extern const TCHAR XCSoar_VersionFull[];
-extern const TCHAR XCSoar_GitSuffix[];
+extern const char XCSoar_VersionFull[];
+extern const char XCSoar_GitSuffix[];
 
 /**
  * Four-digit calendar year from the compiler's \c __DATE__ macro (format

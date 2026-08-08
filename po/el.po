@@ -6675,7 +6675,7 @@ msgstr "Προγράμμα PG online της ευρωπαϊκής οργάνωσ�
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Προγράμμα PG online του εθνικού αεροπλανού Αυστριας. Δώριση για τροχιές περίπου 6 σημείων, με το μέγιστο χώρο 1 km = 1.0 σημείο και το άλλο zick-zack μέχρι 1 km = 0.5 σημεία."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide συγκέντρωση πολλών σκορικών συστημάτων στο WeGlide Free contest. Το δωρεάν σκορ είναι μια συγκέντρωση του δωρεάν απόστασης και του περιοχής βαντικού. Στο περιοχής βαντικού, το σκορ πρόγραμμα διαθέτει το μεγαλύτερο FAI πλατύγων και τη μεγαλύτερη απόσταση Out & Return που μπορεί να εμβαθυνθεί στη διαδρομή."

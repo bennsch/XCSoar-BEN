@@ -6544,7 +6544,7 @@ msgstr "DHV 주최 유러피안 패러글라이딩 OLC규칙: XContest 규칙과
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "오스트리아 온라인 글라이더 콘테스트: 득점은 최대 턴포인트 6개. 득점상자 내부는 1km = 1.0점, 추가되는 지그재그 부분은 1km = 0.5 점으로 계산한다."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide는 WeGlide Free 대회에서의 여러 채점 시스템을 결합한다. 자유 점수는 자유 거리 점수와 지역 보너스의 조합이다. 지역 보너스의 경우 점수 프로그램은 비행 경로에 맞출 수 있는 가장 큰 FAI 삼각형과 가장 큰 Out & Return 거리를 결정한다."

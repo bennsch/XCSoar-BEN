@@ -2387,19 +2387,6 @@ msgstr "ఎడ్వాంట్వాయిక రెంజ్"
 msgid "Changes to configuration saved. Restart XCSoar to apply changes."
 msgstr "కనుస్థాపన మార్గాలు నివేదించారు. XCSoar-కు మార్పులను పెరిష్కరించడానికి రెస్టార్ట్ చేయండి."
 
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:37
-msgid "Horizontal Range"
-msgstr ""
-
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:38
-msgid "Vertical Range"
-msgstr ""
-
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:51
-#: src/Dialogs/Settings/dlgConfiguration.cpp:353
-msgid "Changes to configuration saved.  Restart XCSoar to apply changes."
-msgstr ""
-
 #: src/Dialogs/Device/ManageI2CPitotDialog.cpp:38
 msgid "Calibrate"
 msgstr "కలిబేట్"
@@ -6501,7 +6488,7 @@ msgstr "యురోపీ డిజిటల్‌గ్‌హై కంటె�
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "WeGlide ఫ్రీ నట్యంలో ముఖ్యంగా కళాకథ మరియు FAI నియమాలను అవసరంగా"
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WELLGlide విలేచిన మరuvu సోంతాల అవసరమైన పద్ధతులను కలిగి ఉంది. జరుగుతే నిబియట సోంతా మరియు ప్రాంత బొన్నికి సంబంధించిన నిబియట రెండు శాఖలు తమరికవచ్చతాయి. ప్రాంత బొన్నికి సంబంధించిన సోంతాలకు, సోంతా ప్రవేశాన్ని కార్యక్రమం ఫైట్‌ర్‌ల రణ రేస్‌లో ప్రతిస్థాపిత దీవ్యామ్ల చెక్‌బుక్‌ని నిర్వహించుతుంది."

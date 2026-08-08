@@ -79,13 +79,8 @@ FlarmNameDatabase::Set(FlarmId id, const char *name) noexcept
   }
 
   if (i >= 0) {
-    if (!StringIsEqual(name, _T("")))
-      /* update existing record */
-      data[i].name = name;
-    else
-      /* remove record if empty */
-      Remove(id);
-
+    /* update existing record */
+    data[i].name = name;
     return true;
   } else if (!data.full()) {
     /* create new record */

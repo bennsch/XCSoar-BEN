@@ -6604,7 +6604,7 @@ msgstr "Európska paraglidingová online súťaž organizácie DHV. Podobné pra
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Rakúska online súťaž vetroňov. Trate maximálne okolo 6 otočných bodov sú hodnotené. Hraničný obdĺžnik je hodnotený 1 km = 1.0 bodu a prídavná cik-cak časť 1km = 0.5 b."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide kombinuje viaceré systémy hodnotenia v súťaži WeGlide Free. Čistený bod je kombinácia čisteného vzdialenostného bodu a oblastnej bonusovej hodnoty. Pre oblastnú bonusovú hodnotu určuje program hodnotenie najväčšiu FAI trojuholník a najväčšiu vzdialenosť Out & Return, ktoré sa môžu prilohať letnej ceste."

@@ -80,36 +80,6 @@ ProfileMap::GetMultiplePaths(std::string_view key, const char *patterns) const
   return paths;
 }
 
-std::vector<AllocatedPath>
-ProfileMap::GetMultiplePaths(std::string_view key) const
-{
-
-  std::vector<AllocatedPath> paths;
-  BasicStringBuffer<TCHAR, MAX_PATH> buffer;
-
-  if (!Get(key, buffer)) return paths;
-
-  if (buffer.empty()) return paths;
-
-  for (auto i : TIterableSplitString(buffer.c_str(), '|')) {
-
-    if (i.empty()) continue;
-
-    tstring file_string(i);
-
-    Path path(file_string.c_str());
-
-    if (!(path.EndsWithIgnoreCase(_T(".txt")) ||
-          path.EndsWithIgnoreCase(_T(".air")) ||
-          path.EndsWithIgnoreCase(_T(".sua"))))
-      continue;
-
-    paths.push_back(ExpandLocalPath(AllocatedPath(path)));
-  }
-
-  return paths;
-}
-
 bool
 ProfileMap::GetPathIsEqual(std::string_view key, Path value) const noexcept
 {

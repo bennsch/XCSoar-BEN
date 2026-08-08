@@ -6609,7 +6609,7 @@ msgstr "E-olaj szabad repülési pályakört a DHV szervezet. Általában ugyano
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Olaj repülési pályakört az Östungarországi szervezet. A pályák maximális határvonalán keresztül vannak értékelve, amely 1 km = 1 pont, és a zick-zack részben 1 km = 0,5 p."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide több pontozási rendszerét együtt használja a WeGlide Szabad pályakörben. A szabad pontszám a szabad távolság pontszáma és az területi előny összefogásának kombinációja. Az területi előnyért a pontozási program meghatározza a legnagyobb FAI háromszöget és a legnagyobb körülírt távolságot, amelyet a repülési útvonalba be lehet tenni."

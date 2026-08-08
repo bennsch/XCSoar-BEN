@@ -6633,7 +6633,7 @@ msgstr "Європейські парапланерні онлайн-змага�
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Австрійські планерні онлайн-змагання. Рахують очки за трек з максимум 6 ППМ. За обліт 1 км = 1.0 очко і додатково за зиг-заги 1 км = 0.5 очка."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide комбінує кілька систем оцінювання у безкоштовному конкурсі WeGlide Free. Безкоштовна оцінка складається з комбінації безкоштовної відстані та бонусу за територію. Для бонусу за територію програма оцінювання визначає найбільший FAI трикутник і найбільшу відстань Out & Return, які можуть поміститися у шлях полотна."

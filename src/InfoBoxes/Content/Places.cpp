@@ -26,7 +26,7 @@
 #include "DataComponents.hpp"
 #include "Engine/Task/TaskManager.hpp"
 #include "Task/ProtectedTaskManager.hpp"
-// #include "Task/RoutePlannerGlue.hpp"
+#include "Task/RoutePlannerGlue.hpp"
 #include "Waypoint/WaypointGlue.hpp"
 #include "Protection.hpp"
 #include "Profile/Current.hpp"
@@ -432,7 +432,7 @@ UpdateInfoBoxTakeoffAltitudeDiff(InfoBoxData &data) noexcept
     if (takeoff_wp == NULL){
       // We did not take off near a landable waypoint. Find the auto generated
       // takeoff waypoint.
-      takeoff_wp = waypoints.LookupName(_T("(takeoff)"));
+      takeoff_wp = waypoints.LookupName("(takeoff)");
     }
   }
 

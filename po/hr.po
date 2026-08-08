@@ -6605,7 +6605,7 @@ msgstr "Evropski turnir PG organizacije DHV. Sličan pravilima XContest, ali s r
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Austrijski online turnir jedrilica. Trake oko najviše šest putova su ocijenjene. Del od obodnog kvadrata sa 1 km = 1.0 točka i dodatni zic-zack del sa 1 km = 0.5 točke."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide kombinira više ocjeništa u turniru WeGlide Slobodno. Slobodna točka je kombinacija slobodne udaljenosti i bonusa za površinu. Za bonus površine, program ocjene određuje najveći FAI trokut i najveću udaljenost izvan i povratno."

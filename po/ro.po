@@ -2421,19 +2421,6 @@ msgstr ""
 "Schimbări în configurarea salvează. Începe din nou XCSoar pentru a aplica "
 "schimbările."
 
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:37
-msgid "Horizontal Range"
-msgstr ""
-
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:38
-msgid "Vertical Range"
-msgstr ""
-
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:51
-#: src/Dialogs/Settings/dlgConfiguration.cpp:353
-msgid "Changes to configuration saved.  Restart XCSoar to apply changes."
-msgstr ""
-
 #: src/Dialogs/Device/ManageI2CPitotDialog.cpp:38
 msgid "Calibrate"
 msgstr "Calibrare"
@@ -6661,7 +6648,7 @@ msgstr "Concurs online PG al organizației DHV. Foarte aproape de regulile XCont
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Concurs online al Austriei pentru voliare cu planor. Traseele în jurul cel mult șase puncte de rută sunt evaluate. Partea bounding box cu 1 km = 1,0 punct și partea zic-zac suplimentară cu 1 km = 0,5 p."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide combina mai multe sisteme de scor în concursul WeGlide Free. Scorul liber este o combinație dintre scorul distanței libere și bonusul pentru zonă. Pentru bonusul pentru zonă, programul de scor determină cel mai mare triunghi FAI și cel mai lung drum de ieșire și întoarcere care pot fi puse în calea voliției."

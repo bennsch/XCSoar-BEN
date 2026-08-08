@@ -2420,23 +2420,6 @@ msgstr ""
 "Промените в настройките са запазени. Рестартирайте XCSoar за да приложите "
 "промените."
 
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:37
-#, fuzzy
-msgid "Horizontal Range"
-msgstr "Хоризонт"
-
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:38
-#, fuzzy
-msgid "Vertical Range"
-msgstr "Разстояние до групата"
-
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:51
-#: src/Dialogs/Settings/dlgConfiguration.cpp:353
-msgid "Changes to configuration saved.  Restart XCSoar to apply changes."
-msgstr ""
-"Промените в настройките са запазени. Рестартирайте XCSoar за да приложите "
-"промените."
-
 #: src/Dialogs/Device/ManageI2CPitotDialog.cpp:38
 msgid "Calibrate"
 msgstr "Калибриране"
@@ -6659,7 +6642,7 @@ msgstr "Европейско парапланерско интернет със�
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Австрийско интернет състезание. Оценяват се маршрути през максимум 6 пътни точки. Описания правоъгълник носи 1 км = 1 точка и допълнително частта със зигзаг 1 км = 0.5 т."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide комбинира няколко системи за точкуване в състезанието WeGlide. Получените точки са комбинация от точки за разстояние и бонус за площ, който програмата смята като най-големия ФАИ триъгълник и най-голямата дистанция за отиване и връщане, които могат да се поместят в прелетения маршрут."

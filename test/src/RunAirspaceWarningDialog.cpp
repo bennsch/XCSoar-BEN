@@ -28,7 +28,6 @@
 
 #include <memory>
 #include <stdio.h>
-#include <tchar.h>
 
 InterfaceBlackboard CommonInterface::Private::blackboard;
 

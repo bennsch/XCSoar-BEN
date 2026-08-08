@@ -6646,7 +6646,7 @@ msgstr "DHV-XC -OLC mit folgender Wertung pro 1 km: Freie Strecke - 1.5 Punkte, 
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Österreichischer Online Segelflugwettbewerb. Flugwege um max. sechs Wegpunkte werden gewertet. Das umschreibende Rechteck mit 1 km = 1.0 Punkten und den zusätzlichen Zick-Zack Anteil mit 1 km = 0.5 Punkten."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide kombiniert mehrere Scoring-Systeme im WeGlide Free Wettbewerb. Die freie Punktzahl ist eine Kombination aus der freien Distanz Punktzahl und dem Flächenbonus. Für den Flächenbonus ermittelt das Scoring-Programm das größte FAI-Dreieck und die größte Out & Return-Distanz, die in die Flugroute eingebaut werden kann."

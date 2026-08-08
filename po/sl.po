@@ -2411,19 +2411,6 @@ msgstr ""
 "Povpraščene spremembe konfiguracije so shranjene. Ponovno zaženite XCSoar, "
 "da se naredijo spremembe."
 
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:37
-msgid "Horizontal Range"
-msgstr ""
-
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:38
-msgid "Vertical Range"
-msgstr ""
-
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:51
-#: src/Dialogs/Settings/dlgConfiguration.cpp:353
-msgid "Changes to configuration saved.  Restart XCSoar to apply changes."
-msgstr ""
-
 #: src/Dialogs/Device/ManageI2CPitotDialog.cpp:38
 msgid "Calibrate"
 msgstr "Kalibracija"
@@ -6627,7 +6614,7 @@ msgstr "Evropsko online tekmovanje s programom PG organizacije DHV. Približno i
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Online tekmovanje Jadralne lige Avstrije. Točke so preštevane po maksimalno šestih točkah poti. Del okvirnice z 1 km = 1,0 točka in dodatni zig-zag del z 1 km = 0,5 točk."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide kombinira več ocenjevanj v slobodnem tekmovanju WeGlide. Slobodna točka je kombinacija točke za slobodno razdaljo in bonus za območje. Za bonus za območje se odloči največja FAI trokotnica in največja razdalja izven in vrnitev, ki jo lahko uvozi v letni put."

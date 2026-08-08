@@ -57,8 +57,6 @@ public:
 
   bool Remove(FlarmId id) noexcept;
 
-  bool Remove(FlarmId id) noexcept;
-
 protected:
   [[gnu::pure]]
   int Find(FlarmId id) const noexcept;

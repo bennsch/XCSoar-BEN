@@ -6450,7 +6450,7 @@ msgstr "DHV組織的歐洲滑翔傘線上競賽。幾乎與XContest競賽規則�
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "奧地利線上滑翔機比賽。圍繞最大6個航點的軌跡得分。包圍部分為1 km＝1點，另外的Zig-ZACK部分為1 km＝0.5點。"
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide在WeGlide免費競賽中結合了多種評分系統。免費得分是由免費距離得分和區域獎勵組成。對於區域獎勵，評分程序會確定可以嵌入飛行路徑的最大FAI三角形以及最大出發與返回距離。"

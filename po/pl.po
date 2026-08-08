@@ -6631,7 +6631,7 @@ msgstr "Europejskie zawody PG online wg orgnizacji DHV. Podobne do reguł XConte
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Austriackie zawody szybowcowe online. Punktowane są przeloty z maks. 6 punktami zwrotnymi. Obwiednia punktowana 1 km = 1.0, dodatkowe części łamanej 1 km = 0.5 p."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide łączy wiele systemów ocenowych w konkursie WeGlide Free. Oceń na bieżąco dystans wolny i bonus z obszaru. Dla bonusu z obszaru program oceńuje największą trójkąt FAI oraz najdłuższy dystans Out & Return, które mogą pasować do trasy lotu."

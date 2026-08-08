@@ -2399,19 +2399,6 @@ msgid "Changes to configuration saved. Restart XCSoar to apply changes."
 msgstr ""
 "Thay đổi cấu hình đã được lưu. Khởi động lại XCSoar để áp dụng thay đổi."
 
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:37
-msgid "Horizontal Range"
-msgstr ""
-
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:38
-msgid "Vertical Range"
-msgstr ""
-
-#: src/Dialogs/Device/Stratux/ConfigurationDialog.cpp:51
-#: src/Dialogs/Settings/dlgConfiguration.cpp:353
-msgid "Changes to configuration saved.  Restart XCSoar to apply changes."
-msgstr ""
-
 #: src/Dialogs/Device/ManageI2CPitotDialog.cpp:38
 msgid "Calibrate"
 msgstr "Điều chỉnh"
@@ -6605,7 +6592,7 @@ msgstr "Cuộc thi PG trực tuyến của tổ chức DHV ở châu Âu. Rất 
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Cuộc thi bay lượn trực tuyến của Áo. Các điểm được ghi chép quanh tối đa sáu điểm đường bay. Phần hộp giới hạn với 1 km = 1 điểm và phần zig-zag bổ sung với 1 km = 0,5 điểm."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide kết hợp nhiều hệ thống đánh giá trong cuộc thi WeGlide Free. Điểm tự do là sự kết hợp giữa điểm từ quãng đường bay tự do và lợi thế khu vực. Đối với lợi thế khu vực, chương trình đánh giá xác định tam giác FAI lớn nhất và khoảng cách Out & Return lớn nhất có thể phù hợp vào hành trình bay."

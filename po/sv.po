@@ -6560,7 +6560,7 @@ msgstr "Europeisk online skärmflygtävling av organisationen DHV. Snarlika regl
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Australiensisk online tävling. Bana runt högst sex brytpunkter poängsätts. Del med begränsningsområde med 1 km = 1,0 poäng och den extra sick-sack delen med 1km = 0,5 p."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide kombinerar flera poängsystem under den öppna WeGlide tävlingen. Poängen är en kombination av poäng för fri distans och områdesbonus. För områdesbonus bestäms poängen av den längsta FAI triangeln och den längsta out-and-return distansen som rymts i flygrutten."

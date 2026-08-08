@@ -6661,7 +6661,7 @@ msgstr "Competizione on-line europea PG dell'organizzazione DHV. Più o meno le 
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Gara di aliante online austriaca. Valgono tracce con massimo sei boe. Ogni bordo di 1 km equivale a 1 punto e la parte aggiuntiva a zig-zag vale 0.5 punti ogni km."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide combina multipli sistemi di punteggio nella competizione WeGlide Free. Il punteggio è una combinazione della distanza libera e del bonus area. Per il bonus area, il programma di punteggio determina il triangolo FAI più ampio e la più grande distanza Out & Return che possono essere ricavati nella traccia del volo."

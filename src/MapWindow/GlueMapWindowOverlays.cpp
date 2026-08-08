@@ -13,6 +13,8 @@
 #include "Weather/Rasp/RaspRenderer.hpp"
 #include "Formatter/UserUnits.hpp"
 #include "Formatter/UserGeoPointFormatter.hpp"
+#include "Units/Units.hpp"
+#include "Units/Descriptor.hpp"
 #include "UIState.hpp"
 #include "Renderer/FinalGlideBarRenderer.hpp"
 #include "Terrain/RasterTerrain.hpp"
@@ -437,15 +439,15 @@ GlueMapWindow::DrawFlightInfo(Canvas &canvas) const noexcept
   StaticString<80> buffer;
   buffer.clear();
 
-  const ComputerSettings &computer = CommonInterface::GetComputerSettings();
+  const ComputerSettings &computer = GetComputerSettings();
 
-  const TCHAR* plane_registration = computer.plane.registration;
+  const char* plane_registration = computer.plane.registration;
   // const TCHAR* plane_type = computer.plane.type;
 
   int crew_mass = Units::ToUserUnit(
     computer.polar.glide_polar_task.GetCrewMass(),
     Units::GetUserMassUnit());
-  const TCHAR* mass_unit = Units::GetUnitName(Units::GetUserMassUnit());
+  const char* mass_unit = Units::GetUnitName(Units::GetUserMassUnit());
 
   // const TaskStats &task_stats = CommonInterface::Calculated().task_stats;
     // task_stats.total.solution_mc0.v_opt,
@@ -454,9 +456,7 @@ GlueMapWindow::DrawFlightInfo(Canvas &canvas) const noexcept
     // Units::GetUserSpeedUnit());
   // const TCHAR* speed_unit = Units::GetUnitName(Units::GetUserTaskSpeedUnit());
 
-  buffer.AppendFormat(
-      _T("%s, %d %s"),
-      plane_registration, crew_mass, mass_unit);
+  buffer.AppendFormat(("%s, %d %s"), plane_registration, crew_mass, mass_unit);
 
   if (!buffer.empty()) {
     const Font &font = *look.overlay.overlay_font;

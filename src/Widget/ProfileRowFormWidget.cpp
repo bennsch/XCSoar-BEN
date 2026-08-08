@@ -121,34 +121,6 @@ RowFormWidget::AddMultipleFiles(const char *label, const char *help,
   return edit;
 }
 
-WndProperty *
-RowFormWidget::AddMultipleFiles(const TCHAR *label, const TCHAR *help,
-                                std::string_view registry_key,
-                                const TCHAR *filters, FileType file_type)
-{
-
-  WndProperty *edit = Add(label, help);
-  auto *df = new MultiFileDataField();
-  df->SetFileType(file_type);
-  edit->SetDataField(df);
-
-  df->ScanMultiplePatterns(filters);
-
-  if (registry_key.data() != nullptr) {
-    auto paths = Profile::GetMultiplePaths(registry_key);
-
-    if (!paths.empty()) {
-      for (auto const &p : paths) {
-        df->AddInitialPath(p);
-      }
-    }
-  }
-
-  edit->RefreshDisplay();
-
-  return edit;
-}
-
 void
 RowFormWidget::SetProfile(std::string_view profile_key, unsigned value) noexcept
 {

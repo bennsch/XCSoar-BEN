@@ -6604,7 +6604,7 @@ msgstr "Eurooppalainen PG-online-kilpailu DHV-järjestelmässä. Noin sama sää
 msgid "Austrian online glider contest. Tracks around max. six waypoints are scored. The bounding box part with 1 km = 1.0 point and the additional zick-zack part with 1 km = 0.5 p."
 msgstr "Österreichilainen online-purjelentokilpailu. Reitit koostuvat yleensä kymmenen tai vähemmän reittipisteistä. Rajoitusalueen osa 1 km = 1,0 pistettä ja lisäzick-zack-osan 1 km = 0,5 p."
 
-#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:106
+#: src/Dialogs/Settings/Panels/ScoringConfigPanel.cpp:108
 #, no-c-format
 msgid "WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out & Return distance that can be fitted into the flight route."
 msgstr "WeGlide yhdistää Usein ilmaisemattomia pistepistemistä WeGlide Vapaa-kilpailussa. Vapaan pistepiste on vapaan matkan pistepiste ja alueen lisäpisteiden kombinaatio. Alueen lisäpiste pisteet lasketaan suurimmista FAI-trianguleista ja ulkolasku-pistemäärästä."
