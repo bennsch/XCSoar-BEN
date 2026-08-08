@@ -6,6 +6,7 @@
 #include "Look/MapLook.hpp"
 #include "Weather/Rasp/RaspRenderer.hpp"
 #include "Weather/Rasp/RaspCache.hpp"
+#include "Weather/Rasp/RaspStore.hpp"
 #include "Topography/CachedTopographyRenderer.hpp"
 #include "Renderer/AircraftRenderer.hpp"
 #include "Renderer/WaveRenderer.hpp"
@@ -39,7 +40,10 @@ MapWindow::RenderRasp(Canvas &canvas) noexcept
     return;
 
   const WeatherUIState &state = GetUIState().weather;
-  if (rasp_renderer && state.map != (int)rasp_renderer->GetParameter()) {
+  if (rasp_renderer &&
+      (state.map < 0 ||
+       unsigned(state.map) >= rasp_store->GetItemCount() ||
+       state.map != (int)rasp_renderer->GetParameter())) {
 #ifndef ENABLE_OPENGL
     const std::lock_guard lock{mutex};
 #endif
@@ -47,7 +51,22 @@ MapWindow::RenderRasp(Canvas &canvas) noexcept
     rasp_renderer.reset();
   }
 
-  if (state.map < 0)
+  if (state.map < 0 ||
+      unsigned(state.map) >= rasp_store->GetItemCount())
+    return;
+
+  BrokenTime auto_local_time = BrokenTime::Invalid();
+  if (state.time_auto_advance) {
+    const BrokenDateTime &utc = Basic().date_time_utc;
+    if (utc.IsPlausible()) {
+      const auto quarter = utc.ToLocal().FloorToQuarterHour();
+      auto_local_time = BrokenTime(quarter.hour, quarter.minute);
+    }
+  }
+
+  if (!rasp_store->HasSelectedTimeData(unsigned(state.map),
+                                       state.time_auto_advance,
+                                       state.time, auto_local_time))
     return;
 
   if (!rasp_renderer) {
@@ -64,9 +83,11 @@ MapWindow::RenderRasp(Canvas &canvas) noexcept
     rasp_renderer->Update(Calculated().date_time_local, operation);
   }
 
-  const auto &terrain_settings = GetMapSettings().terrain;
-  if (rasp_renderer->Generate(render_projection, terrain_settings))
-    rasp_renderer->Draw(canvas, render_projection);
+  const auto &map_settings = GetMapSettings();
+  if (rasp_renderer->Generate(render_projection, map_settings.terrain,
+                              map_settings.rasp_contour_density))
+    rasp_renderer->Draw(canvas, render_projection,
+                        map_settings.rasp_layer_opacity / 100.f);
 }
 
 inline void
@@ -117,7 +138,8 @@ MapWindow::RenderAirspace(Canvas &canvas) noexcept
                                  render_projection,
                                  Basic(), Calculated(),
                                  GetComputerSettings().airspace,
-                                 GetMapSettings().airspace);
+                                 GetMapSettings().airspace,
+                                 &label_block);
   }
 }
 
@@ -132,6 +154,8 @@ MapWindow::RenderNOAAStations(Canvas &canvas) noexcept
     if (it->parsed_metar_available && it->parsed_metar.location_available)
       if (auto pt = render_projection.GeoToScreenIfVisible(it->parsed_metar.location))
         look.noaa.icon.Draw(canvas, *pt);
+#else
+  (void)canvas;
 #endif
 }
 
@@ -166,9 +190,17 @@ MapWindow::Render(Canvas &canvas, const PixelRect &rc) noexcept
   // reset label over-write preventer
   label_block.reset();
 
+#ifndef ENABLE_OPENGL
+  {
+    const std::lock_guard lock{frame_projection_mutex};
+    render_projection = published_projection;
+  }
+#else
   render_projection = visible_projection;
+#endif
 
-  if (!render_projection.IsValid()) {
+  if (!render_projection.IsValid() ||
+      !render_projection.GetScreenBounds().IsValid()) {
     canvas.ClearWhite();
     return;
   }
@@ -213,6 +245,11 @@ MapWindow::Render(Canvas &canvas, const PixelRect &rc) noexcept
   draw_sw.Mark("RenderAirspace");
   RenderAirspace(canvas);
 
+  //////////////////////////////////////////////// distance rings
+
+  draw_sw.Mark("DrawDistanceRings");
+  DrawDistanceRings(canvas);
+
   //////////////////////////////////////////////// task
 
   // Render task, waypoints
@@ -252,6 +289,9 @@ MapWindow::Render(Canvas &canvas, const PixelRect &rc) noexcept
   draw_sw.Mark("RenderMisc1");
   DrawTaskOffTrackIndicator(canvas);
 
+  // Draw the Turn Back Marker (TBM) on the track line
+  DrawTurnBackMarker(canvas);
+
   draw_sw.Mark("RenderMisc2");
   DrawBestCruiseTrack(canvas, aircraft_pos);
 
@@ -264,10 +304,6 @@ MapWindow::Render(Canvas &canvas, const PixelRect &rc) noexcept
 
   //////////////////////////////////////////////// traffic
   // Draw traffic
-
-#ifdef HAVE_SKYLINES_TRACKING
-  DrawSkyLinesTraffic(canvas);
-#endif
 
   DrawGLinkTraffic(canvas);
 

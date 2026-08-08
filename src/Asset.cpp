@@ -2,11 +2,30 @@
 // Copyright The XCSoar Project
 
 #include "Asset.hpp"
+#include "CommandLine.hpp"
 
 #if defined(USE_CONSOLE) || defined(USE_WAYLAND)
 #include "ui/event/Globals.hpp"
 #include "ui/event/Queue.hpp"
 #endif
+
+#ifndef KOBO
+static DisplayType display_type = DisplayType::LCD;
+#else
+static DisplayType display_type = DisplayType::E_INK;
+#endif
+
+void
+SetDisplayType(DisplayType type) noexcept
+{
+  display_type = type;
+}
+
+bool
+HasEPaper() noexcept
+{
+  return IsEPaperDisplayType(display_type);
+}
 
 #if (defined(USE_CONSOLE) && !defined(KOBO)) || defined(USE_WAYLAND)
 
@@ -20,10 +39,16 @@ HasPointer() noexcept
 
 #if defined(USE_LIBINPUT) || defined(USE_WAYLAND)
 
+static bool
+HasTouchScreenHardware() noexcept
+{
+  return UI::event_queue->HasTouchScreen();
+}
+
 bool
 HasTouchScreen() noexcept
 {
-  return UI::event_queue->HasTouchScreen();
+  return CommandLine::ApplyTouchInputOverride(HasTouchScreenHardware());
 }
 
 bool
@@ -32,4 +57,4 @@ HasKeyboard() noexcept
   return UI::event_queue->HasKeyboard();
 }
 
-#endif
+#endif /* USE_LIBINPUT || USE_WAYLAND */

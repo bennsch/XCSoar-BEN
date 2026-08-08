@@ -3,6 +3,7 @@
 
 #define ENABLE_DIALOG
 #define ENABLE_MAIN_WINDOW
+#define ENABLE_LOOK
 
 #include "ActionInterface.hpp"
 #include "Airspace/AirspaceGlue.hpp"
@@ -18,6 +19,7 @@
 #include "Main.hpp"
 #include "Operation/Operation.hpp"
 #include "Profile/Profile.hpp"
+#include "Repository/FileType.hpp"
 #include "ResourceLoader.hpp"
 #include "UIGlobals.hpp"
 #include "io/BufferedReader.hxx"
@@ -27,9 +29,6 @@
 #include <memory>
 #include <stdio.h>
 #include <tchar.h>
-
-void VisitDataFiles([[maybe_unused]] const TCHAR* filter,
-                    [[maybe_unused]] File::Visitor &visitor) {}
 
 InterfaceBlackboard CommonInterface::Private::blackboard;
 
@@ -43,7 +42,7 @@ dlgAirspaceDetails([[maybe_unused]] ConstAirspacePtr the_airspace,
 
 void
 ActionInterface::SetActiveFrequency([[maybe_unused]] const RadioFrequency freq,
-                                    [[maybe_unused]] const TCHAR * freq_name,
+                                    [[maybe_unused]] const char * freq_name,
                                     [[maybe_unused]] bool to_devices) noexcept
 {
 }
@@ -52,7 +51,8 @@ static void
 LoadFiles(Airspaces &airspace_database)
 {
   NullOperationEnvironment test_operation_environment;
-  const auto paths = Profile::GetMultiplePaths(ProfileKeys::AirspaceFileList);
+  const auto paths = Profile::GetMultiplePaths(ProfileKeys::AirspaceFileList,
+                                               GetFileTypePatterns(FileType::AIRSPACE));
   for (auto it = paths.begin(); it < paths.end(); it++) {
     ParseAirspaceFile(airspace_database, *it, test_operation_environment);
   }
@@ -62,6 +62,8 @@ LoadFiles(Airspaces &airspace_database)
 static void
 Main([[maybe_unused]] TestMainWindow &main_window)
 {
+  CommonInterface::Private::blackboard.SetUISettings().SetDefaults();
+
   Airspaces airspace_database;
 
   AirspaceWarningConfig airspace_warning_config;

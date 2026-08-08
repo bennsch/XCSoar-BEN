@@ -29,7 +29,7 @@ import com.felhr.usbserial.UsbSerialDevice;
 public final class UsbSerialHelper extends BroadcastReceiver {
 
   private static final String TAG = "UsbSerialHelper";
-  private static final String ACTION_USB_PERMISSION = "org.xcsoar.otg.action.USB_PERMISSION";
+  private final String ACTION_USB_PERMISSION;
 
   private final Context context;
   private final UsbManager usbmanager;
@@ -59,6 +59,8 @@ public final class UsbSerialHelper extends BroadcastReceiver {
     createDevice(0x303a, 0x81a0), // SoftRF Midi
     createDevice(0x303a, 0x820a), // SoftRF Ink
     createDevice(0x2886, 0x0057), // SoftRF Card
+    createDevice(0x303a, 0x8343), // SoftRF Concorde
+    createDevice(0x303a, 0x8366), // SoftRF Prime Mk4
 
     createDevice(0x0403, 0x6001), // FT232AM, FT232BM, FT232R FT245R,
     createDevice(0x0403, 0x6010), // FT2232D, FT2232H
@@ -66,7 +68,9 @@ public final class UsbSerialHelper extends BroadcastReceiver {
     createDevice(0x0403, 0x6014), // FT232H
 
     createDevice(0x10C4, 0xEA60), // CP210x
+    createDevice(0x1A86, 0x55D3), // CH343
     createDevice(0x1A86, 0x55D4), // CH9102
+    createDevice(0x1A86, 0x7523), // CH340, SoftRF Retro Mk2
 
     createDevice(0x067B, 0x2303), // PL2303
     createDevice(0x1546, 0x01A7)  // U-BLOX 7 USB GPS
@@ -86,13 +90,28 @@ public final class UsbSerialHelper extends BroadcastReceiver {
     return id;
   }
 
+  /**
+   * Counts USB interfaces we treat as serial (same filter as addAvailable()).
+   */
+  private static int countSerialInterfaces(UsbDevice device) {
+    int n = 0;
+    for (int i = 0; i < device.getInterfaceCount(); ++i) {
+      int iclass = device.getInterface(i).getInterfaceClass();
+      if (iclass == UsbConstants.USB_CLASS_VENDOR_SPEC ||
+          iclass == UsbConstants.USB_CLASS_CDC_DATA)
+        ++n;
+    }
+    return n;
+  }
+
   private static String makePortId(UsbDevice device, int iface,
-                                   boolean withSerialNumber) {
+                                   boolean withSerialNumber,
+                                   boolean multiSerial) {
     String id = makeDeviceId(device, withSerialNumber);
 
-    if (iface > 0)
-      /* a secondary interface on the same device: append the
-         interface index */
+    if (multiSerial)
+      /* 0-based port index, consistent with IOIO UART numbering and with
+         getDisplayName() */
       id += "#" + iface;
 
     return id;
@@ -110,17 +129,24 @@ public final class UsbSerialHelper extends BroadcastReceiver {
     public final String oldId;
 
     /**
+     * More than one serial-capable interface on this device (same notion as
+     * addAvailable()).
+     */
+    private final boolean multiSerial;
+
+    /**
      * If not null, then this port instance is currently being used by
      * native code.  It may be waiting for permission from the
      * UsbManager, or it may already be open.
      */
     public UsbSerialPort port;
 
-    public UsbDeviceInterface(UsbDevice dev_,int iface_) {
+    public UsbDeviceInterface(UsbDevice dev_, int iface_) {
       device = dev_;
       iface = iface_;
-      id = makePortId(device, iface, true);
-      oldId = makePortId(device, iface, false);
+      multiSerial = countSerialInterfaces(device) > 1;
+      id = makePortId(device, iface, true, multiSerial);
+      oldId = makePortId(device, iface, false, multiSerial);
     }
 
     public boolean isDevice(UsbDevice otherDevice) {
@@ -137,7 +163,9 @@ public final class UsbSerialHelper extends BroadcastReceiver {
     public String getDisplayName() {
       String name = device.getProductName();
       if (name == null)
-        name = id;
+        /* makeDeviceId only: id includes #port for multi-serial and would
+           duplicate the suffix appended below */
+        name = makeDeviceId(device, true);
 
       String manufacturer = device.getManufacturerName();
       if (manufacturer != null)
@@ -148,9 +176,8 @@ public final class UsbSerialHelper extends BroadcastReceiver {
         name += " [" + serialNumber + "]";
       }
 
-      // add interface number to name only when more than one interface
-      if (device.getInterfaceCount() > 1)
-        name += "#" + (iface + 1);
+      if (multiSerial)
+        name += "#" + iface;
 
       return name;
     }
@@ -338,6 +365,7 @@ public final class UsbSerialHelper extends BroadcastReceiver {
 
   private UsbSerialHelper(Context context) throws IOException {
     this.context = context;
+    ACTION_USB_PERMISSION = context.getPackageName() + ".otg.action.USB_PERMISSION";
 
     usbmanager = (UsbManager) context.getSystemService(Context.USB_SERVICE);
     if (usbmanager == null)
@@ -359,7 +387,7 @@ public final class UsbSerialHelper extends BroadcastReceiver {
     IntentFilter filter = new IntentFilter(ACTION_USB_PERMISSION);
     filter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
     filter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
-    context.registerReceiver(this, filter);
+    BroadcastUtil.registerReceiver(context, this, filter);
   }
 
   private void unregisterReceiver() {
@@ -367,10 +395,13 @@ public final class UsbSerialHelper extends BroadcastReceiver {
   }
 
   private void requestPermission(UsbDevice device) {
+    int flags = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M
+      ? PendingIntent.FLAG_IMMUTABLE
+      : 0;
     PendingIntent pi =
       PendingIntent.getBroadcast(context, 0,
-                                 new Intent(UsbSerialHelper.ACTION_USB_PERMISSION),
-                                 PendingIntent.FLAG_IMMUTABLE);
+                                 new Intent(ACTION_USB_PERMISSION),
+                                 flags);
 
     usbmanager.requestPermission(device, pi);
   }

@@ -9,14 +9,35 @@
 #include "Resources.hpp"
 #include "Version.hpp"
 
+#ifdef ENABLE_OPENGL
+#include "ui/canvas/opengl/Scope.hpp"
+#endif
+
 #include <algorithm>
 
 LogoView::LogoView() noexcept try
-  :logo(IDB_LOGO), big_logo(IDB_LOGO_HD),
-   title(IDB_TITLE), big_title(IDB_TITLE_HD)
+  :logo(IDB_LOGO), big_logo(IDB_LOGO_HD), huge_logo(IDB_LOGO_UHD),
+   title(IDB_TITLE), big_title(IDB_TITLE_HD), huge_title(IDB_TITLE_UHD)
 {
+#ifndef USE_WIN32_RESOURCES
+  /* Load RGBA logo variants (transparent background) */
+  logo_rgba.Load(IDB_LOGO_RGBA);
+  big_logo_rgba.Load(IDB_LOGO_HD_RGBA);
+  huge_logo_rgba.Load(IDB_LOGO_UHD_RGBA);
+  /* Transparent title for light backgrounds; white for dark mode */
+  title_rgba.Load(IDB_TITLE_RGBA);
+  big_title_rgba.Load(IDB_TITLE_HD_RGBA);
+  huge_title_rgba.Load(IDB_TITLE_UHD_RGBA);
+  white_title.Load(IDB_TITLE_HD_WHITE);
+  huge_white_title.Load(IDB_TITLE_UHD_WHITE);
+#endif
 #ifndef USE_GDI
   font.Load(FontDescription(Layout::FontScale(10)));
+#ifndef NDEBUG
+  FontDescription bold_desc(Layout::FontScale(16));
+  bold_desc.SetBold(true);
+  bold_font.Load(bold_desc);
+#endif
 #endif
 } catch (...) {
   /* ignore Bitmap/Font loader exceptions */
@@ -61,9 +82,12 @@ EstimateLogoViewSize(LogoViewOrientation orientation,
 }
 
 void
-LogoView::draw(Canvas &canvas, const PixelRect &rc) noexcept
+LogoView::draw(Canvas &canvas, const PixelRect &rc,
+               bool dark_mode) noexcept
 {
-  if (!big_logo.IsDefined() || !big_title.IsDefined())
+  /* Return only if all logo and title variants are missing */
+  if (!huge_logo.IsDefined() && !big_logo.IsDefined() && !logo.IsDefined() &&
+      !huge_title.IsDefined() && !big_title.IsDefined() && !title.IsDefined())
     return;
 
   const unsigned width = rc.GetWidth(), height = rc.GetHeight();
@@ -76,19 +100,56 @@ LogoView::draw(Canvas &canvas, const PixelRect &rc) noexcept
   else
     orientation = LogoViewOrientation::PORTRAIT;
 
-  /* load bitmaps */
-  const bool use_big =
-    (orientation == LogoViewOrientation::LANDSCAPE && width >= 510 && height >= 170) ||
-    (orientation == LogoViewOrientation::PORTRAIT && width >= 330 && height >= 250) ||
-    (orientation == LogoViewOrientation::SQUARE && width >= 210 && height >= 210);
-  const Bitmap &bitmap_logo = use_big ? big_logo : logo;
-  const Bitmap &bitmap_title = use_big ? big_title : title;
+  /* Select appropriate bitmap size based on display dimensions */
+  /* Pick the highest-resolution bitmap that IsDefined() (fall back from huge -> big -> logo) */
+  const Bitmap *bitmap_logo, *bitmap_title;
+  
+  if ((orientation == LogoViewOrientation::LANDSCAPE && width >= 1024 && height >= 340) ||
+      (orientation == LogoViewOrientation::PORTRAIT && width >= 660 && height >= 500) ||
+      (orientation == LogoViewOrientation::SQUARE && width >= 420 && height >= 420)) {
+    /* Use huge (320px logo, 640px title) for very high resolution displays */
+    if (huge_logo.IsDefined() && huge_title.IsDefined()) {
+      bitmap_logo = &huge_logo;
+      bitmap_title = &huge_title;
+    } else if (big_logo.IsDefined() && big_title.IsDefined()) {
+      bitmap_logo = &big_logo;
+      bitmap_title = &big_title;
+    } else {
+      bitmap_logo = &logo;
+      bitmap_title = &title;
+    }
+  } else if ((orientation == LogoViewOrientation::LANDSCAPE && width >= 510 && height >= 170) ||
+             (orientation == LogoViewOrientation::PORTRAIT && width >= 330 && height >= 250) ||
+             (orientation == LogoViewOrientation::SQUARE && width >= 210 && height >= 210)) {
+    /* Use big (160px logo, 320px title) for HD displays */
+    if (big_logo.IsDefined() && big_title.IsDefined()) {
+      bitmap_logo = &big_logo;
+      bitmap_title = &big_title;
+    } else {
+      bitmap_logo = &logo;
+      bitmap_title = &title;
+    }
+  } else {
+    /* Use standard (80px logo, 110px title) for low resolution displays */
+    bitmap_logo = &logo;
+    bitmap_title = &title;
+  }
+
+  /* Prefer RGBA logos (transparent background).  Opaque BMP/PNG
+     variants have a white fill that shows as a rectangle on the
+     parchment dialog background and on dark themes. */
+  if (bitmap_logo == &huge_logo && huge_logo_rgba.IsDefined())
+    bitmap_logo = &huge_logo_rgba;
+  else if (bitmap_logo == &big_logo && big_logo_rgba.IsDefined())
+    bitmap_logo = &big_logo_rgba;
+  else if (bitmap_logo == &logo && logo_rgba.IsDefined())
+    bitmap_logo = &logo_rgba;
 
   // Determine logo size
-  PixelSize logo_size = bitmap_logo.GetSize();
+  PixelSize logo_size = bitmap_logo->GetSize();
 
   // Determine title image size
-  PixelSize title_size = bitmap_title.GetSize();
+  PixelSize title_size = bitmap_title->GetSize();
 
   unsigned spacing = title_size.height / 2;
 
@@ -135,11 +196,40 @@ LogoView::draw(Canvas &canvas, const PixelRect &rc) noexcept
   }
 
   // Draw 'XCSoar N.N' title
-  if (orientation != LogoViewOrientation::SQUARE)
-    canvas.Stretch(title_position, title_size, bitmap_title);
+  if (orientation != LogoViewOrientation::SQUARE) {
+    const Bitmap *draw_title = bitmap_title;
+#ifndef USE_WIN32_RESOURCES
+    /* Opaque title BMPs have a white fill.  Prefer matching-size RGBA
+       variants so the title composites over parchment / dark dialog
+       backgrounds (OpenGL and memory canvas). */
+    if (dark_mode) {
+      if (bitmap_title == &huge_title &&
+          huge_white_title.IsDefined())
+        draw_title = &huge_white_title;
+      else if (white_title.IsDefined())
+        draw_title = &white_title;
+    } else if (bitmap_title == &huge_title &&
+               huge_title_rgba.IsDefined())
+      draw_title = &huge_title_rgba;
+    else if (bitmap_title == &big_title &&
+             big_title_rgba.IsDefined())
+      draw_title = &big_title_rgba;
+    else if (bitmap_title == &title && title_rgba.IsDefined())
+      draw_title = &title_rgba;
+#endif
+#ifdef ENABLE_OPENGL
+    const ScopeAlphaBlend alpha_blend;
+#endif
+    canvas.Stretch(title_position, title_size, *draw_title);
+  }
 
   // Draw XCSoar swift logo
-  canvas.Stretch(logo_position, logo_size, bitmap_logo);
+  {
+#ifdef ENABLE_OPENGL
+    const ScopeAlphaBlend alpha_blend;
+#endif
+    canvas.Stretch(logo_position, logo_size, *bitmap_logo);
+  }
 
   // Draw full XCSoar version number
 
@@ -150,8 +240,58 @@ LogoView::draw(Canvas &canvas, const PixelRect &rc) noexcept
   canvas.Select(font);
 #endif
 
-  canvas.SetTextColor(COLOR_BLACK);
+  canvas.SetTextColor(dark_mode ? COLOR_WHITE : COLOR_BLACK);
   canvas.SetBackgroundTransparent();
-  canvas.DrawText({2, 2}, XCSoar_VersionFull);
-  canvas.DrawText({2, 2 + (int)canvas.GetFontHeight()}, XCSoar_GitSuffix);
+  canvas.DrawText({2, 2}, XCSoar_ProductToken);
+
+#ifndef NDEBUG
+  /* Draw debug build warning banner below logo (like "Remove before flight") */
+#ifndef USE_GDI
+  if (bold_font.IsDefined())
+    canvas.Select(bold_font);
+#endif
+  
+  const char *warning_text = "DEBUG BUILD - DO NOT FLY!";
+  const auto text_size = canvas.CalcTextSize(warning_text);
+  
+  /* Half character padding (max) */
+  const int padding = text_size.height / 2;
+  const int banner_height = text_size.height + padding * 2;
+  const int banner_width = text_size.width + padding * 2;
+  
+  /* Position banner below the logo/title with some spacing */
+  int banner_y;
+  if (orientation == LogoViewOrientation::PORTRAIT) {
+    // Below title in portrait mode
+    banner_y = title_position.y + title_size.height + spacing / 2;
+  } else if (orientation == LogoViewOrientation::SQUARE) {
+    // Below logo in square mode
+    banner_y = logo_position.y + logo_size.height + spacing / 2;
+  } else {
+    // Below whichever is lower in landscape mode
+    banner_y = std::max(logo_position.y + logo_size.height,
+                       title_position.y + title_size.height) + spacing / 2;
+  }
+  
+  /* Only draw if banner fits within the visible area */
+  if (banner_y + banner_height <= int(height)) {
+    const PixelRect warning_rect{
+      Center(width, banner_width),
+      banner_y,
+      Center(width, banner_width) + banner_width,
+      banner_y + banner_height
+    };
+    
+    canvas.DrawFilledRectangle(warning_rect, COLOR_RED);
+    canvas.SetTextColor(COLOR_WHITE);
+    canvas.SetBackgroundTransparent();
+    
+    const PixelPoint text_pos{
+      warning_rect.left + padding,
+      warning_rect.top + padding
+    };
+    
+    canvas.DrawText(text_pos, warning_text);
+  }
+#endif
 }

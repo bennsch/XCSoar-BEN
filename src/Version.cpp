@@ -2,6 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "Version.hpp"
+#include "ProductName.hpp"
 
 #ifndef XCSOAR_VERSION
 #error Macro "XCSOAR_VERSION" is not defined.  Check build/version.mk!

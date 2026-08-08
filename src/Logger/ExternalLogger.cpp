@@ -13,11 +13,13 @@
 #include "Components.hpp"
 #include "BackendComponents.hpp"
 #include "LocalPath.hpp"
+#include "Repository/FileType.hpp"
 #include "UIGlobals.hpp"
 #include "Operation/Cancelled.hpp"
 #include "Operation/MessageOperationEnvironment.hpp"
 #include "Dialogs/JobDialog.hpp"
 #include "Job/TriStateJob.hpp"
+#include "system/FileUtil.hpp"
 #include "system/Path.hpp"
 #include "io/FileLineReader.hpp"
 #include "io/FileTransaction.hpp"
@@ -52,7 +54,7 @@ DoDeviceDeclare(DeviceDescriptor &device, const Declaration &declaration,
 {
   TriStateJob<DeclareJob> job(device, declaration, home);
   JobDialog(UIGlobals::GetMainWindow(), UIGlobals::GetDialogLook(),
-            _T(""), job, true);
+            "", job, true);
   return job.GetResult();
 }
 
@@ -73,7 +75,7 @@ try {
   MessageOperationEnvironment env;
   const ScopeReturnDevice return_device{dev, env};
 
-  const TCHAR *caption = dev.GetDisplayName();
+  const char *caption = dev.GetDisplayName();
   if (caption == nullptr)
     caption = _("Declare task");
 
@@ -86,7 +88,7 @@ try {
     return true;
 
   case TriStateJobResult::ERROR:
-    ShowMessageBox(_("Error occured,\nTask NOT declared!"),
+    ShowMessageBox(_("Error occurred,\nTask NOT declared!"),
                    caption, MB_OK | MB_ICONERROR);
     return false;
 
@@ -98,7 +100,7 @@ try {
 } catch (OperationCancelled) {
   return false;
 } catch (...) {
-  ShowError(_("Error occured,\nTask NOT declared!"),
+  ShowError(_("Error occurred,\nTask NOT declared!"),
             std::current_exception(),
             dev.GetDisplayName());
   return false;
@@ -142,7 +144,7 @@ DoReadFlightList(DeviceDescriptor &device, RecordedFlightList &flight_list)
 {
   TriStateJob<ReadFlightListJob> job(device, flight_list);
   JobDialog(UIGlobals::GetMainWindow(), UIGlobals::GetDialogLook(),
-            _T(""), job, true);
+            "", job, true);
   return job.GetResult();
 }
 
@@ -167,7 +169,7 @@ DoDownloadFlight(DeviceDescriptor &device,
 {
   TriStateJob<DownloadFlightJob> job(device, flight, path);
   JobDialog(UIGlobals::GetMainWindow(), UIGlobals::GetDialogLook(),
-            _T(""), job, true);
+            "", job, true);
   return job.GetResult();
 }
 
@@ -222,16 +224,21 @@ ShowFlightList(const RecordedFlightList &flight_list)
     const RecordedFlightInfo &flight = flight_list[i];
 
     StaticString<64> buffer;
-    buffer.UnsafeFormat(_T("%04u/%02u/%02u %02u:%02u-%02u:%02u"),
-                        flight.date.year, flight.date.month, flight.date.day,
-                        flight.start_time.hour, flight.start_time.minute,
-                        flight.end_time.hour, flight.end_time.minute);
+    if (flight.date.IsPlausible())
+      buffer.UnsafeFormat("%04u/%02u/%02u %02u:%02u-%02u:%02u",
+                          flight.date.year, flight.date.month, flight.date.day,
+                          flight.start_time.hour, flight.start_time.minute,
+                          flight.end_time.hour, flight.end_time.minute);
+    else
+      buffer.UnsafeFormat("----/--/-- %02u:%02u-%02u:%02u",
+                          flight.start_time.hour, flight.start_time.minute,
+                          flight.end_time.hour, flight.end_time.minute);
 
     combo.Append(i, buffer);
   }
 
   // Show list of the flights
-  int i = ComboPicker(_T("Choose a flight"),
+  int i = ComboPicker("Choose a flight",
                       combo, nullptr, false);
 
   return i < 0 ? nullptr : &flight_list[i];
@@ -240,7 +247,22 @@ ShowFlightList(const RecordedFlightList &flight_list)
 void
 ExternalLogger::DownloadFlightFrom(DeviceDescriptor &device)
 {
+  class ScopeEnableSecondDeviceNMEA {
+    DeviceDescriptor &device;
+    OperationEnvironment &env;
+
+  public:
+    ScopeEnableSecondDeviceNMEA(DeviceDescriptor &_device,
+                                OperationEnvironment &_env) noexcept
+      :device(_device), env(_env) {}
+
+    ~ScopeEnableSecondDeviceNMEA() noexcept {
+      (void)device.EnableSecondDeviceNMEA(env);
+    }
+  };
+
   MessageOperationEnvironment env;
+  const ScopeEnableSecondDeviceNMEA enable_second_device_nmea{device, env};
 
   // Download the list of flights that the logger contains
   RecordedFlightList flight_list;
@@ -274,7 +296,8 @@ ExternalLogger::DownloadFlightFrom(DeviceDescriptor &device)
     return;
   }
 
-  const auto logs_path = MakeLocalPath(_T("logs"));
+  const auto logs_path = LocalPath(GetFileTypeDefaultDir(FileType::IGC));
+  Directory::CreateRecursive(logs_path);
 
   while (true) {
     // Show list of the flights
@@ -284,7 +307,7 @@ ExternalLogger::DownloadFlightFrom(DeviceDescriptor &device)
 
     // Download chosen IGC file into temporary file
     FileTransaction transaction(AllocatedPath::Build(logs_path,
-                                                     _T("temp.igc")));
+                                                     "temp.igc"));
 
     try {
       switch (DoDownloadFlight(device, *flight, transaction.GetTemporaryPath())) {
@@ -294,7 +317,7 @@ ExternalLogger::DownloadFlightFrom(DeviceDescriptor &device)
       case TriStateJobResult::ERROR:
         ShowMessageBox(_("Failed to download flight."),
                        _("Download flight"), MB_OK | MB_ICONERROR);
-        continue;
+        return;
 
       case TriStateJobResult::CANCELLED:
         continue;
@@ -305,7 +328,7 @@ ExternalLogger::DownloadFlightFrom(DeviceDescriptor &device)
       ShowError(_("Failed to download flight."),
                 std::current_exception(),
                 _("Download flight"));
-      continue;
+      return;
     }
 
     /* read the IGC header and build the final IGC file name with it */
@@ -316,7 +339,7 @@ ExternalLogger::DownloadFlightFrom(DeviceDescriptor &device)
     if (header.flight == 0)
       header.flight = GetFlightNumber(flight_list, *flight);
 
-    TCHAR name[64];
+    char name[64];
     FormatIGCFilenameLong(name, date, header.manufacturer, header.id,
                           header.flight);
 
@@ -335,7 +358,7 @@ ExternalLogger::DownloadFlightFrom(DeviceDescriptor &device)
       weglide_settings.pilot_id > 0) {
       // ask whether this IGC should be uploaded to WeGlide
       if (ShowMessageBox(_("Do you want to upload this flight to WeGlide?"),
-        _("Upload flight"), MB_YESNO | MB_ICONQUESTION) == IDYES) {
+        _("Upload Flight"), MB_YESNO | MB_ICONQUESTION) == IDYES) {
         WeGlide::UploadIGCFile(igc_path);
       }
     }

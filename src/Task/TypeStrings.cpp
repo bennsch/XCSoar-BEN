@@ -7,7 +7,7 @@
 #include "Language/Language.hpp"
 #include "util/Macros.hpp"
 
-static const TCHAR *const task_factory_names[] = {
+static const char *const task_factory_names[] = {
   N_("FAI badges/records"),
   N_("FAI triangle"),
   N_("FAI out and return"),
@@ -22,13 +22,13 @@ static const TCHAR *const task_factory_names[] = {
 static_assert(ARRAY_SIZE(task_factory_names) == unsigned(TaskFactoryType::COUNT),
               "Wrong array size");
 
-const TCHAR*
+const char*
 OrderedTaskFactoryName(TaskFactoryType type)
 {
   return gettext(task_factory_names[unsigned(type)]);
 }
 
-static const TCHAR *const task_factory_descriptions[] = {
+static const char *const task_factory_descriptions[] = {
   N_("FAI rules, allows only FAI start, finish and turn point types, for badges and "
      "records. Enables FAI finish height for final glide calculation."),
   N_("FAI rules, path from a start to two turn points and return."),
@@ -46,13 +46,13 @@ static const TCHAR *const task_factory_descriptions[] = {
 static_assert(ARRAY_SIZE(task_factory_descriptions) == unsigned(TaskFactoryType::COUNT),
               "Wrong array size");
 
-const TCHAR*
+const char*
 OrderedTaskFactoryDescription(TaskFactoryType type)
 {
   return gettext(task_factory_descriptions[unsigned(type)]);
 }
 
-static const TCHAR *const tp_factory_descriptions[] = {
+static const char *const tp_factory_descriptions[] = {
   N_("A 90-degree sector with 1 km radius. Cross corner edge from inside area to start."),
   N_("A straight line start gate. Cross start gate from inside area to start."),
   N_("A cylinder. Exit area to start."),
@@ -76,20 +76,20 @@ static const TCHAR *const tp_factory_descriptions[] = {
   N_("A 180-degree sector with 5 km radius. Exit area in any direction to start."),
   N_("A sector that can vary in angle, inner and outer radius. Scored by farthest point "
      "reached inside area."),
-  N_("A symmetric quadrant with a custom radius."),
+  N_("A Symmetric Sector with a custom radius."),
   N_("A keyhole. Scored by farthest point reached in area."),
 };
 
 static_assert(ARRAY_SIZE(tp_factory_descriptions) == unsigned(TaskPointFactoryType::COUNT),
               "Wrong array size");
 
-const TCHAR*
+const char*
 OrderedTaskPointDescription(TaskPointFactoryType type)
 {
   return tp_factory_descriptions[unsigned(type)];
 }
 
-static const TCHAR *const tp_factory_names[] = {
+static const char *const tp_factory_names[] = {
   N_("FAI start quadrant"),
   N_("Start line"),
   N_("Start cylinder"),
@@ -107,14 +107,14 @@ static const TCHAR *const tp_factory_names[] = {
   N_("Finish cylinder"),
   N_("BGA start sector"),
   N_("Area sector with inner radius"),
-  N_("Symmetric quadrant"),
+  N_("Symmetric Sector"),
   N_("Area keyhole"),
 };
 
 static_assert(ARRAY_SIZE(tp_factory_names) == unsigned(TaskPointFactoryType::COUNT),
               "Wrong array size");
 
-const TCHAR*
+const char*
 OrderedTaskPointName(TaskPointFactoryType type)
 {
   return tp_factory_names[unsigned(type)];

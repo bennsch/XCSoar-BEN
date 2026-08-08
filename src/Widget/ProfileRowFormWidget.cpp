@@ -9,28 +9,111 @@
 #include "LocalPath.hpp"
 #include "Profile/Profile.hpp"
 #include "RowFormWidget.hpp"
-#include "util/ConvertString.hpp"
+
+namespace {
+
+static WndProperty *
+FinishFileProperty(RowFormWidget &form, const char *label, const char *help,
+                   std::string_view profile_key, const char *filters,
+                   FileDataField &df, bool nullable) noexcept
+{
+  WndProperty *edit = form.Add(label, help);
+  edit->SetDataField(&df);
+
+  if (nullable)
+    df.AddNull();
+
+  df.ScanMultiplePatterns(filters);
+
+  if (profile_key.data() != nullptr) {
+    const auto path = Profile::GetPath(profile_key);
+    if (path != nullptr)
+      df.SetValue(path);
+  }
+
+  edit->RefreshDisplay();
+  return edit;
+}
+
+static void
+ScanFileTypePatterns(FileDataField &df,
+                     std::initializer_list<FileType> file_types) noexcept
+{
+  for (const auto file_type : file_types)
+    df.ScanMultiplePatterns(GetFileTypePatterns(file_type));
+}
+
+} // namespace
 
 WndProperty *
-RowFormWidget::AddFile(const TCHAR *label, const TCHAR *help,
-                       std::string_view profile_key, const TCHAR *filters,
+RowFormWidget::AddFile(const char *label, const char *help,
+                       std::string_view profile_key, const char *filters,
                        FileType file_type,
                        bool nullable) noexcept
 {
-  WndProperty *edit = Add(label, help);
   auto *df = new FileDataField();
   df->SetFileType(file_type);
+  return FinishFileProperty(*this, label, help, profile_key, filters, *df,
+                            nullable);
+}
+
+WndProperty *
+RowFormWidget::AddFile(const char *label, const char *help,
+                       std::string_view profile_key, const char * /*filters*/,
+                       std::initializer_list<FileType> file_types,
+                       bool nullable) noexcept
+{
+  return AddFile(label, help, profile_key, file_types, nullable);
+}
+
+WndProperty *
+RowFormWidget::AddFile(const char *label, const char *help,
+                       std::string_view profile_key,
+                       std::initializer_list<FileType> file_types,
+                       bool nullable) noexcept
+{
+  auto *df = new FileDataField();
+  df->SetFileTypes(file_types);
+
+  WndProperty *edit = Add(label, help);
   edit->SetDataField(df);
 
   if (nullable)
     df->AddNull();
 
-  df->ScanMultiplePatterns(filters);
+  ScanFileTypePatterns(*df, file_types);
 
   if (profile_key.data() != nullptr) {
     const auto path = Profile::GetPath(profile_key);
     if (path != nullptr)
       df->SetValue(path);
+  }
+
+  edit->RefreshDisplay();
+  return edit;
+}
+
+WndProperty *
+RowFormWidget::AddMultipleFiles(const char *label, const char *help,
+                                std::string_view registry_key,
+                                const char *filters, FileType file_type)
+{
+
+  WndProperty *edit = Add(label, help);
+  auto *df = new MultiFileDataField();
+  df->SetFileType(file_type);
+  edit->SetDataField(df);
+
+  df->ScanMultiplePatterns(filters);
+
+  if (registry_key.data() != nullptr) {
+    auto paths = Profile::GetMultiplePaths(registry_key, filters);
+
+    if (!paths.empty()) {
+      for (auto const &p : paths) {
+        df->AddInitialPath(p);
+      }
+    }
   }
 
   edit->RefreshDisplay();
@@ -74,9 +157,20 @@ RowFormWidget::SetProfile(std::string_view profile_key, unsigned value) noexcept
 
 bool
 RowFormWidget::SaveValue(unsigned i, std::string_view profile_key,
-                         TCHAR *string, size_t max_size) const noexcept
+                         char *string, size_t max_size) const noexcept
 {
   if (!SaveValue(i, string, max_size))
+    return false;
+
+  Profile::Set(profile_key, string);
+  return true;
+}
+
+bool
+RowFormWidget::SaveValue(unsigned i, std::string_view profile_key,
+                         std::string &string) const noexcept
+{
+  if (!SaveValue(i, string))
     return false;
 
   Profile::Set(profile_key, string);
@@ -114,15 +208,11 @@ RowFormWidget::SaveValueFileReader(unsigned i,
   if (contracted != nullptr)
     new_value = contracted;
 
-  const WideToUTF8Converter new_value2(new_value.c_str());
-  if (!new_value2.IsValid())
-    return false;
-
   const char *old_value = Profile::Get(profile_key, "");
-  if (StringIsEqual(old_value, new_value2))
+  if (StringIsEqual(old_value, new_value.c_str()))
     return false;
 
-  Profile::Set(profile_key, new_value2);
+  Profile::Set(profile_key, new_value.c_str());
   return true;
 }
 
@@ -142,7 +232,7 @@ RowFormWidget::SaveValue(unsigned i,
   if (new_value == value)
     return false;
 
-  TCHAR buffer[0x10];
+  char buffer[0x10];
   FormatISO8601(buffer, new_value);
   Profile::Set(profile_key, buffer);
   value = new_value;
@@ -177,10 +267,9 @@ RowFormWidget::SaveValueMultiFileReader(unsigned i,
     const auto contracted = ContractLocalPath(value);
     Path final_path = contracted != nullptr ? Path(contracted) : value;
 
-    const WideToUTF8Converter value_to_add(final_path.c_str());
-    if (!value_to_add.IsValid()) continue;
+    if (final_path.empty()) continue;
 
-    new_output += value_to_add;
+    new_output += final_path.c_str();
     new_output += "|";
   }
   if (!new_output.empty())

@@ -24,6 +24,7 @@ enum ControlIndex {
   AutoBugs,
   SafetyMC,
   RiskFactor,
+  TurnBackMarker,
 };
 
 class SafetyFactorsConfigPanel final : public RowFormWidget {
@@ -46,35 +47,39 @@ SafetyFactorsConfigPanel::Prepare(ContainerWindow &parent,
 
   AddFloat(_("Arrival height"),
            _("The height above terrain that the glider should arrive at for a safe landing."),
-           _T("%.0f %s"), _T("%.0f"),
+           "%.0f %s", "%.0f",
            0, 2000, 10, false,
            UnitGroup::ALTITUDE, task_behaviour.safety_height_arrival);
 
   AddFloat(_("Terrain height"),
            _("The height above terrain that the glider must clear during final glide."),
-           _T("%.0f %s"), _T("%.0f"),
+           "%.0f %s", "%.0f",
            0, 1000, 10, false,
            UnitGroup::ALTITUDE, task_behaviour.route_planner.safety_height_terrain);
 
   static constexpr StaticEnumChoice abort_task_mode_list[] = {
     { AbortTaskMode::SIMPLE, N_("Simple"),
-      N_("The alternates will only be sorted by waypoint type (airport/outlanding field) and arrival height.") },
+      N_("Reachable airfields are listed first (nearest at top), then "
+         "outlanding sites (nearest at top).") },
     { AbortTaskMode::TASK, N_("Task"),
-      N_("The sorting will also take the current task direction into account.") },
+      N_("Reachable airfields are listed first (smallest detour to the "
+         "active turnpoint at top), then outlanding sites.") },
     { AbortTaskMode::HOME, N_("Home"),
-      N_("The sorting will try to find landing options in the current direction to the configured home waypoint.") },
+      N_("Reachable airfields are listed first (smallest detour toward "
+         "home at top), then outlanding sites.") },
     nullptr
   };
 
   AddEnum(_("Alternates mode"),
-          _("Determines sorting of alternates in the alternates dialog and in abort mode."),
+          _("Determines sorting of alternates in the alternates dialog "
+            "and in abort mode."),
           abort_task_mode_list, (unsigned)task_behaviour.abort_task_mode);
 
   AddFloat(_("Polar degradation"), /* xgettext:no-c-format */
            _("A permanent polar degradation. "
              "0% means no degradation, "
              "50% indicates the glider's sink rate is doubled."),
-           _T("%.0f %%"), _T("%.0f"),
+           "%.0f %%", "%.0f",
            0, 50, 1, false,
            (1 - settings_computer.polar.degradation_factor) * 100);
   SetExpertRow(PolarDegradation);
@@ -86,7 +91,7 @@ SafetyFactorsConfigPanel::Prepare(ContainerWindow &parent,
 
   AddFloat(_("Safety MC"),
            _("The MacCready setting used, when safety MC is enabled for reach calculations, in task abort mode and for determining arrival altitude at airfields."),
-           _T("%.1f %s"), _T("%.1f"),
+           "%.1f %s", "%.1f",
            0, Units::ToUserVSpeed(10), GetUserVerticalSpeedStep(),
            false, UnitGroup::VERTICAL_SPEED, task_behaviour.safety_mc);
   SetExpertRow(SafetyMC);
@@ -95,10 +100,19 @@ SafetyFactorsConfigPanel::Prepare(ContainerWindow &parent,
 
   AddFloat(_("STF risk factor"),
            _("The STF risk factor reduces the MacCready setting used to calculate speed to fly as the glider gets low, in order to compensate for risk. Set to 0.0 for no compensation, 1.0 scales MC linearly with current height (with reference to height of the maximum climb). If considered, 0.3 is recommended."),
-           _T("%.1f %s"), _T("%.1f"),
+           "%.1f %s", "%.1f",
            0, 1, 0.1, false,
            task_behaviour.risk_gamma);
   SetExpertRow(RiskFactor);
+
+  AddBoolean(_("Turn back marker"),
+             _("Show a green triangle on the map along the current track "
+               "indicating the furthest point from which the active task "
+               "waypoint or Goto target can still be reached with the "
+               "current altitude and conditions. "
+               "The triangle is only shown during cruise when the target "
+               "is reachable."),
+             task_behaviour.turn_back_marker_enabled);
 }
 
 bool
@@ -143,6 +157,11 @@ SafetyFactorsConfigPanel::Save(bool &_changed) noexcept
   if (SaveValue(RiskFactor, task_behaviour.risk_gamma)) {
     Profile::Set(ProfileKeys::RiskGamma,
                  iround(task_behaviour.risk_gamma * 10));
+    changed = true;
+  }
+
+  if (SaveValue(TurnBackMarker, task_behaviour.turn_back_marker_enabled)) {
+    Profile::Set(ProfileKeys::TurnBackMarkerEnabled, task_behaviour.turn_back_marker_enabled);
     changed = true;
   }
 

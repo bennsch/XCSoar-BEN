@@ -21,9 +21,25 @@
 #include "UIUtil/GestureManager.hpp"
 #include "Formatter/UserUnits.hpp"
 #include "Renderer/UnitSymbolRenderer.hpp"
+#include "Renderer/BestCruiseArrowRenderer.hpp"
 #include "Input/InputEvents.hpp"
 #include "Interface.hpp"
 #include "Asset.hpp"
+#include "util/Macros.hpp"
+
+#include <algorithm>
+
+static void
+DrawTrafficInfoText(Canvas &canvas, PixelPoint p,
+                    const char *text, Color text_color) noexcept
+{
+  if (text == nullptr || *text == '\0')
+    return;
+
+  canvas.SetBackgroundTransparent();
+  canvas.SetTextColor(text_color);
+  canvas.DrawText(p, text);
+}
 
 /**
  * A Window which renders FLARM traffic, with user interaction.
@@ -40,8 +56,8 @@ protected:
 
 public:
   FlarmTrafficControl(const FlarmTrafficLook &look)
-    :FlarmTrafficWindow(look, Layout::Scale(10),
-                        Layout::GetMinimumControlHeight() + Layout::Scale(10)) {}
+    :FlarmTrafficWindow(look, Layout::VptScale(10),
+                        Layout::GetMinimumControlHeight() + Layout::VptScale(10)) {}
 
 protected:
   void CalcAutoZoom();
@@ -96,11 +112,15 @@ public:
 
 protected:
   void PaintTrafficInfo(Canvas &canvas) const;
-  void PaintClimbRate(Canvas &canvas, PixelRect rc, double climb_rate) const;
-  void PaintDistance(Canvas &canvas, PixelRect rc, double distance) const;
+  void PaintClimbRate(Canvas &canvas, PixelRect rc, double climb_rate,
+                      Color text_color) const;
+  void PaintDistance(Canvas &canvas, PixelRect rc, double distance,
+                     Color text_color) const;
   void PaintRelativeAltitude(Canvas &canvas, PixelRect rc,
-                             double relative_altitude) const;
-  void PaintID(Canvas &canvas, PixelRect rc, const FlarmTraffic &traffic) const;
+                             double relative_altitude,
+                             Color text_color) const;
+  void PaintID(Canvas &canvas, PixelRect rc, const FlarmTraffic &traffic,
+               Color text_color) const;
   void PaintTaskDirection(Canvas &canvas) const;
 
   void StopDragging() {
@@ -112,7 +132,7 @@ protected:
   }
 
 protected:
-  bool OnMouseGesture(const TCHAR* gesture);
+  bool OnMouseGesture(const char* gesture);
 
   /* virtual methods from class Window */
   void OnCreate() noexcept override;
@@ -289,31 +309,34 @@ FlarmTrafficControl::PaintTaskDirection(Canvas &canvas) const
   canvas.Select(look.radar_pen);
   canvas.SelectHollowBrush();
 
-  BulkPixelPoint triangle[3];
-  triangle[0].x = 0;
-  triangle[0].y = -(int)radar_renderer.GetRadius() / Layout::FastScale(1) + 15;
-  triangle[1].x = 7;
-  triangle[1].y = triangle[0].y + 30;
-  triangle[2].x = -triangle[1].x;
-  triangle[2].y = triangle[1].y;
+  const unsigned radius = radar_renderer.GetRadius();
+  const unsigned mid_r = (radius / 2 + radius) / 2;
+  const int scale = BestCruiseArrowRenderer::GetScale();
+  const int y_offset =
+    BestCruiseArrowRenderer::YOffsetForRadius(mid_r, scale);
 
-  PolygonRotateShift(triangle, radar_renderer.GetCenter(),
+  BulkPixelPoint arrow[BestCruiseArrowRenderer::arrow_size];
+  BestCruiseArrowRenderer::Build(arrow, y_offset);
+
+  PolygonRotateShift(arrow, radar_renderer.GetCenter(),
                      task_direction - (enable_north_up ?
                                        Angle::Zero() : heading),
-                     Layout::FastScale(100u));
+                     scale);
 
-  // Draw the arrow
-  canvas.DrawPolygon(triangle, 3);
+  canvas.DrawPolygon(arrow, BestCruiseArrowRenderer::arrow_size);
 }
 
 void
 FlarmTrafficControl::PaintClimbRate(Canvas &canvas, PixelRect rc,
-                                    double climb_rate) const
+                                    double climb_rate,
+                                    Color text_color) const
 {
   // Paint label
   canvas.Select(look.info_labels_font);
   const unsigned label_width = canvas.CalcTextSize(_("Vario")).width;
-  canvas.DrawText(rc.GetTopRight().At(-(int)label_width, 0), _("Vario"));
+  DrawTrafficInfoText(canvas,
+                      rc.GetTopRight().At(-(int)label_width, 0),
+                      _("Vario"), text_color);
 
   // Format climb rate
   Unit unit = Units::GetUserVerticalSpeedUnit();
@@ -343,7 +366,8 @@ FlarmTrafficControl::PaintClimbRate(Canvas &canvas, PixelRect rc,
   const int value_y = y - value_height;
 
   // Paint value
-  canvas.DrawText({value_x, value_y}, buffer.c_str());
+  DrawTrafficInfoText(canvas, {value_x, value_y},
+                      buffer.c_str(), text_color);
 
   // Paint unit
   canvas.Select(look.info_units_font);
@@ -353,10 +377,11 @@ FlarmTrafficControl::PaintClimbRate(Canvas &canvas, PixelRect rc,
 
 void
 FlarmTrafficControl::PaintDistance(Canvas &canvas, PixelRect rc,
-                                   double distance) const
+                                   double distance,
+                                   Color text_color) const
 {
   // Format distance
-  TCHAR buffer[20];
+  char buffer[20];
   Unit unit = FormatUserDistanceSmart(distance, buffer, false, 1000);
 
   // Calculate unit size
@@ -378,7 +403,8 @@ FlarmTrafficControl::PaintDistance(Canvas &canvas, PixelRect rc,
   const auto p0 = rc.GetBottomLeft();
 
   // Paint value
-  canvas.DrawText(p0.At(0, -(int)value_height), buffer);
+  DrawTrafficInfoText(canvas, p0.At(0, -(int)value_height),
+                      buffer, text_color);
 
   // Paint unit
   canvas.Select(look.info_units_font);
@@ -390,16 +416,19 @@ FlarmTrafficControl::PaintDistance(Canvas &canvas, PixelRect rc,
 
   // Paint label
   canvas.Select(look.info_labels_font);
-  canvas.DrawText(p0.At(0, -int(max_height + look.info_labels_font.GetHeight())),
-                  _("Distance"));
+  DrawTrafficInfoText(canvas,
+                      p0.At(0, -int(max_height +
+                                    look.info_labels_font.GetHeight())),
+                      _("Distance"), text_color);
 }
 
 void
 FlarmTrafficControl::PaintRelativeAltitude(Canvas &canvas, PixelRect rc,
-                                           double relative_altitude) const
+                                           double relative_altitude,
+                                           Color text_color) const
 {
   // Format relative altitude
-  TCHAR buffer[20];
+  char buffer[20];
   Unit unit = Units::GetUserAltitudeUnit();
   FormatRelativeUserAltitude(relative_altitude, buffer, false);
 
@@ -422,9 +451,10 @@ FlarmTrafficControl::PaintRelativeAltitude(Canvas &canvas, PixelRect rc,
   const auto p0 = rc.GetBottomRight();
 
   // Paint value
-  canvas.DrawText(p0.At(-int(unit_width + space_width + value_width),
-                        -(int)value_height),
-                  buffer);
+  DrawTrafficInfoText(canvas,
+                      p0.At(-int(unit_width + space_width + value_width),
+                              -(int)value_height),
+                      buffer, text_color);
 
   // Paint unit
   canvas.Select(look.info_units_font);
@@ -436,22 +466,26 @@ FlarmTrafficControl::PaintRelativeAltitude(Canvas &canvas, PixelRect rc,
   // Paint label
   canvas.Select(look.info_labels_font);
   const unsigned label_width = canvas.CalcTextSize(_("Rel. Alt.")).width;
-  canvas.DrawText(p0.At(-(int)label_width,  -int(max_height + look.info_labels_font.GetHeight())),
-                  _("Rel. Alt."));
+  DrawTrafficInfoText(canvas,
+                      p0.At(-(int)label_width,
+                            -int(max_height +
+                                 look.info_labels_font.GetHeight())),
+                      _("Rel. Alt."), text_color);
 }
 
 void
 FlarmTrafficControl::PaintID(Canvas &canvas, PixelRect rc,
-                             const FlarmTraffic &traffic) const
+                             const FlarmTraffic &traffic,
+                             Color text_color) const
 {
-  TCHAR buffer[20];
+  char buffer[20];
 
   unsigned font_size;
   if (traffic.HasName()) {
     canvas.Select(look.call_sign_font);
     font_size = look.call_sign_font.GetHeight();
 
-    _tcscpy(buffer, traffic.name);
+    strcpy(buffer, traffic.name);
   } else {
     canvas.Select(look.info_labels_font);
     font_size = look.info_labels_font.GetHeight();
@@ -483,14 +517,18 @@ FlarmTrafficControl::PaintID(Canvas &canvas, PixelRect rc,
       }
 
       canvas.SelectNullPen();
-      canvas.DrawCircle(rc.GetTopLeft().At(Layout::FastScale(7u), (font_size / 2)),
-                        Layout::FastScale(7u));
+      const unsigned radar_radius = radar_renderer.GetRadius();
+      const unsigned team_dot_radius =
+        ScaleRadarPermille(radar_radius, TEAM_DOT_PERMILLE);
+      canvas.DrawCircle(rc.GetTopLeft().At(team_dot_radius, font_size / 2),
+                        team_dot_radius);
 
-      rc.left += Layout::FastScale(16);
+      rc.left += team_dot_radius * 2 +
+        ScaleRadarPermille(radar_radius, TEAM_DOT_GAP_PERMILLE);
     }
   }
 
-  canvas.DrawText(rc.GetTopLeft(), buffer);
+  DrawTrafficInfoText(canvas, rc.GetTopLeft(), buffer, text_color);
 }
 
 /**
@@ -515,38 +553,42 @@ FlarmTrafficControl::PaintTrafficInfo(Canvas &canvas) const
   rc.right = canvas.GetWidth() - padding;
   rc.bottom = canvas.GetHeight() - padding;
 
-  // Set the text color and background
+  // Set the text color for traffic info readouts
+  Color text_color = look.default_color;
   switch (traffic.alarm_level) {
   case FlarmTraffic::AlarmType::LOW:
   case FlarmTraffic::AlarmType::INFO_ALERT:
-    canvas.SetTextColor(look.warning_color);
+    text_color = look.warning_color;
     break;
   case FlarmTraffic::AlarmType::IMPORTANT:
   case FlarmTraffic::AlarmType::URGENT:
-    canvas.SetTextColor(look.alarm_color);
+    text_color = look.alarm_color;
     break;
   case FlarmTraffic::AlarmType::NONE:
-    canvas.SetTextColor(look.default_color);
+  default:
     break;
   }
 
   canvas.SetBackgroundTransparent();
 
+  const bool selected = !WarningMode() && selection >= 0;
+
   // Climb Rate
   if (!WarningMode() && traffic.climb_rate_avg30s_available)
-    PaintClimbRate(canvas, rc, traffic.climb_rate_avg30s);
+    PaintClimbRate(canvas, rc, traffic.climb_rate_avg30s, text_color);
 
   // Distance
-  PaintDistance(canvas, rc, traffic.distance);
+  PaintDistance(canvas, rc, traffic.distance, text_color);
 
   // Relative Height
-  PaintRelativeAltitude(canvas, rc, traffic.relative_altitude);
+  PaintRelativeAltitude(canvas, rc, traffic.relative_altitude, text_color);
 
   // ID / Name
-  if (!traffic.HasAlarm())
-    canvas.SetTextColor(look.selection_color);
+  Color id_color = text_color;
+  if (!traffic.HasAlarm() && !selected)
+    id_color = look.selection_color;
 
-  PaintID(canvas, rc, traffic);
+  PaintID(canvas, rc, traffic, id_color);
 }
 
 void
@@ -572,12 +614,12 @@ FlarmTrafficControl::OpenDetails()
     return;
 
   // Show the details dialog
-  dlgFlarmTrafficDetailsShowModal(traffic->id);
+  (void)dlgFlarmTrafficDetailsShowModal(traffic->id);
 }
 
 static Button
 MakeSymbolButton(ContainerWindow &parent, const ButtonLook &look,
-                const TCHAR *caption,
+                const char *caption,
                 const PixelRect &rc,
                 Button::Callback callback) noexcept
 {
@@ -596,16 +638,16 @@ struct TrafficWidget::Windows {
 
   Windows(TrafficWidget &widget, ContainerWindow &parent, const PixelRect &r,
           const ButtonLook &button_look, const FlarmTrafficLook &flarm_look)
-    :zoom_in_button(MakeSymbolButton(parent, button_look, _T("+"), r,
+    :zoom_in_button(MakeSymbolButton(parent, button_look, "+", r,
                                      [&widget](){ widget.ZoomIn(); })),
      zoom_out_button(MakeSymbolButton(parent, button_look,
-                                    _T("-"), r,
+                                    "-", r,
                                       [&widget](){ widget.ZoomOut(); })),
      previous_item_button(MakeSymbolButton(parent, button_look,
-                                           _T("<"), r,
+                                           "<", r,
                                            [&widget](){ widget.PreviousTarget(); })),
      next_item_button(MakeSymbolButton(parent, button_look,
-                                       _T(">"), r,
+                                       ">", r,
                                        [&widget](){ widget.NextTarget(); })),
      details_button(parent, button_look,
                     _("Details"), r, WindowStyle(),
@@ -628,13 +670,13 @@ TrafficWidget::Windows::UpdateLayout(const PixelRect &rc) noexcept
   view.Move(rc);
 
   const unsigned margin = Layout::Scale(1);
-  const unsigned button_height = Layout::GetMinimumControlHeight();
-  const unsigned button_width = std::max(unsigned(rc.right / 6),
-                                         button_height);
+  const unsigned button_height =
+    std::max(1u, Layout::GetMinimumControlHeight());
+  const unsigned button_width = std::max({unsigned(rc.right / 6),
+                                          button_height, margin + 1u});
 
   const int x1 = rc.right / 2;
   const int x0 = x1 - button_width;
-  const int x2 = x1 + button_width;
 
   const int y0 = margin;
   const int y1 = y0 + button_height;
@@ -643,24 +685,26 @@ TrafficWidget::Windows::UpdateLayout(const PixelRect &rc) noexcept
 
   PixelRect button_rc;
 
+  const int btn_w = std::max(1, int(button_width) - int(margin));
+
   button_rc.left = x0;
   button_rc.top = y0;
-  button_rc.right = x1 - margin;
+  button_rc.right = button_rc.left + btn_w;
   button_rc.bottom = y1;
   zoom_in_button.Move(button_rc);
 
   button_rc.left = x1;
-  button_rc.right = x2 - margin;
+  button_rc.right = button_rc.left + btn_w;
   zoom_out_button.Move(button_rc);
 
   button_rc.left = x0;
   button_rc.top = y2;
-  button_rc.right = x1 - margin;
+  button_rc.right = button_rc.left + btn_w;
   button_rc.bottom = y3;
   previous_item_button.Move(button_rc);
 
   button_rc.left = x1;
-  button_rc.right = x2 - margin;
+  button_rc.right = button_rc.left + btn_w;
   next_item_button.Move(button_rc);
 
   button_rc.left = margin;
@@ -753,7 +797,7 @@ TrafficWidget::GetNorthUp() const noexcept
 void
 TrafficWidget::SetNorthUp(bool value) noexcept
 {
-  windows->view.SetAutoZoom(value);
+  windows->view.SetNorthUp(value);
 }
 
 void
@@ -820,7 +864,7 @@ FlarmTrafficControl::OnMouseUp(PixelPoint p) noexcept
   if (dragging) {
     StopDragging();
 
-    const TCHAR *gesture = gestures.Finish();
+    const char *gesture = gestures.Finish();
     if (gesture && OnMouseGesture(gesture))
       return true;
   }
@@ -840,25 +884,25 @@ FlarmTrafficControl::OnMouseDouble([[maybe_unused]] PixelPoint p) noexcept
 }
 
 bool
-FlarmTrafficControl::OnMouseGesture(const TCHAR* gesture)
+FlarmTrafficControl::OnMouseGesture(const char* gesture)
 {
-  if (StringIsEqual(gesture, _T("U"))) {
+  if (StringIsEqual(gesture, "U")) {
     ZoomIn();
     return true;
   }
-  if (StringIsEqual(gesture, _T("D"))) {
+  if (StringIsEqual(gesture, "D")) {
     ZoomOut();
     return true;
   }
-  if (StringIsEqual(gesture, _T("UD"))) {
+  if (StringIsEqual(gesture, "UD")) {
     SetAutoZoom(true);
     return true;
   }
-  if (StringIsEqual(gesture, _T("DR"))) {
+  if (StringIsEqual(gesture, "DR")) {
     OpenDetails();
     return true;
   }
-  if (StringIsEqual(gesture, _T("RL"))) {
+  if (StringIsEqual(gesture, "RL")) {
     SwitchData();
     return true;
   }
@@ -876,24 +920,11 @@ FlarmTrafficControl::OnCancelMode() noexcept
 bool
 FlarmTrafficControl::OnKeyDown(unsigned key_code) noexcept
 {
-  switch (key_code) {
-  case KEY_UP:
-    if (!HasPointer())
-      break;
-
-    ZoomIn();
+  /* D-pad zoom was hard-coded here; zoom and target cycling are
+     defined in the ``.xci`` ``Traffic`` mode (e.g. F2/F4, UP/DOWN). */
+  if (InputEvents::processKey(key_code))
     return true;
-
-  case KEY_DOWN:
-    if (!HasPointer())
-      break;
-
-    ZoomOut();
-    return true;
-  }
-
-  return FlarmTrafficWindow::OnKeyDown(key_code) ||
-    InputEvents::processKey(key_code);
+  return FlarmTrafficWindow::OnKeyDown(key_code);
 }
 
 void

@@ -11,9 +11,10 @@ void
 FlarmComputer::Process(FlarmData &flarm, const FlarmData &last_flarm,
                        const NMEAInfo &basic) noexcept
 {
+  const TimeStamp now = basic.time_available ? basic.time : basic.clock;
+
   // Cleanup old calculation instances
-  if (basic.time_available)
-    flarm_calculations.CleanUp(basic.time);
+  flarm_calculations.CleanUp(now);
 
   // if (FLARM data is available)
   if (!flarm.IsDetected())
@@ -44,20 +45,36 @@ FlarmComputer::Process(FlarmData &flarm, const FlarmData &last_flarm,
 
   // for each item in traffic
   for (auto &traffic : flarm.traffic.list) {
-    // if we don't know the target's name yet
-    if (!traffic.HasName()) {
-      // lookup the name of this target's id
-      const TCHAR *fname = FlarmDetails::LookupCallsign(traffic.id);
-      if (fname != NULL)
+    const auto ownship_altitude = basic.GetAnyAltitude();
+
+    // Keep the cached display name (callsign) in sync with current sources.
+    // Skip for no_track targets and random IDs: they must not be resolved
+    // against databases (FTD-012 NoTrack / random ID semantics).
+    if (!traffic.no_track &&
+        traffic.id.IsDefined() &&
+        traffic.id_type != FlarmTraffic::IdType::RANDOM) {
+      const char *fname = FlarmDetails::LookupCallsign(traffic.id);
+      if (fname != nullptr &&
+          (!traffic.HasName() || !traffic.name.equals(fname)))
         traffic.name = fname;
+    }
+
+    if (traffic.absolute_location && traffic.location.IsValid() &&
+        basic.location_available) {
+      const GeoVector vec{basic.location, traffic.location};
+      traffic.relative_north = vec.distance * vec.bearing.cos();
+      traffic.relative_east = vec.distance * vec.bearing.sin();
     }
 
     // Calculate distance
     traffic.distance = hypot(traffic.relative_north, traffic.relative_east);
 
     // Calculate Location
-    traffic.location_available = basic.location_available;
-    if (traffic.location_available) {
+    traffic.location_available = traffic.absolute_location
+      ? traffic.location.IsValid()
+      : basic.location_available;
+
+    if (!traffic.absolute_location && traffic.location_available) {
       traffic.location.latitude =
           Angle::Degrees(traffic.relative_north * north_to_latitude) +
           basic.location.latitude;
@@ -67,16 +84,23 @@ FlarmComputer::Process(FlarmData &flarm, const FlarmData &last_flarm,
           basic.location.longitude;
     }
 
-    // Calculate absolute altitude
-    traffic.altitude_available = basic.gps_altitude_available;
-    if (traffic.altitude_available)
-      traffic.altitude = traffic.relative_altitude + RoughAltitude(basic.gps_altitude);
+    // Calculate absolute altitude (same ownship preference as
+    // NMEAInfo::GetAnyAltitude / online FillRelative)
+    if (!traffic.absolute_altitude) {
+      traffic.altitude_available = ownship_altitude.has_value();
+      if (traffic.altitude_available)
+        traffic.altitude = traffic.relative_altitude +
+          RoughAltitude(*ownship_altitude);
+    } else if (ownship_altitude && traffic.altitude_available) {
+      traffic.relative_altitude =
+        traffic.altitude - RoughAltitude(*ownship_altitude);
+    }
 
     // Calculate average climb rate
     traffic.climb_rate_avg30s_available = traffic.altitude_available;
     if (traffic.climb_rate_avg30s_available)
       traffic.climb_rate_avg30s =
-        flarm_calculations.Average30s(traffic.id, basic.time, traffic.altitude);
+        flarm_calculations.Average30s(traffic.id, now, traffic.altitude);
 
     // The following calculations are only relevant for targets
     // where information is missing
@@ -87,7 +111,7 @@ FlarmComputer::Process(FlarmData &flarm, const FlarmData &last_flarm,
     // Check if the target has been seen before in the last seconds
     const FlarmTraffic *last_traffic =
       last_flarm.traffic.FindTraffic(traffic.id);
-    if (last_traffic == NULL || !last_traffic->valid)
+    if (last_traffic == nullptr || !last_traffic->valid)
       continue;
 
     // Calculate the time difference between now and the last contact

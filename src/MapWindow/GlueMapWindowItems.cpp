@@ -14,8 +14,10 @@
 #include "Language/Language.hpp"
 #include "Weather/Features.hpp"
 #include "Weather/Rasp/RaspRenderer.hpp"
+#ifdef HAVE_HTTP
 #include "net/client/tim/Glue.hpp"
 #include "net/client/tim/Thermal.hpp"
+#endif
 #include "Interface.hpp"
 #include "Overlay.hpp"
 
@@ -66,10 +68,12 @@ GlueMapWindow::ShowMapItems(const GeoPoint &location,
   if (visible_projection.GetMapScale() <= 4000) {
     builder.AddThermals(calculated.thermal_locator, basic, calculated);
 
+#ifdef HAVE_HTTP
     if (tim_glue != nullptr && computer_settings.weather.enable_tim) {
       const auto lock = tim_glue->Lock();
       builder.AddThermals(tim_glue->Get());
     }
+#endif
   }
 
   if (waypoints)
@@ -82,13 +86,9 @@ GlueMapWindow::ShowMapItems(const GeoPoint &location,
 
   builder.AddTraffic(basic.flarm.traffic);
 
-#ifdef HAVE_SKYLINES_TRACKING
-  builder.AddSkyLinesTraffic();
-#endif
-
 #ifdef ENABLE_OPENGL
   if (!list.full() && overlay && overlay->IsInside(location))
-    list.push_back(new OverlayMapItem(*overlay));
+    list.push_back(new OverlayMapItem(*overlay, location));
 #endif
 
   if (!list.full()) {
@@ -97,7 +97,8 @@ GlueMapWindow::ShowMapItems(const GeoPoint &location,
 #endif
 
     if (rasp_renderer && rasp_renderer->IsInside(location))
-      list.push_back(new RaspMapItem(rasp_renderer->GetLabel()));
+      list.push_back(new RaspMapItem(rasp_renderer->GetLabel(),
+                                     rasp_renderer->GetValueAt(location)));
   }
 
   // Sort the list of map items

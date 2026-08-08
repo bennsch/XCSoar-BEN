@@ -6,6 +6,7 @@
 #include "io/LineReader.hpp"
 #include "util/StringStrip.hxx"
 #include "util/HexString.hpp"
+#include "system/Path.hpp"
 
 /**
  * Parses a line of the repository file.
@@ -37,6 +38,10 @@ Commit(FileRepository &repository, AvailableFile &file)
 {
   if (file.IsEmpty())
     return true;
+
+  const Path path(file.name.c_str());
+  if (!path.IsValidFilename())
+    return false;
 
   if (!file.IsValid())
     return false;
@@ -92,6 +97,8 @@ ParseFileRepository(FileRepository &repository, NLineReader &reader)
         file.type = FileType::XCI;
       else if (StringIsEqual(value, "task"))
         file.type = FileType::TASK;
+      else if (StringIsEqual(value, "checklist"))
+        file.type = FileType::CHECKLIST;
     } else if (StringIsEqual(name, "update")) {
       unsigned year, month, day;
       if (sscanf(value, "%04u-%02u-%02u", &year, &month, &day) == 3)

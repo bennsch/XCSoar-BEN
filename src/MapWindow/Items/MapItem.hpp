@@ -5,6 +5,7 @@
 
 #include "Geo/GeoPoint.hpp"
 #include "Geo/GeoVector.hpp"
+#include "Rough/RoughAngle.hpp"
 #include "FLARM/Id.hpp"
 #include "FLARM/Color.hpp"
 #include "NMEA/ThermalLocator.hpp"
@@ -20,8 +21,6 @@
 #endif
 
 #include <chrono>
-
-#include <tchar.h>
 
 enum class TaskPointType : uint8_t;
 
@@ -41,9 +40,6 @@ struct MapItem
     THERMAL,
     WAYPOINT,
     TRAFFIC,
-#ifdef HAVE_SKYLINES_TRACKING
-    SKYLINES_TRAFFIC,
-#endif
     OVERLAY,
     RASP,
   } type;
@@ -70,6 +66,15 @@ struct LocationMapItem: public MapItem
    */
   static constexpr double UNKNOWN_ELEVATION_THRESHOLD = -1e4;
 
+  /**
+   * The actual clicked location.
+   */
+  GeoPoint location;
+
+  /**
+   * Vector from current aircraft position to the clicked location.
+   * Used for display purposes.
+   */
   GeoVector vector;
 
   /**
@@ -77,8 +82,10 @@ struct LocationMapItem: public MapItem
    */
   double elevation;
 
-  LocationMapItem(const GeoVector &_vector, double _elevation)
-    :MapItem(Type::LOCATION), vector(_vector), elevation(_elevation) {}
+  LocationMapItem(const GeoPoint &_location, const GeoVector &_vector,
+                  double _elevation)
+    :MapItem(Type::LOCATION), location(_location), vector(_vector),
+     elevation(_elevation) {}
 
   bool HasElevation() const {
     return elevation > UNKNOWN_ELEVATION_THRESHOLD;
@@ -181,30 +188,6 @@ struct TrafficMapItem: public MapItem
   TrafficMapItem(FlarmId _id, FlarmColor _color)
     :MapItem(Type::TRAFFIC), id(_id), color(_color) {}
 };
-
-#ifdef HAVE_SKYLINES_TRACKING
-
-struct SkyLinesTrafficMapItem : public MapItem
-{
-  using Time = std::chrono::duration<uint_least32_t, std::chrono::milliseconds::period>;
-
-  uint32_t id;
-
-  Time time_of_day;
-
-  int altitude;
-
-  StaticString<40> name;
-
-  SkyLinesTrafficMapItem(uint32_t _id, Time _time_of_day_ms,
-                         int _altitude,
-                         const TCHAR *_name)
-    :MapItem(Type::SKYLINES_TRAFFIC), id(_id), time_of_day(_time_of_day_ms),
-     altitude(_altitude),
-     name(_name) {}
-};
-
-#endif
 
 struct ThermalMapItem: public MapItem
 {

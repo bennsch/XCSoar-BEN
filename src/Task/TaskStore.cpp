@@ -4,6 +4,7 @@
 #include "Task/TaskStore.hpp"
 #include "Task/TaskFile.hpp"
 #include "Engine/Task/Ordered/OrderedTask.hpp"
+#include "Repository/FileType.hpp"
 #include "system/FileUtil.hpp"
 #include "system/Path.hpp"
 #include "LocalPath.hpp"
@@ -11,6 +12,7 @@
 #include "LogFile.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <memory>
 
 class TaskFileVisitor: public File::Visitor
@@ -42,11 +44,11 @@ public:
       // If the task file holds more than one task
       const auto &saved_name = list[i];
       if (!saved_name.empty()) {
-        name += _T(": ");
+        name += ": ";
         name += saved_name.c_str();
       } else if (count > 1) {
         // .. append " - Task #[n]" suffix to the task name
-        name.AppendFormat(_T(": %s #%d"), _("Task"), i + 1);
+        name.AppendFormat(": %s #%d", _("Task"), i + 1);
       }
 
       // Add the task to the TaskStore
@@ -56,6 +58,25 @@ public:
     LogError(std::current_exception());
   }
 };
+
+namespace {
+
+static constexpr char PRIMARY_TASK_PATTERN[] = "*.tsk";
+
+static void
+VisitPatternList(File::Visitor &visitor, const char *patterns,
+                 const char *skip_pattern = nullptr)
+{
+  size_t length;
+  while ((length = strlen(patterns)) > 0) {
+    if (skip_pattern == nullptr || strcmp(patterns, skip_pattern) != 0)
+      VisitDataFiles(patterns, visitor);
+
+    patterns += length + 1;
+  }
+}
+
+} // namespace
 
 void
 TaskStore::Clear()
@@ -71,12 +92,11 @@ TaskStore::Scan(bool extra)
 
   // scan files
   TaskFileVisitor tfv(store);
-  VisitDataFiles(_T("*.tsk"), tfv);
+  VisitDataFiles(PRIMARY_TASK_PATTERN, tfv);
 
-  if (extra) {
-    VisitDataFiles(_T("*.cup"), tfv);
-    VisitDataFiles(_T("*.igc"), tfv);
-  }
+  if (extra)
+    VisitPatternList(tfv, GetFileTypePatterns(FileType::TASK),
+                     PRIMARY_TASK_PATTERN);
 
   std::sort(store.begin(), store.end());
 }
@@ -102,7 +122,7 @@ TaskStore::Item::GetTask(const TaskBehaviour &task_behaviour,
   return task.get();
 }
 
-const TCHAR *
+const char *
 TaskStore::GetName(unsigned index) const
 {
   return store[index].GetName();

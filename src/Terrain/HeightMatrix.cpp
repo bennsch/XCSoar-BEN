@@ -13,6 +13,25 @@
 #include <cassert>
 
 void
+HeightMatrix::FillGradient(UnsignedPoint2D _size,
+                           int16_t min_h, int16_t max_h,
+                           bool vertical) noexcept
+{
+  SetSize(_size);
+
+  auto *p = data.data();
+  const int range = max_h - min_h;
+  const unsigned n = vertical ? _size.y : _size.x;
+  const int divisor = n > 1 ? (int)(n - 1) : 1;
+
+  for (unsigned y = 0; y < _size.y; ++y)
+    for (unsigned x = 0; x < _size.x; ++x)
+      *p++ = TerrainHeight(
+        (int16_t)(min_h + range *
+                  (int)(vertical ? y : x) / divisor));
+}
+
+void
 HeightMatrix::SetSize(std::size_t _size) noexcept
 {
   assert(_size > 0);
@@ -32,6 +51,9 @@ void
 HeightMatrix::SetSize(UnsignedPoint2D _size,
                       unsigned quantisation_pixels) noexcept
 {
+  if (quantisation_pixels < 1)
+    quantisation_pixels = 1;
+
   const UnsignedPoint2D round_up{
     quantisation_pixels - 1,
     quantisation_pixels - 1,
@@ -46,6 +68,9 @@ void
 HeightMatrix::Fill(const RasterMap &map, const GeoBounds &bounds,
                    const UnsignedPoint2D _size, bool interpolate) noexcept
 {
+  if (_size.x == 0 || _size.y == 0)
+    return;
+
   SetSize(_size);
 
   const Angle delta_y = bounds.GetHeight() / _size.y;
@@ -64,7 +89,12 @@ void
 HeightMatrix::Fill(const RasterMap &map, const WindowProjection &projection,
                    unsigned quantisation_pixels, bool interpolate) noexcept
 {
+  if (quantisation_pixels < 1)
+    quantisation_pixels = 1;
+
   const auto screen_size = projection.GetScreenSize();
+  if (screen_size.width == 0 || screen_size.height == 0)
+    return;
 
   SetSize((UnsignedPoint2D)screen_size, quantisation_pixels);
 

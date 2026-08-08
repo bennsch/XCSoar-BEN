@@ -65,7 +65,7 @@ Running Lua
 
 The directory :file:`XCSoarData/lua/` may contain Lua scripts (:file:`*.lua`).
 The directory :file:`XCSoarData/lua/lib/` may contain Lua libraries to be
-loaded with ``require``.
+loaded with ``require``. See :doc:`data_directory` for the full data layout.
 
 After startup, XCSoar starts the script :file:`init.lua` (if it
 exists).
@@ -654,6 +654,8 @@ The following attributes are provided by ``xcsoar.replay``:
    - Gets replay clock rate.
  * - ``virtual_time``
    - Gets replay virtual time [s].
+ * - ``is_active``
+   - Returns true if replay is currently active, false otherwise.
 
 .. _lua.timer:
 

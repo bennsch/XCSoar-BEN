@@ -14,7 +14,6 @@
 #include "Task/Factory/AbstractTaskFactory.hpp"
 #include "XML/DataNode.hpp"
 #include "Engine/Waypoint/Waypoints.hpp"
-#include "util/ConvertString.hpp"
 
 #include <memory>
 
@@ -35,16 +34,14 @@ DeserialiseWaypoint(const ConstDataNode &node, const Waypoints *waypoints)
   GeoPoint loc;
   Deserialise(loc, *loc_node);
 
-  const char *_name = node.GetAttribute("name");
-  if (_name == nullptr)
+  const char *name = node.GetAttribute("name");
+  if (name == nullptr)
     // Turnpoints need names
     return nullptr;
 
-  const UTF8ToWideConverter name{_name};
-
   if (waypoints != nullptr) {
     // Try to find waypoint by name
-    auto from_database = waypoints->LookupName(name.c_str());
+    auto from_database = waypoints->LookupName(name);
 
     // If waypoint by name found and closer than 10m to the original
     if (from_database != nullptr &&
@@ -70,7 +67,7 @@ DeserialiseWaypoint(const ConstDataNode &node, const Waypoints *waypoints)
 
   const char *comment = node.GetAttribute("comment");
   if (comment != nullptr)
-    wp->comment = UTF8ToWideConverter{comment};
+    wp->comment = comment;
 
   if (node.GetAttribute("altitude", wp->elevation))
     wp->has_elevation = true;
@@ -127,10 +124,17 @@ DeserialiseOZ(const Waypoint &wp, const ConstDataNode &node, bool is_turnpoint)
   } else if (StringIsEqual(type, "FAISector"))
     return SymmetricSectorZone::CreateFAISectorZone(wp.location, is_turnpoint);
   else if (StringIsEqual(type, "SymmetricQuadrant")) {
-    double radius = 10000;
+    /*
+    Note: Despite the name, this may not be a quadrant, it
+    can be a circular sector with any angle. Retaining the
+    name for backwards ompatibility in .tsk files.
+    */
+    double radius = 10000; // Default radius if not specified
+    Angle angle = Angle::QuarterCircle(); // Default angle if not specified
     node.GetAttribute("radius", radius);
+    node.GetAttribute("angle", angle);
 
-    return std::make_unique<SymmetricSectorZone>(wp.location, radius);
+    return SymmetricSectorZone::CreateSymmetricCircularSectorZone(wp.location, radius, angle);
   } else if (StringIsEqual(type, "Keyhole"))
     return KeyholeZone::CreateDAeCKeyholeZone(wp.location);
   else if (StringIsEqual(type, "CustomKeyhole")) {
@@ -209,7 +213,7 @@ DeserialiseTaskpoint(AbstractTaskFactory &fact, const ConstDataNode &node,
     pt = oz != nullptr
       ? fact.CreateFinish(std::move(oz), std::move(wp))
       : fact.CreateFinish(std::move(wp));
-  } 
+  }
 
   if (!pt)
     return;
@@ -316,4 +320,12 @@ LoadTask(OrderedTask &task, const ConstDataNode &node,
   for (const auto &i : children) {
     DeserialiseTaskpoint(fact, *i, waypoints);
   }
+
+  /*
+    Normalize deserialized taskpoint types to match the task factory type.
+    Some exporters (e.g., WeGlide) may serialize intermediate points with
+    generic types (e.g., "turn") even when the task is declared as AAT.
+  */
+  if (fact.MutateTPsToTaskType())
+    fact.UpdateGeometry();
 }

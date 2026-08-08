@@ -18,6 +18,8 @@ class WindowProjection;
 class RawBitmap;
 struct RawColor;
 struct ColorRamp;
+struct ColumnContourPending;
+struct ColorRampAlpha;
 
 #ifdef ENABLE_OPENGL
 class GLTexture;
@@ -33,13 +35,24 @@ class RasterRenderer {
    * ScanMap() call.
    */
   unsigned last_quantisation_pixels = -1;
+
+  /** when true, #quantisation_pixels is fixed and
+      UpdateQuantisation() becomes a no-op */
+  bool fixed_quantisation = false;
+
+  /**
+   * Lower bound for the idle-based quantisation heuristic in
+   * UpdateQuantisation().  Terrain leaves this at 1 (allowing full
+   * resolution when idle); RASP raises it to suppress the step to 1.
+   */
+  unsigned min_quantisation_pixels = 1;
 #endif
 
   /**
    * Step size used for slope calculations.  Slope shading is disabled
    * when this attribute is 0.
    */
-  unsigned quantisation_effective;
+  unsigned quantisation_effective = 0;
 
 #ifdef ENABLE_OPENGL
   /**
@@ -55,9 +68,27 @@ class RasterRenderer {
 
   unsigned char *contour_column_base = nullptr;
 
-  double pixel_size;
+  /**
+   * Contour line thickness in pixels, computed from display DPI.
+   */
+  unsigned contour_thickness = 1;
+
+  /**
+   * Per-column deferred contour expansion. For contour lines thicker than 1,
+   * this array tracks upcoming pixels that are part of a contour line 
+   * from higher up and do not need to be rendered as terrain.
+   */
+  ColumnContourPending *contour_pending = nullptr;
+
+  double pixel_size = 0;
 
   RawColor *color_table = nullptr;
+
+  /**
+   * True if the current color table was prepared with alpha channel support.
+   * This affects how the image should be drawn (with or without alpha blending).
+   */
+  bool has_alpha = false;
 
 public:
   RasterRenderer() noexcept;
@@ -74,9 +105,51 @@ public:
     return height_matrix.GetSize();
   }
 
+  /**
+   * Geographic size of one rendered pixel in meters, computed
+   * by the ScanMap() call.
+   */
+  [[gnu::pure]]
+  double GetPixelSize() const noexcept {
+    return pixel_size;
+  }
+
+  unsigned GetQuantisationPixels() const noexcept {
+    return quantisation_pixels;
+  }
+
+  /**
+   * Returns true if contour lines are currently rendered (i.e. not
+   * suppressed due to extreme zoom-out).
+   */
+  [[gnu::pure]]
+  bool AreContoursVisible() const noexcept {
+    return quantisation_effective > 0;
+  }
+
 #ifdef ENABLE_OPENGL
   void Invalidate() noexcept {
     bounds.SetInvalid();
+  }
+
+  /**
+   * Force a specific quantisation value.  Useful for preview
+   * windows that should always render at full resolution
+   * regardless of user idle state.
+   */
+  void SetQuantisationPixels(unsigned q) noexcept {
+    quantisation_pixels = q < 1 ? 1u : q;
+#ifdef ENABLE_OPENGL
+    fixed_quantisation = true;
+#endif
+  }
+
+  /**
+   * Set the lower bound for the idle-based quantisation heuristic (see
+   * #min_quantisation_pixels).
+   */
+  void SetMinQuantisationPixels(unsigned q) noexcept {
+    min_quantisation_pixels = q < 1 ? 1u : q;
   }
 
   /**
@@ -98,9 +171,20 @@ public:
    * Fills the color_table array with precomputed colors for 256 height and
    * 64 illumination levels. This is used to speed up the rendering by
    * preventing the same color calculations over and over again.
+   *
+   * This version uses RGB colors (no alpha channel).
    */
   void PrepareColorTable(const ColorRamp *color_ramp, bool do_water,
                          unsigned height_scale, int interp_levels) noexcept;
+
+  /**
+   * Fills the color_table array with precomputed colors including alpha
+   * channel for 256 height and 64 illumination levels.
+   *
+   * This version uses RGBA colors (with alpha channel for transparency).
+   */
+  void PrepareColorTableAlpha(const ColorRamp *color_ramp, bool do_water,
+                              unsigned height_scale, int interp_levels) noexcept;
 
   /**
    * Scan the map and fill the height matrix.
@@ -109,19 +193,33 @@ public:
                const WindowProjection &projection) noexcept;
 
   /**
+   * Make a gradient map from min_h to max_h, default left to right
+   */
+  void FillGradient(UnsignedPoint2D size,
+                    int16_t min_h, int16_t max_h,
+                    bool vertical = false) noexcept;
+
+  /**
    * Convert the height matrix into the image.
+   *
+   * @param contour_spacing draw contour lines every N height-domain units;
+   * 0 disables contours.  Useful values are powers of two.
    */
   void GenerateImage(bool do_shading,
                      unsigned height_scale, int contrast, int brightness,
                      const Angle sunazimuth,
-                     bool do_contour) noexcept;
+                     unsigned contour_spacing) noexcept;
 
   const RawBitmap &GetImage() const noexcept {
     return *image;
   }
 
+  /**
+   * @param alpha overall layer opacity (0.0=transparent, 1.0=opaque)
+   */
   void Draw(Canvas &canvas, const WindowProjection &projection,
-            bool transparent_white=false) const noexcept;
+            bool transparent_white=false,
+            float alpha=1.0f) const noexcept;
 
 protected:
   /**

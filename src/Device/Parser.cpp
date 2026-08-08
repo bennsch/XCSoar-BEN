@@ -2,6 +2,8 @@
 // Copyright The XCSoar Project
 
 #include "Device/Parser.hpp"
+#include "Atmosphere/Pressure.hpp"
+#include "Atmosphere/Temperature.hpp"
 #include "Geo/Geoid.hpp"
 #include "NMEA/Info.hpp"
 #include "NMEA/Checksum.hpp"
@@ -43,6 +45,9 @@ NMEAParser::ParseLine(const char *string, NMEAInfo &info)
   const auto type = line.ReadView();
   if (type.size() < 6)
     return false;
+
+  if (type == "$LK8EX1"sv)
+    return LK8EX1(line, info);
 
   if (IsAlphaASCII(type[1]) && IsAlphaASCII(type[2])) {
     const auto type2 = type.substr(3);
@@ -98,6 +103,21 @@ NMEAParser::ParseLine(const char *string, NMEAInfo &info)
       return true;
     }
 
+    if (type2 == "PFLAJ"sv) {
+      ParsePFLAJ(line, info.flarm.state, info.clock);
+      return true;
+    }
+
+    if (type2 == "PFLAQ"sv) {
+      ParsePFLAQ(line, info.flarm.progress, info.clock);
+      return true;
+    }
+
+    if (type2 == "PFLAM"sv) {
+      ParsePFLAM(line);
+      return true;
+    }
+
     // Garmin altitude sentence
     if (type2 == "PGRMZ"sv)
       return RMZ(line, info);
@@ -130,7 +150,7 @@ ReadGeoAngle(NMEAInputLine &line, Angle &a)
   line.Read(buffer, sizeof(buffer));
 
   char *dot = strchr(buffer, '.');
-  if (dot < buffer + 3)
+  if (dot == nullptr || dot < buffer + 3)
     return false;
 
   double x = strtod(dot - 2, &endptr);
@@ -329,9 +349,7 @@ NMEAParser::GLL(NMEAInputLine &line, NMEAInfo &info)
     info.location = location;
 
   info.gps.real = real;
-#if defined(ANDROID) || defined(__APPLE__)
   info.gps.nonexpiring_internal_gps = false;
-#endif
 
   return true;
 }
@@ -387,7 +405,7 @@ NMEAParser::ReadTime(NMEAInputLine &line, BrokenTime &broken_time,
     return false;
 
   broken_time = BrokenTime(hour, minute, (unsigned)second);
-  time_of_day_s = TimeStamp{broken_time.DurationSinceMidnight()};
+  time_of_day_s = TimeStamp{FloatDuration{hour * 3600 + minute * 60 + second}};
   return true;
 }
 
@@ -484,9 +502,7 @@ NMEAParser::RMC(NMEAInputLine &line, NMEAInfo &info)
   }
 
   info.gps.real = real;
-#if defined(ANDROID) || defined(__APPLE__)
   info.gps.nonexpiring_internal_gps = false;
-#endif
 
   return true;
 }
@@ -591,9 +607,7 @@ NMEAParser::GGA(NMEAInputLine &line, NMEAInfo &info)
   */
 
   info.gps.real = real;
-#if defined(ANDROID) || defined(__APPLE__)
   info.gps.nonexpiring_internal_gps = false;
-#endif
 
   gps.hdop = line.Read(-1.);
 
@@ -647,7 +661,15 @@ NMEAParser::RMZ(NMEAInputLine &line, NMEAInfo &info)
          altitude above 1013.25 hPa - since the don't have a "FLARM"
          device driver, we use the auto-detected "isFlarm" flag
          here */
+      info.igc_pressure_altitude = value;
+      info.igc_pressure_altitude_available.Update(info.clock);
       info.ProvideWeakPressureAltitude(value);
+      if (!info.pressure_altitude_weak)
+        info.igc_pressure_altitude_available.Clear();
+
+      /* One parsed value: logger igc + weak pressure_altitude; strong pressure
+         skips weak (see NMEAInfo::ProvidePressureAltitude). Complement merge:
+         first valid igc wins across devices. */
 
       /* when a FLARM gets detected too late, the previous call to
          this function may have filled the PGRMZ value into
@@ -715,33 +737,91 @@ NMEAParser::PTAS1(NMEAInputLine &line, NMEAInfo &info)
   return true;
 }
 
+bool
+NMEAParser::LK8EX1(NMEAInputLine &line, NMEAInfo &info)
+{
+  /*
+   * $LK8EX1,pressure,altitude,vario,temperature,battery*CS
+   *
+   * pressure: Pa (hPa×100), or 999999 if missing
+   * altitude: m QNE (ignored if pressure present), or 99999 if missing
+   * vario: cm/s, or 9999 if missing
+   * temperature: °C, or 99 if missing
+   * battery: volts, or 1000+percent, or 999 if missing
+   *
+   * @see https://github.com/LK8000/LK8000/blob/master/Docs/LK8EX1.txt
+   */
+
+  bool have_pressure = false;
+
+  double pressure;
+  if (line.ReadChecked(pressure) && pressure != 999999) {
+    info.ProvideStaticPressure(AtmosphericPressure::Pascal(pressure));
+    have_pressure = true;
+  }
+
+  double altitude;
+  if (line.ReadChecked(altitude)) {
+    if (!have_pressure && altitude != 99999)
+      info.ProvidePressureAltitude(altitude);
+  }
+
+  double vario_cm;
+  if (line.ReadChecked(vario_cm) && vario_cm != 9999)
+    info.ProvideNoncompVario(vario_cm / 100);
+
+  double temperature;
+  if (line.ReadChecked(temperature) && temperature != 99) {
+    info.temperature = Temperature::FromCelsius(temperature);
+    info.temperature_available.Update(info.clock);
+  }
+
+  double battery;
+  if (line.ReadChecked(battery) && battery != 999) {
+    if (battery >= 1000 && battery <= 1100) {
+      info.battery_level = battery - 1000;
+      info.battery_level_available.Update(info.clock);
+    } else {
+      info.voltage = battery;
+      info.voltage_available.Update(info.clock);
+    }
+  }
+
+  return true;
+}
+
 inline bool
 NMEAParser::MWV(NMEAInputLine &line, NMEAInfo &info)
 {
   /*
-    * $--MWV,x.x,a,x.x,a,a,a,*hh
+    * $--MWV,x.x,a,x.x,a,a*hh
     *
     * Field Number:
-    *  1) wind angle
-    *  2) (R)elative or (T)rue
-    *  3) wind speed
-    *  4) K/M/N
-    *  5) Status A=valid
-    *  8) Checksum
+    *  1) Wind angle, 0 to 360 degrees
+    *  2) Reference, R = Relative, T = True
+    *  3) Wind speed
+    *  4) Wind speed units, K/M/N
+    *  5) Status, A = Data Valid, V = Data Invalid
+    *  6) Checksum
     */
 
   Angle winddir;
   if (!line.ReadBearing(winddir))
     return false;
 
-  char ch = line.ReadOneChar();
+  char reference = line.ReadOneChar();
+  if (reference != 'T')
+    /* only accept true wind; relative wind (referenced to vessel
+       heading) cannot be stored as external_wind which expects a
+       true bearing */
+    return true;
 
   double windspeed;
   if (!line.ReadChecked(windspeed))
     return false;
 
-  ch = line.ReadOneChar();
-  switch (ch) {
+  char unit = line.ReadOneChar();
+  switch (unit) {
   case 'N':
     windspeed = Units::ToSysUnit(windspeed, Unit::KNOTS);
     break;
@@ -757,6 +837,11 @@ NMEAParser::MWV(NMEAInputLine &line, NMEAInfo &info)
   default:
     return false;
   }
+
+  char status = line.ReadOneChar();
+  if (status != 'A')
+    /* reject invalid data */
+    return true;
 
   SpeedVector wind(winddir, windspeed);
   info.ProvideExternalWind(wind);

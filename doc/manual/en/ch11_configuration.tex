@@ -86,23 +86,28 @@ configured when flying at a new site.
 \item[Map Database]  The name of the map file (XCM) containing digital elevation
   terrain data, topography, and optionally waypoints, airspace etc. A good
   prepared database file covers all the needs for this page.
-\item[Waypoints]  Primary waypoints file.  If left blank, waypoints are loaded
+\item[Waypoints] List of waypoint files. If left blank, waypoints are loaded
   from the map file (if available).
-\item[More waypoints*]  Secondary waypoints file.  This may be used to add 
-  waypoints for a competition.
-\item[Watched waypoints*]  \label{conf:watched-wps} Waypoint file containing
+
+\item[Watched waypoints*] \label{conf:watched-wps} List of waypoint files containing
   waypoints for which arrival height is always displayed in map labels, even
-  when unreachable.  Useful for waypoints like known reliable thermal sources
-  (e.g., powerplants) or mountain passes.
+  when unreachable. Useful for waypoints such as known reliable thermal sources
+  (e.g., power plants) or mountain passes.
 \item[Airspaces]  List of active airspace files that can be selected and used
   simultaneously.  If left blank,
   airspaces are loaded from the map file (if available).
-\item[Waypoint details*]  The airfields file may contain extracts from
+\item[Airfields or Waypoint details*]  The airfields file may contain extracts from
   Enroute Supplements or other contributed information about individual airfields.
+\item[User repositories*] List of user repository URLs, separated by the character `|'.
+  The URL for each repository must point to the repository's manifest file. 
+  The content listed in that manifest is then included in the file download 
+  selectors. The manifest needs to use the same format as that of the XCSoar repository
+  (See \url{https://github.com/XCSoar/xcsoar-data-content}).
+  
 \end{description}
 
 
-Multiple files can be selected to be used simultaneously.
+Multiple airspace and waypoint files can be selected to be used simultaneously.
 \sketch{figures/config-site.png}
 
 The XCM map database concept is the current way to setup a site to fly.
@@ -299,13 +304,26 @@ changed terrain settings are directly visible at the small preview below.
   the map.
 \item[Terrain colours]  Defines the colour ramp used in terrain rendering.  Various 
   schemes are available, which works best for you will depend on how mountainous your region is.
-\item[Slope shading*]  \label{conf:shading} The terrain can be shaded among slopes 
-  to indicate either wind direction, sun position or a fixed shading from North-West. 
-  Slopes faced to the wind (or sun) get displayed brighter and the averted slopes get darker.
+\item[Slope shading*]  \label{conf:shading} The terrain can be shaded to indicate slopes and 
+  other terrain features. The illumination direction for the shading can be either: geographically
+  fixed from the north-west, screen-relative fixed from the top left, or the shading can be 
+  according to the actual current sun position. In addition, the illumination can be set to indicate 
+  the wind direction, with upwind slopes bright, and downwind slopes shaded.
 \item[Terrain contrast*]  Defines the amount of Phong shading in the terrain rendering. 
   Use large values to emphasise terrain slope, smaller values if flying in steep mountains.
-\item[Terrain brightness*]  Defines the brightness (whiteness) of the terrain rendering. 
+\item[Terrain brightness*]  Defines the brightness (whiteness) of the terrain rendering.
   This controls the average illumination of the terrain.
+\item[Contours*]  Draws contour lines on the terrain.  Two groups of
+  modes are available.
+  The adaptive modes ({\bf Mountains}, {\bf Highlands}, {\bf Lowlands},
+  {\bf Superfine}) set a base line density that is automatically scaled
+  with the zoom level to avoid over-cluttering at small scales.
+  {\bf Mountains} is for areas with steep slopes, with a 256\,m base
+  spacing; the other adaptive modes provide progressively smaller
+  spacing and higher line density.
+  The fixed modes ({\bf Fixed 256\,m}, {\bf Fixed 128\,m},
+  {\bf Fixed 64\,m}) use a constant contour spacing regardless of zoom
+  level.
 \end{description}
 
 
@@ -381,6 +399,41 @@ pattern you wish the selected airspace class to be drawn in.
 
 \subsection*{Filters}
 The filter function is described in Section~\ref{sec:airspace-filter}.
+
+\subsection*{NOTAM}
+
+This page configures downloading and display of NOTAM affected areas.
+NOTAMs are shown as airspaces on the map and are intended for
+situational awareness only; they do not replace a proper NOTAM briefing.
+See Section~\ref{sec:notam-airspace}.
+
+\begin{description}
+\item[NOTAM Support]  Enables downloading and display of NOTAMs from
+  aviation authorities.
+\item[API URL]  Base URL of the NOTAM proxy API.
+\item[Search Radius]  Radius around the current location for which NOTAMs
+  are downloaded.  If the aircraft moves outside the loaded area and
+  Internet access is available, XCSoar downloads NOTAMs for the new area.
+\item[Auto-Refresh (minutes)]  Time interval for automatic NOTAM updates.
+  Set this to 0 to disable automatic refresh and use manual refresh only.
+\item[Show IFR-Only NOTAMs]  Includes NOTAMs marked as IFR-only traffic.
+  This is disabled by default.
+\item[Show Only Currently Effective]  Hides NOTAMs which are not effective
+  at the current time.  This is enabled by default.
+\item[Maximum NOTAM Radius]  Hides NOTAMs whose affected radius is larger
+  than this value.  Set this to 0 to disable the radius filter.  The
+  default is 100~km.
+\item[Hidden Q-Codes]  Space-separated list of Q-code prefixes to hide.
+  Prefixes are matched case-insensitively.  The default list is
+  \texttt{QA QK QN QOL QOA QOBTT}, hiding administrative, checklist,
+  navigation-aid and obstacle-lighting or obstacle-administration notices.
+\end{description}
+
+The read-only rows below the filter settings show how many loaded NOTAMs
+are currently filtered by each filter.  The \button{Refresh} button saves
+the current settings and requests a new download for the current
+position.  The \button{List} button opens the current NOTAM list for
+review.
 
 
 %%%%%%%%%%%%%%%%%%
@@ -600,9 +653,9 @@ rules. \label{conf:taskrules}
   (AGL or MSL) while finishing the task.  Set to 0 for no limit.
 \item[Finish height ref.*]  Reference used for finish min.\ height rule,
   correspondingly to the start rule height reference.
-\item [PEV start wait time*] The default interval in minutes between
- pilot presses the \emph{Pilot Event} (see \ref{sec:pilotevent}) button is
- pressed and start window opens. If set to 0, the start will open
+\item [PEV start wait time*] The default interval in minutes between the
+ pilot presses the \emph{Pilot Event} (see \ref{sec:pilotevent}) button and 
+ start window opens. If set to 0, the start will open
  immediately after \emph{Pilot Event} button is pressed.
 \item [PEV start window*] The default interval in minutes during which
  the start window remains open when \emph{Pilot Event} (see \ref
@@ -625,6 +678,7 @@ rules. \label{conf:taskrules}
   {\bf XContest}: \todonum{tbd.} \\
   {\bf DHV-XC}: \todonum{tbd.} \\
   {\bf SIS-AT}: \todonum{tbd.} \\
+  {\bf FFVV NetCoupe}: The FFVV NetCoupe `{\it libre}' competition. \\
   {\bf WeGlide FREE}: WeGlide combines multiple scoring systems in the WeGlide Free contest. The free score is a combination of the free distance score and the area bonus. For the area bonus, the scoring program determines the largest FAI triangle and the largest Out I\& Return distance that can be fitted into the flight route. \\
   {\bf WeGlide O\&R}: A start point, one turn point and a finish point are chosen from the flight path such that the distance between the start point and the turn point is maximized. \\
 \item[Predict Contest]  If enabled, then the next task point is included in the 
@@ -733,6 +787,26 @@ and your custom InfoBox sets.
   Selecting ``- - -'' will make the page inactive.
 \item[Page 4..8*]  Experts can configure up to eight pages in the already 
   described manner.
+\end{description}
+
+When editing a page, the following options are available for map pages:
+\begin{description}
+\item[Main area]  The primary content of the page, for example \emph{Map}
+  or \emph{Map (north-up)}.
+\item[InfoBoxes]  Which InfoBox set is shown alongside the main area.
+\item[Bottom area]  Optional panel below the main area.  Select
+  \emph{Weather controls} to show in-flight RASP, EDL, or XCTherm forecast
+  controls when the page uses a weather overlay.
+\item[Map overlay]  Optional weather overlay drawn on map pages: \emph{None},
+  \emph{RASP}, \emph{EDL}, or \emph{XCTherm}.  RASP requires a loaded RASP
+  file; EDL and XCTherm require network-capable builds with the respective
+  weather provider configured.
+\item[Layer / Level]  When \emph{Map overlay} is \emph{RASP}, selects
+  which RASP field is displayed on this page.  When the overlay is
+  \emph{EDL}, selects the pressure level (altitude band): \emph{Auto}
+  follows aircraft altitude when the page is opened; a fixed level is
+  restored each time the page is selected.  The label and choices
+  change with the selected overlay.
 \end{description}
 
 
@@ -938,9 +1012,10 @@ for every glide performance relevant computation of XCSoar.
   In the absence of a configurable pilot weight XCSoar expects you to include your own weight
   to the dry mass.
 \item[Wing area]  Optional specification of the wing area of the glider type.
-\item[V rough air] Optionally the maximum manoeuvring speed can
-  be entered on this page to prevent the glide computer from commanding 
-  unrealistic cruise speeds.
+\item[Max.\ Cruise Speed] Optional upper limit for MacCready speed-to-fly
+  (including final glide).  Prevents the glide computer from commanding
+  unrealistically high cruise speeds.  A typical choice is the rough-air
+  / green-arc limit from the flight manual.
 \item[Handicap]  The handicap factor used for the On-Line Contest scoring.
 \item[Max.\ ballast]  Optional the amount of water ballast XCSoar refers to as 100\% ballast.
   Set to zero if it does not apply.

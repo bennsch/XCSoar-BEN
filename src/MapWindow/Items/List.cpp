@@ -73,7 +73,6 @@ CompareMapItems(const MapItem *a, const MapItem *b)
                   ((const WeatherStationMapItem *)b)->station->code) < 0;
 #endif
 
-  case MapItem::Type::SKYLINES_TRAFFIC:
   case MapItem::Type::OVERLAY:
   case MapItem::Type::RASP:
     break;

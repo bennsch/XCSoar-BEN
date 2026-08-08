@@ -8,13 +8,14 @@
 #include "LocalPath.hpp"
 #include "LogFile.hpp"
 #include "Map.hpp"
+#include "lib/fmt/PathFormatter.hpp"
 #include "system/FileUtil.hpp"
 #include "system/Path.hpp"
 #include "util/StringAPI.hxx"
 #include "util/StringCompare.hxx"
 #include "util/StringUtil.hpp"
-#include "util/tstring.hpp"
 
+#include <string>
 #include <cassert>
 #include <windef.h> /* for MAX_PATH */
 
@@ -22,6 +23,12 @@
 #define OLDXCSPROFILE "xcsoar-registry.prf"
 
 static AllocatedPath startProfileFile = nullptr;
+
+static AllocatedPath
+BuildProfilePath(Path base_name) noexcept
+{
+  return LocalPath(AllocatedPath::Build(Path("profiles"), base_name));
+}
 
 Path
 Profile::GetPath() noexcept
@@ -44,7 +51,7 @@ Profile::LoadFile(Path path) noexcept
 {
   try {
     LoadFile(map, path);
-    LogFormat(_T("Loaded profile from %s"), path.c_str());
+    LogFmt("Loaded profile from {}", path);
   } catch (...) {
     LogError(std::current_exception(), "Failed to load profile");
   }
@@ -72,7 +79,7 @@ Profile::Save() noexcept
 void
 Profile::SaveFile(Path path)
 {
-  LogFormat(_T("Saving profile to %s"), path.c_str());
+  LogFmt("Saving profile to {}", path);
   SaveFile(map, path);
 }
 
@@ -86,11 +93,11 @@ Profile::SetFiles(Path override_path) noexcept
   if (override_path != nullptr) {
     if (override_path.IsBase()) {
       if (StringFind(override_path.c_str(), '.') != nullptr)
-        startProfileFile = LocalPath(override_path);
+        startProfileFile = BuildProfilePath(override_path);
       else {
-        tstring t(override_path.c_str());
-        t += _T(".prf");
-        startProfileFile = LocalPath(t.c_str());
+        std::string t(override_path.c_str());
+        t += ".prf";
+        startProfileFile = BuildProfilePath(Path(t.c_str()));
       }
     } else
       startProfileFile = Path(override_path);
@@ -98,29 +105,5 @@ Profile::SetFiles(Path override_path) noexcept
   }
 
   // Set the default profile file
-  startProfileFile = LocalPath(_T(XCSPROFILE));
-}
-
-AllocatedPath
-Profile::GetPath(std::string_view key) noexcept
-{
-  return map.GetPath(key);
-}
-
-std::vector<AllocatedPath>
-Profile::GetMultiplePaths(std::string_view key)
-{
-  return map.GetMultiplePaths(key);
-}
-
-bool
-Profile::GetPathIsEqual(std::string_view key, Path value) noexcept
-{
-  return map.GetPathIsEqual(key, value);
-}
-
-void
-Profile::SetPath(std::string_view key, Path value) noexcept
-{
-  map.SetPath(key, value);
+  startProfileFile = BuildProfilePath(Path(XCSPROFILE));
 }

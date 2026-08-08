@@ -8,8 +8,6 @@
 #include "NativeView.hpp"
 #include "Hardware/DisplayDPI.hpp"
 
-#include <tchar.h>
-
 Java::TrivialClass NativeView::cls;
 jfieldID NativeView::ptr_field;
 jfieldID NativeView::textureNonPowerOfTwo_field;
@@ -21,8 +19,15 @@ jmethodID NativeView::loadResourceBitmap_method;
 jmethodID NativeView::loadFileBitmap_method;
 jmethodID NativeView::bitmapToTexture_method;
 jmethodID NativeView::shareText_method;
+jmethodID NativeView::openURL_method;
+jmethodID NativeView::openWifiSettings_method;
 jmethodID NativeView::openWaypointFile_method;
 jmethodID NativeView::getNetState_method;
+jmethodID NativeView::getWifiIpAddress_method;
+jmethodID NativeView::isAutoRotateEnabled_method;
+jmethodID NativeView::getPhysicalOrientation_method;
+jmethodID NativeView::startMyService_method;
+jmethodID NativeView::launchSAFTreePicker_method;
 
 Java::TrivialClass NativeView::clsBitmap;
 jmethodID NativeView::createBitmap_method;
@@ -58,11 +63,33 @@ NativeView::Initialise(JNIEnv *env)
   shareText_method = env->GetMethodID(cls, "shareText",
                                           "(Ljava/lang/String;)V");
 
+  openURL_method = env->GetMethodID(cls, "openURL",
+                                    "(Ljava/lang/String;)Z");
+
+  openWifiSettings_method = env->GetMethodID(cls, "openWifiSettings",
+                                             "()Z");
+
   openWaypointFile_method =
     env->GetMethodID(cls, "openWaypointFile",
                      "(ILjava/lang/String;)V");
 
   getNetState_method = env->GetMethodID(cls, "getNetState", "()I");
+
+  getWifiIpAddress_method = env->GetMethodID(cls, "getWifiIpAddress",
+                                             "()Ljava/lang/String;");
+
+  isAutoRotateEnabled_method =
+    env->GetMethodID(cls, "isAutoRotateEnabled", "()Z");
+
+  getPhysicalOrientation_method =
+    env->GetMethodID(cls, "getPhysicalOrientation", "()I");
+
+  startMyService_method =
+    env->GetMethodID(cls, "startMyService", "()V");
+
+  launchSAFTreePicker_method =
+    env->GetMethodID(cls, "launchSAFTreePicker",
+                     "(Ljava/lang/String;)V");
 
   clsBitmap.Find(env, "android/graphics/Bitmap");
   createBitmap_method = env->GetStaticMethodID(
@@ -146,4 +173,38 @@ NativeView::ShareText(JNIEnv *env, const char *text) noexcept
 {
   env->CallVoidMethod(obj, shareText_method,
                       Java::String{env, text}.Get());
+}
+
+bool
+NativeView::OpenURL(JNIEnv *env, const char *url) noexcept
+{
+  return env->CallBooleanMethod(obj, openURL_method,
+                                Java::String{env, url}.Get());
+}
+
+bool
+NativeView::OpenWifiSettings(JNIEnv *env) noexcept
+{
+  return env->CallBooleanMethod(obj, openWifiSettings_method);
+}
+
+bool
+NativeView::GetWifiIpAddress(JNIEnv *env, char *buffer,
+                             size_t max_size) const noexcept
+{
+  const auto string = (jstring)env->CallObjectMethod(obj, getWifiIpAddress_method);
+  if (string == nullptr)
+    return false;
+
+  const bool success = Java::String::CopyTo(env, string, buffer, max_size) != nullptr;
+  env->DeleteLocalRef(string);
+  return success;
+}
+
+void
+NativeView::LaunchSAFTreePicker(JNIEnv *env,
+                                const char *volume_uuid) const noexcept
+{
+  env->CallVoidMethod(obj, launchSAFTreePicker_method,
+                      Java::String{env, volume_uuid}.Get());
 }

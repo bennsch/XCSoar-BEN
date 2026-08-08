@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <tchar.h>
-
 class Path;
 class AllocatedPath;
 
@@ -63,13 +61,16 @@ AllocatedPath
 LocalPath(Path file) noexcept;
 
 AllocatedPath
-LocalPath(const TCHAR *file) noexcept;
+LocalPath(const char *file) noexcept;
 
 /**
  * Create a subdirectory of XCSoarData and return its absolute path.
  */
 AllocatedPath
-MakeLocalPath(const TCHAR *name);
+MakeLocalPath(const char *name);
+
+AllocatedPath
+MakeLocalPath(const Path name);
 
 /**
  * Return the portion of the specified path that is relative to the
@@ -99,7 +100,7 @@ ExpandLocalPath(Path src) noexcept;
 AllocatedPath
 ContractLocalPath(Path src) noexcept;
 
-void VisitDataFiles(const TCHAR* filter, File::Visitor &visitor);
+void VisitDataFiles(const char* filter, File::Visitor &visitor);
 
 [[gnu::pure]]
 Path
@@ -107,4 +108,4 @@ GetCachePath() noexcept;
 
 [[gnu::pure]]
 AllocatedPath
-MakeCacheDirectory(const TCHAR *name) noexcept;
+MakeCacheDirectory(const char *name) noexcept;

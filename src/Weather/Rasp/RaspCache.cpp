@@ -24,15 +24,21 @@ ToQuarterHours(BrokenTime t)
   return t.hour * 4u + t.minute / 15;
 }
 
-const TCHAR *
+const char *
 RaspCache::GetMapName() const
 {
+  if (parameter >= store.GetItemCount())
+    return "";
+
   return store.GetItemInfo(parameter).name;
 }
 
-const TCHAR *
+const char *
 RaspCache::GetMapLabel() const
 {
+  if (parameter >= store.GetItemCount())
+    return "";
+
   const auto &info = store.GetItemInfo(parameter);
   return info.label != nullptr
     ? gettext(info.label)
@@ -63,37 +69,45 @@ RaspCache::IsInside(GeoPoint p) const
 void
 RaspCache::Reload(BrokenTime time_local, OperationEnvironment &operation)
 {
+  if (parameter >= store.GetItemCount())
+    return;
+
   unsigned effective_time = time;
   if (effective_time == 0) {
-    // "Now" time, so find time in half hours
-    if (!time_local.IsPlausible())
+    // "Now" time, so find time in quarter hours
+    if (time_local.IsPlausible()) {
+      effective_time = ToQuarterHours(time_local);
+      assert(effective_time < RaspStore::MAX_WEATHER_TIMES);
+    } else if (!store.IsSingleTimeField(parameter)) {
       /* can't update to current time if we don't know the current
-         time */
+         time; single-time fields have no time axis, so effective_time
+         stays 0 and still resolves to their single slot below */
       return;
-
-    effective_time = ToQuarterHours(time_local);
-    assert(effective_time < RaspStore::MAX_WEATHER_TIMES);
+    }
   }
 
-  if (effective_time == last_time)
+  const unsigned requested_time = effective_time;
+  const unsigned resolved_time =
+    store.GetNearestTime(parameter, requested_time);
+  if (resolved_time == RaspStore::MAX_WEATHER_TIMES)
+    return;
+
+  if (map != nullptr && resolved_time == last_time)
     // no change, quick exit.
     return;
 
-  last_time = effective_time;
-
-  effective_time = store.GetNearestTime(parameter, effective_time);
-  if (effective_time == RaspStore::MAX_WEATHER_TIMES)
+  if (resolved_time == failed_time)
+    /* avoid retrying malformed/unsupported tiles every redraw */
     return;
-
-  map.reset();
 
   auto archive = store.OpenArchive();
   if (!archive)
     return;
 
   char new_name[MAX_PATH];
-  store.NarrowWeatherFilename(new_name, Path(store.GetItemInfo(parameter).name),
-                              effective_time);
+  if (!store.WeatherFilename(new_name, Path(store.GetItemInfo(parameter).name),
+                             resolved_time))
+    return;
 
   auto new_map = std::make_unique<RasterMap>();
   try {
@@ -102,10 +116,22 @@ RaspCache::Reload(BrokenTime time_local, OperationEnvironment &operation)
                         true, operation);
   } catch (...) {
     LogError(std::current_exception(), "Failed to load RASP file");
+    failed_time = resolved_time;
     return;
   }
 
   new_map->UpdateProjection();
 
+  loaded_time_index = resolved_time;
   map = std::move(new_map);
+  last_time = resolved_time;
+  failed_time = unsigned(-1);
+}
+
+BrokenTime
+RaspCache::GetLoadedTime() const
+{
+  return map != nullptr
+    ? RaspStore::IndexToTime(loaded_time_index)
+    : BrokenTime::Invalid();
 }

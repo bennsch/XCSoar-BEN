@@ -9,19 +9,14 @@
 #include "UIGlobals.hpp"
 #include "PageActions.hpp"
 #include "MapWindow/GlueMapWindow.hpp"
+#include "MapWindow/UserMapScale.hpp"
 #include "Pan.hpp"
-#include "Language/Language.hpp"
-#include "Message.hpp"
 #include "Interface.hpp"
-#include "Profile/Profile.hpp"
-#include "Profile/Keys.hpp"
 #include "Math/Constants.hpp"
 
 extern "C" {
 #include <lauxlib.h>
 }
-
-#include <algorithm> // for std::clamp()
 
 static int
 l_map_index(lua_State *L)
@@ -162,26 +157,10 @@ l_map_zoom(lua_State *L)
       value *= 2;
   }
 
-  MapSettings &settings_map = CommonInterface::SetMapSettings();
+  if (!IsPanning())
+    DisableAutoZoomForManualScale();
 
-  const DisplayMode displayMode = CommonInterface::GetUIState().display_mode;
-  if (settings_map.auto_zoom_enabled &&
-      !(displayMode == DisplayMode::CIRCLING && settings_map.circle_zoom_enabled) &&
-      !IsPanning()) {
-    settings_map.auto_zoom_enabled = false;  // disable autozoom if user manually changes zoom
-    Profile::Set(ProfileKeys::AutoZoom, false);
-    Message::AddMessage(_("Auto. zoom off"));
-  }
-
-  auto vmin = CommonInterface::GetComputerSettings().polar.glide_polar_task.GetVMin();
-  auto scale_2min_distance = vmin * 12;
-  constexpr double scale_100m = 10;
-  constexpr double scale_1600km = 1600 * 100;
-  auto minreasonable = displayMode == DisplayMode::CIRCLING
-    ? scale_100m
-    : std::max(scale_100m, scale_2min_distance);
-
-  value = std::clamp(value, minreasonable, scale_1600km);
+  value = ClampUserMapScale(value);
   map_window->SetMapScale(value);
   map_window->QuickRedraw();
 

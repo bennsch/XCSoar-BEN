@@ -31,6 +31,8 @@ protected:
   Angle last_sun_azimuth = Angle::Zero();
 
   const ColorRamp *last_color_ramp = nullptr;
+  double last_projection_scale = 0;
+  unsigned last_contour_spacing = 0;
 
   RasterRenderer raster_renderer;
 
@@ -57,9 +59,34 @@ public:
     return settings;
   }
 
+  [[gnu::pure]]
+  bool AreContoursVisible() const noexcept {
+    return raster_renderer.AreContoursVisible();
+  }
+
+  /**
+   * Contour spacing (metres) used for the last generated terrain
+   * image, or 0 if contours were disabled for that render.
+   */
+  [[gnu::pure]]
+  unsigned GetContourSpacing() const noexcept {
+    return last_contour_spacing;
+  }
+
   void SetSettings(const TerrainRendererSettings &_settings) {
     settings = _settings;
   }
+
+#ifdef ENABLE_OPENGL
+  /**
+   * Force a fixed quantisation value, bypassing the idle-based
+   * dynamic adjustment.  Call with q=1 for preview windows that
+   * should always render at full resolution.
+   */
+  void SetQuantisationPixels(unsigned q) noexcept {
+    raster_renderer.SetQuantisationPixels(q);
+  }
+#endif
 
   /**
    * @return true if an image has been renderered and Draw() may be

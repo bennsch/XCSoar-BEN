@@ -5,6 +5,7 @@
 #include "NOAADetails.hpp"
 #include "Dialogs/Message.hpp"
 #include "Language/Language.hpp"
+#include "Language/FormatText.hpp"
 #include "Weather/Features.hpp"
 
 #ifdef HAVE_NOAA
@@ -129,7 +130,7 @@ NOAAListWidget::UpdateList()
   std::sort(stations.begin(), stations.end());
 
   ListControl &list = GetList();
-  list.SetLength(stations.size());
+  list.SetLength(std::max(stations.size(), size_t{1}));
   list.Invalidate();
 
   const bool empty = stations.empty(), full = stations.full();
@@ -143,6 +144,14 @@ void
 NOAAListWidget::OnPaintItem(Canvas &canvas, const PixelRect rc,
                             unsigned index) noexcept
 {
+  if (stations.empty()) {
+    assert(index == 0);
+    row_renderer.DrawFirstRow(canvas, rc, _("None"));
+    row_renderer.DrawSecondRow(canvas, rc,
+                               _("Press here to add a station"));
+    return;
+  }
+
   assert(index < stations.size());
 
   NOAAListRenderer::Draw(canvas, rc, *stations[index].iterator,
@@ -158,19 +167,20 @@ UpdateTask(NOAAStore::Item &item, ProgressListener &progress) noexcept
 inline void
 NOAAListWidget::AddClicked()
 {
-  TCHAR code[5] = _T("");
+  char code[5] = "";
   if (!TextEntryDialog(code, 5, _("Airport ICAO code")))
     return;
 
-  if (_tcslen(code) != 4) {
+  if (strlen(code) != 4) {
     ShowMessageBox(_("Please enter the FOUR letter code of the desired station."),
                 _("Error"), MB_OK);
     return;
   }
 
   if (!NOAAStore::IsValidCode(code)) {
-    ShowMessageBox(_("Please don't use special characters in the four letter code of the desired station."),
-                  _("Error"), MB_OK);
+    ShowMessageBox(
+      _("Please enter four letters or digits only (ICAO station code)."),
+      _("Error"), MB_OK);
     return;
   }
 
@@ -207,8 +217,7 @@ NOAAListWidget::RemoveClicked()
   assert(index < stations.size());
 
   StaticString<256> tmp;
-  tmp.Format(_("Do you want to remove station %s?"),
-             stations[index].code.c_str());
+  FormatRemoveStationPrompt(tmp, stations[index].code.c_str());
 
   if (ShowMessageBox(tmp, _("Remove"), MB_YESNO) == IDNO)
     return;
@@ -237,6 +246,12 @@ NOAAListWidget::DetailsClicked()
 void
 NOAAListWidget::OnActivateItem(unsigned index) noexcept
 {
+  if (stations.empty()) {
+    assert(index == 0);
+    AddClicked();
+    return;
+  }
+
   OpenDetails(index);
 }
 

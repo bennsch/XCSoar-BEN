@@ -1,11 +1,14 @@
-ifeq ($(TARGET_IS_LINUX)$(USE_POLL_EVENT)$(TARGET_IS_KOBO),yyn)
+ifeq ($(TARGET_IS_LINUX)$(TARGET_IS_KOBO)$(TARGET_IS_ANDROID),ynn)
+
 
 $(eval $(call pkg-config-library,LIBDBUS,dbus-1))
 
 DBUS_SOURCES = \
+	$(SRC)/lib/dbus/CallMethodSync.cxx \
 	$(SRC)/lib/dbus/Connection.cxx \
 	$(SRC)/lib/dbus/Error.cxx \
 	$(SRC)/lib/dbus/Message.cxx \
+	$(SRC)/lib/dbus/Properties.cxx \
 	$(SRC)/lib/dbus/ScopeMatch.cxx \
 	$(SRC)/lib/dbus/TimeDate.cxx \
 	$(SRC)/lib/dbus/Systemd.cxx

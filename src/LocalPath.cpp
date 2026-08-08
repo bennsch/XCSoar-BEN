@@ -2,12 +2,17 @@
 // Copyright The XCSoar Project
 
 #include "LocalPath.hpp"
+#include "ProductName.hpp"
 #include "system/Path.hpp"
 #include "Compatibility/path.h"
 #include "util/StringCompare.hxx"
 #include "util/StringFormat.hpp"
 #include "util/StringAPI.hxx"
 #include "Asset.hpp"
+
+#ifdef __APPLE__
+#include "Apple/PathProvider.hpp"
+#endif
 
 #include "system/FileUtil.hpp"
 
@@ -19,12 +24,12 @@
 
 #ifdef _WIN32
 #include "system/PathName.hpp"
-#else
-#include "util/tstring.hpp"
 #endif
 
 #include <algorithm>
 #include <list>
+#include <string>
+#include <stdio.h>
 
 #include <cassert>
 #include <stdlib.h>
@@ -39,19 +44,13 @@
 #include <unistd.h>
 #endif
 
-#ifdef __APPLE__
-#import <Foundation/Foundation.h>
-#endif
-
-#define XCSDATADIR "XCSoarData"
-
 /**
  * This is the partition that the Kobo software mounts on PCs
  */
 #define KOBO_USER_DATA "/mnt/onboard"
 
 /**
- * A list of XCSoarData directories.  The first one is the primary
+ * A list of product data directories.  The first one is the primary
  * one, where "%LOCAL_PATH%\\" refers to.
  */
 static std::list<AllocatedPath> data_paths;
@@ -79,7 +78,7 @@ SetPrimaryDataPath(Path path) noexcept
   data_paths.emplace_front(path);
 
 #ifndef ANDROID
-  cache_path = LocalPath(_T("cache"));
+  cache_path = LocalPath("cache");
 #endif
 }
 
@@ -93,7 +92,7 @@ SetSingleDataPath(Path path) noexcept
   data_paths.emplace_front(path);
 
 #ifndef ANDROID
-  cache_path = LocalPath(_T("cache"));
+  cache_path = LocalPath("cache");
 #endif
 }
 
@@ -106,17 +105,23 @@ LocalPath(Path file) noexcept
 }
 
 AllocatedPath
-LocalPath(const TCHAR *file) noexcept
+LocalPath(const char *file) noexcept
 {
   return LocalPath(Path(file));
 }
 
 AllocatedPath
-MakeLocalPath(const TCHAR *name)
+MakeLocalPath(const char *name)
 {
   auto path = LocalPath(name);
   Directory::Create(path);
   return path;
+}
+
+AllocatedPath
+MakeLocalPath(const Path name)
+{
+  return MakeLocalPath(name.c_str());
 }
 
 Path
@@ -125,17 +130,17 @@ RelativePath(Path path) noexcept
   return path.RelativeTo(GetPrimaryDataPath());
 }
 
-static constexpr TCHAR local_path_code[] = _T("%LOCAL_PATH%\\");
+static constexpr char local_path_code[] = "%LOCAL_PATH%\\";
 
 [[gnu::pure]]
-static const TCHAR *
-AfterLocalPathCode(const TCHAR *p) noexcept
+static const char *
+AfterLocalPathCode(const char *p) noexcept
 {
   p = StringAfterPrefix(p, local_path_code);
   if (p == nullptr)
     return nullptr;
 
-  while (*p == _T('/') || *p == _T('\\'))
+  while (*p == '/' || *p == '\\')
     ++p;
 
   if (StringIsEmpty(p))
@@ -148,13 +153,13 @@ AllocatedPath
 ExpandLocalPath(Path src) noexcept
 {
   // Get the relative file name and location (ptr)
-  const TCHAR *ptr = AfterLocalPathCode(src.c_str());
+  const char *ptr = AfterLocalPathCode(src.c_str());
   if (ptr == nullptr)
     return src;
 
 #ifndef _WIN32
   // Convert backslashes to slashes on platforms where it matters
-  tstring src2(ptr);
+  std::string src2(ptr);
   std::replace(src2.begin(), src2.end(), '\\', '/');
   ptr = src2.c_str();
 #endif
@@ -178,17 +183,17 @@ ContractLocalPath(Path src) noexcept
 #ifdef _WIN32
 
 /**
- * Find a XCSoarData folder in the same location as the executable.
+ * Find a product data folder in the same location as the executable.
  */
 [[gnu::pure]]
 static AllocatedPath
 FindDataPathAtModule(HMODULE hModule) noexcept
 {
-  TCHAR buffer[MAX_PATH];
+  char buffer[MAX_PATH];
   if (GetModuleFileName(hModule, buffer, MAX_PATH) <= 0)
     return nullptr;
 
-  ReplaceBaseName(buffer, _T(XCSDATADIR));
+  ReplaceBaseName(buffer, PRODUCT_DATA_DIR);
   return Directory::Exists(Path(buffer))
     ? AllocatedPath(buffer)
     : nullptr;
@@ -201,9 +206,9 @@ FindDataPaths() noexcept
 {
   std::list<AllocatedPath> result;
 
-  /* Kobo: hard-coded XCSoarData path */
+  /* Kobo: hard-coded product data path */
   if constexpr (IsKobo()) {
-    result.emplace_back(_T(KOBO_USER_DATA DIR_SEPARATOR_S XCSDATADIR));
+    result.emplace_back(KOBO_USER_DATA DIR_SEPARATOR_S PRODUCT_DATA_DIR);
     return result;
   }
 
@@ -244,7 +249,7 @@ FindDataPaths() noexcept
     }
 
     if (auto path = Environment::GetExternalStoragePublicDirectory(env,
-                                                                   "XCSoarData");
+                                                                   PRODUCT_DATA_DIR);
         path != nullptr) {
       const bool writable = access(path.c_str(), W_OK) == 0;
 
@@ -266,22 +271,22 @@ FindDataPaths() noexcept
   }
 
 #ifdef _WIN32
-  /* look for a XCSoarData directory in the same directory as
-     XCSoar.exe */
+  /* look for a product data directory in the same directory as
+     the executable */
   if (auto path = FindDataPathAtModule(nullptr); path != nullptr)
     result.emplace_back(std::move(path));
 
-  /* Windows: use "My Documents\XCSoarData" */
+  /* Windows: use "My Documents\<ProductDataDir>" */
   {
-    TCHAR buffer[MAX_PATH];
+    char buffer[MAX_PATH];
     if (SHGetSpecialFolderPath(nullptr, buffer, CSIDL_PERSONAL,
                                result.empty()))
-      result.emplace_back(AllocatedPath::Build(buffer, _T(XCSDATADIR)));
+      result.emplace_back(AllocatedPath::Build(buffer, PRODUCT_DATA_DIR));
   }
 #endif // _WIN32
 
 #ifdef HAVE_POSIX
-  /* on Unix, use ~/.xcsoar */
+  /* on Unix, use ~/.<product_name> */
   if (const char *home = getenv("HOME"); home != nullptr) {
 #ifdef __APPLE__
     /* macOS users are not used to dot-files in their home
@@ -290,27 +295,29 @@ FindDataPaths() noexcept
        "Documents" folder inside the application's sandbox.  This
        folder can also be accessed via iTunes, if
        UIFileSharingEnabled is set to YES in Info.plist */
-#if (TARGET_OS_IPHONE)
-    constexpr const char *in_home = "Documents/" XCSDATADIR;
-#else
-    constexpr const char *in_home = XCSDATADIR;
-#endif
+    const Path in_home = Apple::GetDataPathInHome();
 #else // !APPLE
-    constexpr const char *in_home = ".xcsoar";
+    constexpr const char *in_home = PRODUCT_UNIX_HOME_DIR;
 #endif
 
     result.emplace_back(AllocatedPath::Build(Path(home), in_home));
+#ifdef __APPLE__
+    const Path data_path(result.back().c_str());
+    if (!Apple::EnsureDataPathExists(data_path)) {
+      const std::string utf8_path = data_path.ToUTF8();
+      if (!utf8_path.empty())
+        fprintf(stderr, "Failed to create data path '%s'\n",
+                utf8_path.c_str());
+      else
+        fprintf(stderr, "Failed to create data path (unknown path)\n");
+    }
+#endif
   }
 
 #ifndef __APPLE__
-  /* Linux (and others): allow global configuration in /etc/xcsoar */
-  if (Directory::Exists(Path{"/etc/xcsoar"}))
-    result.emplace_back(Path{"/etc/xcsoar"});
-#else
-  if (!Directory::Exists(Path{result.back()})) {
-    id fileManager = [NSFileManager defaultManager];
-      [fileManager createDirectoryAtPath:[NSString stringWithCString:result.back().c_str()] withIntermediateDirectories:YES attributes:nil error:nil];
-  }
+  /* Linux (and others): allow global configuration in /etc/<product_name> */
+  if (Directory::Exists(Path{PRODUCT_UNIX_SYSCONF_DIR}))
+    result.emplace_back(Path{PRODUCT_UNIX_SYSCONF_DIR});
 #endif // !APPLE
 #endif // HAVE_POSIX
 
@@ -318,7 +325,7 @@ FindDataPaths() noexcept
 }
 
 void
-VisitDataFiles(const TCHAR* filter, File::Visitor &visitor)
+VisitDataFiles(const char* filter, File::Visitor &visitor)
 {
   for (const auto &i : data_paths)
     Directory::VisitSpecificFiles(i, filter, visitor, true);
@@ -331,7 +338,7 @@ GetCachePath() noexcept
 }
 
 AllocatedPath
-MakeCacheDirectory(const TCHAR *name) noexcept
+MakeCacheDirectory(const char *name) noexcept
 {
   Directory::Create(cache_path);
   auto path = AllocatedPath::Build(cache_path, Path(name));
@@ -342,18 +349,22 @@ MakeCacheDirectory(const TCHAR *name) noexcept
 void
 InitialiseDataPath()
 {
-  data_paths = FindDataPaths();
-  if (data_paths.empty())
-    throw std::runtime_error("No data path found");
+  // If data_paths is already set (e.g., by -datapath= command line option),
+  // don't overwrite it with default paths
+  if (data_paths.empty()) {
+    data_paths = FindDataPaths();
+    if (data_paths.empty())
+      throw std::runtime_error("No data path found");
+  }
 
 #ifdef ANDROID
   cache_path = context->GetExternalCacheDir(Java::GetEnv());
   if (cache_path == nullptr)
     throw std::runtime_error("No Android cache directory");
 
-  // TODO: delete the old cache directory in XCSoarData?
+  // TODO: delete the old cache directory in product data directory?
 #else
-  cache_path = LocalPath(_T("cache"));
+  cache_path = LocalPath("cache");
 #endif
 }
 

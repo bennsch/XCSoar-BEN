@@ -23,6 +23,7 @@ enum ControlIndex {
   AIRCRAFT_SYMBOL,
   WIND_ARROW_STYLE,
   SKYLINES_TRAFFIC_MAP_MODE,
+  DISTANCE_RINGS_ENABLED,
 };
 
 class SymbolsConfigPanel final
@@ -106,7 +107,7 @@ static constexpr StaticEnumChoice  aircraft_symbol_list[] = {
     N_("Detailed rendered aircraft graphics.") },
   { AircraftSymbol::HANGGLIDER, N_("HangGlider"),
     N_("Simplified hang glider as line graphics, white with black contours.") },
-  { AircraftSymbol::PARAGLIDER, N_("ParaGlider"),
+  { AircraftSymbol::PARAGLIDER, N_("Paraglider"),
     N_("Simplified para glider as line graphics, white with black contours.") },
   nullptr
 };
@@ -118,10 +119,10 @@ static constexpr StaticEnumChoice wind_arrow_list[] = {
   nullptr
 };
 
-static constexpr StaticEnumChoice skylines_map_mode_list[] = {
-  { DisplaySkyLinesTrafficMapMode::OFF, N_("Off"), N_("No SkyLines traffic is drawn.") },
-  { DisplaySkyLinesTrafficMapMode::SYMBOL, N_("Symbol"), N_("Draws the SkyLines symbol only.") },
-  { DisplaySkyLinesTrafficMapMode::SYMBOL_NAME, N_("Symbol and Name"), N_("Draws the SkyLines symbol with name.") },
+static constexpr StaticEnumChoice online_traffic_map_mode_list[] = {
+  { DisplayOnlineTrafficMapMode::OFF, N_("Off"), N_("No online traffic is drawn.") },
+  { DisplayOnlineTrafficMapMode::SYMBOL, N_("Symbol"), N_("Draws the traffic symbol only.") },
+  { DisplayOnlineTrafficMapMode::SYMBOL_NAME, N_("Symbol and Name"), N_("Draws the traffic symbol with name.") },
   nullptr
 };
 
@@ -135,7 +136,7 @@ SymbolsConfigPanel::Prepare([[maybe_unused]] ContainerWindow &parent,
           _("Display the ground track as a grey line on the map."),
           ground_track_mode_list, (unsigned)settings_map.display_ground_track);
 
-  AddBoolean(_("FLARM traffic"), _("This enables the display of FLARM traffic on the map window."),
+  AddBoolean(_("FLARM Traffic"), _("This enables the display of FLARM traffic on the map window."),
              settings_map.show_flarm_on_map);
 
   AddBoolean(_("Fade traffic"), _("Keep showing traffic for a while after it has disappeared."),
@@ -178,9 +179,14 @@ SymbolsConfigPanel::Prepare([[maybe_unused]] ContainerWindow &parent,
           wind_arrow_list, (unsigned)settings_map.wind_arrow_style);
   SetExpertRow(WIND_ARROW_STYLE);
 
-  AddEnum(_("SkyLines traffic mode"),
-          _("Show the SkyLines traffic symbols/names on the map, downloaded from the SkyLines server."),
-          skylines_map_mode_list, (unsigned)settings_map.skylines_traffic_map_mode);
+  AddEnum(_("Online traffic on map"),
+          _("Show traffic from SkyLines and XCSoar Cloud on the map."),
+          online_traffic_map_mode_list,
+          (unsigned)settings_map.online_traffic_map_mode);
+
+  AddBoolean(_("Distance rings"),
+             _("Display distance rings around the aircraft on the map."),
+             settings_map.distance_rings_enabled);
 
   ShowTrailControls(settings_map.trail.length != TrailSettings::Length::OFF);
 }
@@ -217,8 +223,11 @@ SymbolsConfigPanel::Save(bool &_changed) noexcept
 
   changed |= SaveValueEnum(WIND_ARROW_STYLE, ProfileKeys::WindArrowStyle, settings_map.wind_arrow_style);
 
-  changed |= SaveValueEnum(SKYLINES_TRAFFIC_MAP_MODE, ProfileKeys::SkyLinesTrafficMapMode,
-                           settings_map.skylines_traffic_map_mode);
+  changed |= SaveValueEnum(SKYLINES_TRAFFIC_MAP_MODE, ProfileKeys::OnlineTrafficMapMode,
+                           settings_map.online_traffic_map_mode);
+
+  changed |= SaveValue(DISTANCE_RINGS_ENABLED, ProfileKeys::DistanceRingsEnabled,
+                       settings_map.distance_rings_enabled);
 
   _changed |= changed;
 

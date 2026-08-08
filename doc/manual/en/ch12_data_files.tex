@@ -71,7 +71,7 @@ Map files can be downloaded from the XCSoar web site:
 To generate a custom map database with different settings and bounds, you
 may use the map generator:
 
-\url{http://mapgen.xcsoar.org/}
+\url{https://mapgen.xcsoar.org/}
 
 As far as waypoints or airspaces are included in the map database XCSoar
 defaults to them. An e.g.\ separately configured waypoint file will replace all the
@@ -118,13 +118,13 @@ Mandatory, and Other.  All other airspace types will be drawn as type ``Other''.
 In addition to the OpenAir standard the 'AF' or 'AR' command is recognized as the airspace radio frequency.
 Ie. Since 2018, Naviter proposes the following change 'AF 999.999' (find 'Additional OpenAir fields' here - \url{http://www.winpilot.com/UsersGuide/UserAirspace.asp})
 
-\section{Waypoint details}\label{sec:airfield-details}
+\section{Airfields or Waypoint details}\label{sec:airfield-details}
 
-The waypoint details file (extension \verb|.txt|) is a simple text
+The airfields or waypoint details file (extension \verb|.txt|) is a simple text
 format file containing entries for each waypoint (especially airfield), marked in square
 brackets, followed by the text to be displayed on the
 Waypoint Details Dialogue for that particular waypoint.  The text should
-have a narrow margin because the waypoint details dialogue cannot
+have a narrow margin because the airfields or waypoint details dialogue cannot
 currently handle word wrapping.
 
 The text may also specify images for airfields or waypoints.  To
@@ -195,7 +195,9 @@ team.
 The format of the file is simple.  Lines beginning with \verb|*| are
 ignored and so may be used to document how the polar was calculated or
 if there are restrictions on its use.  Other than comments, the file
-must contain a single row of numbers separated with commas:
+must contain a single row of numbers separated with commas.
+
+The WinPilot polar format defines eight fields:
 \begin{itemize}
 \item Mass dry gross weight in kg: this is the weight of the glider plus
   a `standard' pilot without ballast.
@@ -204,13 +206,18 @@ must contain a single row of numbers separated with commas:
 \item Sink rate in m/s for first measurement point.
 \item Speed in km/h for second measurement point, (usually best glide speed).
 \item Sink rate in m/s for second measurement point.
-\item Speed in km/h for third measurement point, (usually max manoeuvring speed).
+\item Speed in km/h for third measurement point, (usually a high cruise speed).
 \item Sink rate in m/s for third measurement point.
 \end{itemize}
-The following is an extension to the existing polar file format and thus optional.
+XCSoar optionally accepts two further fields after those eight (not part of
+the WinPilot format):
 \begin{itemize}
-\item The wing area in m$^2$ to allow the wing load computation (could be zero if unknown). 
-\item The max.\ manoeuvring speed in km/h to enable simple checks for the cruise speed command.
+\item The wing area in m$^2$ to allow the wing load computation (could be zero if unknown).
+\item The max.\ cruise speed in m/s.  XCSoar uses this as an upper limit
+  for MacCready speed-to-fly (including final glide), so the computer does
+  not command unrealistically high cruise speeds.  It corresponds to the
+  plane setting ``Max.\ Cruise Speed''.  A typical choice is the rough-air
+  / green-arc limit from the flight manual.
 \end{itemize}
 
 An example, for the LS-3 glider, is given below:
@@ -267,7 +274,7 @@ and customised through the configuration settings dialogues.
 The checklist file (\verb|xcsoar-checklist.txt|) uses a similar format to
 the airfield details file.  Each page in the checklist is preceded by
 the name of the list in square brackets.  Multiple pages can be
-defined (up to 20).
+defined (up to 32).
 
 An example (extract):
 \begin{verbatim}

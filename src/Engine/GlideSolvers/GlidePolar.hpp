@@ -46,8 +46,8 @@ class GlidePolar
 
   /** Clean ratio (1=clean, 0=100% bugs) */
   double bugs;
-  /** Ballast (litres alias kg) */
-  double ballast;
+  /** Ballast in litres (l or kg) - stored as absolute value, not fraction */
+  double ballast_litres;
   /** Cruise efficiency */
   double cruise_efficiency;
 
@@ -73,6 +73,8 @@ class GlidePolar
   /** coefficients of glide polar at bug/ballast */
   PolarCoefficients polar;
 
+  /** Maximum ballast capacity in litres (configured value, not calculated) */
+  double max_ballast;
   /** Ratio of mass of ballast to glider empty weight */
   double ballast_ratio;
   /** Reference mass of reference_polar, kg */
@@ -84,23 +86,26 @@ class GlidePolar
   /** Reference wing area, m^2 */
   double wing_area;
 
+  /** Air density ratio sqrt(rho0/rho); 1.0 at sea level, >1 at altitude */
+  double density_ratio;
+
   friend class GlidePolarTest;
 
 public:
   /**
    * Constructs an uninitialized object.
    */
-  constexpr GlidePolar() noexcept = default;
+  constexpr GlidePolar() noexcept : density_ratio(1.0) {}
 
   /**
    * Constructor.  Performs search for best LD at instantiation
    *
    * @param _mc MacCready value at construction
    * @param _bugs Bugs (clean) ratio (default clean)
-   * @param _ballast Ballast ratio (default empty)
+   * @param _ballast Ballast in litres (default empty)
    */
-  GlidePolar(const double _mc, const double _bugs=1,
-             const double _ballast=0) noexcept;
+  GlidePolar(double _mc, double _bugs=1,
+             double _ballast=0) noexcept;
 
   /**
    * Constructs a GlidePolar object that is invalid.
@@ -262,31 +267,28 @@ public:
   }
 
   /**
-   * Set ballast value.
-   *
-   * @param ratio The new ballast setting (proportion of possible ballast, [0-1]
-   */
-  void SetBallast(const double ratio) noexcept;
-
-  /**
    * Set ballast value in litres
    * @param litres The new ballast setting (l or kg)
    */
-  void SetBallastLitres(const double litres) noexcept;
+  void SetBallastLitres(double litres) noexcept;
 
   /**
-   * Retrieve ballast 
-   * @return Proportion of possible ballast [0-1]
+   * Set ballast value as fraction (0.0 = empty, 1.0 = full)
+   * @param fraction The new ballast setting as fraction [0-1]
    */
-  constexpr double GetBallast() const noexcept {
-    return ballast / (ballast_ratio * reference_mass);
-  }
+  void SetBallastFraction(double fraction) noexcept;
+
+  /**
+   * Set ballast value as overload (mass ratio)
+   * @param overload The overload ratio (1.0 = reference mass, >1.0 = heavier)
+   */
+  void SetBallastOverload(double overload) noexcept;
 
   /**
    * Retrieve if the glider is ballasted
    */
   constexpr bool HasBallast() const noexcept {
-    return ballast > 0;
+    return ballast_litres > 0;
   }
 
   /**
@@ -294,8 +296,20 @@ public:
    * @return Ballast (l or kg)
    */
   constexpr double GetBallastLitres() const noexcept {
-    return ballast;
+    return ballast_litres;
   }
+
+  /**
+   * Retrieve ballast as fraction (0.0 = empty, 1.0 = full)
+   * @return Ballast fraction [0-1]
+   */
+  double GetBallastFraction() const noexcept;
+
+  /**
+   * Retrieve ballast as overload (mass ratio)
+   * @return Overload ratio (1.0 = reference mass, >1.0 = heavier)
+   */
+  double GetBallastOverload() const noexcept;
 
   /**
    * Determine if glider carries ballast
@@ -487,6 +501,13 @@ public:
     wing_area = _wing_area;
   }
 
+  /** Sets the air density ratio and updates polar speeds/rates accordingly */
+  void SetDensityRatio(double dr) noexcept;
+
+  constexpr double GetDensityRatio() const noexcept {
+    return density_ratio;
+  }
+
   /** Returns the reference mass in kg */
   constexpr double GetReferenceMass() const noexcept {
     return reference_mass;
@@ -531,14 +552,34 @@ public:
     return crew_mass;
   }
   
+  /** Returns the maximum ballast capacity in litres */
+  constexpr double GetMaxBallast() const noexcept {
+    return max_ballast;
+  }
+
+  /** Sets the maximum ballast capacity in litres */
+  void SetMaxBallast(double _max_ballast, bool update=true) noexcept {
+    max_ballast = _max_ballast;
+    // Update ballast_ratio if reference_mass is available
+    if (reference_mass > 0)
+      ballast_ratio = max_ballast / reference_mass;
+    if (update)
+      Update();
+  }
+
   /** Returns the ballast ratio */
   constexpr double GetBallastRatio() const noexcept {
     return ballast_ratio;
   }
 
   /** Sets the ballast ratio */
-  constexpr void SetBallastRatio(double _ballast_ratio) noexcept {
+  void SetBallastRatio(double _ballast_ratio, bool update=true) noexcept {
     ballast_ratio = _ballast_ratio;
+    // Update max_ballast if reference_mass is available
+    if (reference_mass > 0)
+      max_ballast = ballast_ratio * reference_mass;
+    if (update)
+      Update();
   }
 
   /** Returns the ideal polar coefficients */
@@ -577,4 +618,4 @@ private:
   void UpdateSMin() noexcept;
 };
 
-static_assert(std::is_trivial<GlidePolar>::value, "type is not trivial");
+static_assert(std::is_trivially_copyable<GlidePolar>::value, "type is not trivially copyable");

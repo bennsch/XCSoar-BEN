@@ -16,15 +16,16 @@
 #include "Airspace/AirspacePolygon.hpp"
 #include "Airspace/AirspaceCircle.hpp"
 #include "Geo/GeoVector.hpp"
+#include "Engine/Airspace/AirspaceAltitude.hpp"
 #include "Engine/Airspace/AirspaceClass.hpp"
 #include "lib/fmt/RuntimeError.hxx"
 #include "io/BufferedReader.hxx"
 #include "io/StringConverter.hpp"
-#include "util/ConvertString.hpp"
 #include "util/StaticString.hxx"
 #include "util/StringCompare.hxx"
 #include "util/StringSplit.hxx"
 
+#include <cassert>
 #include <stdexcept>
 
 using std::string_view_literals::operator""sv;
@@ -89,6 +90,7 @@ static constexpr AirspaceClassStringCouple airspace_class_strings[] = {
   { "CTA", CTA },
   { "ACCSEC", ACC_SECTOR },
   { "AERIAL_SPORTING_RECREATIONAL", AERIAL_SPORTING_RECREATIONAL },
+  { "ASRA", AERIAL_SPORTING_RECREATIONAL },
   { "OFR", OVERFLIGHT_RESTRICTION },
   { "MRT", MRT },
   { "TFR", TFR },
@@ -159,8 +161,8 @@ struct TempAirspace
   }
 
   // General
-  tstring name;
-  tstring station_name;
+  std::string name;
+  std::string station_name;
   RadioFrequency radio_frequency;
   TransponderCode transponder_code;
   AirspaceClass asclass;
@@ -386,97 +388,14 @@ struct TempAirspace
 static AirspaceAltitude
 ReadAltitude(StringParser<> &input)
 {
-  auto unit = Unit::FEET;
-  enum { MSL, AGL, SFC, FL, STD, UNLIMITED } type = MSL;
-  double value = 0;
+  ParseAirspaceAltitudeOptions options;
+  options.strict_unknown_tokens = false;
+  options.accept_amsl = false;
+  options.unlimited_ceiling_m = 50000;
 
-  while (true) {
-    input.Strip();
-
-    if (IsDigitASCII(input.front())) {
-      if (auto x = input.ReadDouble())
-        value = *x;
-    } else if (input.SkipMatchIgnoreCase("GND"sv) ||
-               input.SkipMatchIgnoreCase("AGL"sv)) {
-      type = AGL;
-    } else if (input.SkipMatchIgnoreCase("SFC"sv)) {
-      type = SFC;
-    } else if (input.SkipMatchIgnoreCase("FL"sv)) {
-      type = FL;
-    } else if (input.SkipMatchIgnoreCase("FT"sv)) {
-      unit = Unit::FEET;
-    } else if (input.SkipMatchIgnoreCase("MSL"sv)) {
-      type = MSL;
-    } else if (input.front() == 'M' || input.front() == 'm') {
-      unit = Unit::METER;
-      input.Skip();
-    } else if (input.SkipMatchIgnoreCase("STD"sv)) {
-      type = STD;
-    } else if (input.SkipMatchIgnoreCase("UNL"sv)) {
-      type = UNLIMITED;
-    } else if (input.IsEmpty())
-      break;
-    else
-      input.Skip();
-  }
-
-  AirspaceAltitude altitude;
-
-  switch (type) {
-  case FL:
-    altitude.reference = AltitudeReference::STD;
-    altitude.flight_level = value;
-
-    /* prepare fallback, just in case we have no terrain */
-    altitude.altitude = Units::ToSysUnit(value, Unit::FLIGHT_LEVEL);
-    return altitude;
-
-  case UNLIMITED:
-    altitude.reference = AltitudeReference::MSL;
-    altitude.altitude = 50000;
-    return altitude;
-
-  case SFC:
-    altitude.reference = AltitudeReference::AGL;
-    altitude.altitude_above_terrain = -1;
-
-    /* prepare fallback, just in case we have no terrain */
-    altitude.altitude = 0;
-    return altitude;
-
-  default:
-    break;
-  }
-
-  // For MSL, AGL and STD we convert the altitude to meters
-  value = Units::ToSysUnit(value, unit);
-  switch (type) {
-  case MSL:
-    altitude.reference = AltitudeReference::MSL;
-    altitude.altitude = value;
-    return altitude;
-
-  case AGL:
-    altitude.reference = AltitudeReference::AGL;
-    altitude.altitude_above_terrain = value;
-
-    /* prepare fallback, just in case we have no terrain */
-    altitude.altitude = value;
-    return altitude;
-
-  case STD:
-    altitude.reference = AltitudeReference::STD;
-    altitude.flight_level = Units::ToUserUnit(value, Unit::FLIGHT_LEVEL);
-
-    /* prepare fallback, just in case we have no QNH */
-    altitude.altitude = value;
-    return altitude;
-
-  default:
-    break;
-  }
-
-  return altitude;
+  const auto altitude = ParseAirspaceAltitude(input, options);
+  assert(altitude.has_value());
+  return *altitude;
 }
 
 /**
@@ -762,8 +681,8 @@ ParseLine(Airspaces &airspace_database, unsigned line_number,
     case 'X':
     case 'x':
       if (input.SkipWhitespace()) {
-        tstring tempString = tstring(
-            string_converter.Convert(input.c_str())); // Convert to tstring
+        std::string tempString = std::string(
+            string_converter.Convert(input.c_str())); // Convert to std::string
         temp_area.transponder_code =
             TransponderCode::Parse(tempString.c_str());
       }
@@ -1063,7 +982,7 @@ ParseAirspaceFile(Airspaces &airspaces,
   }
 
   if (filetype == AirspaceFileType::UNKNOWN)
-    throw std::runtime_error(WideToUTF8Converter(_("Unknown airspace filetype")));
+    throw std::runtime_error(_("Unknown airspace filetype"));
 
   // Process final area (if any)
   temp_area.Commit(airspaces);

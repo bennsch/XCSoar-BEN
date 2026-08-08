@@ -34,8 +34,15 @@ struct Event {
     MOUSE_WHEEL,
 
 #ifdef ANDROID
+    MOUSE_CANCEL,
     POINTER_DOWN,
     POINTER_UP,
+
+    /**
+     * Two pointers are moving.  #point and #point2 hold the first two
+     * finger positions (view-relative pixels).
+     */
+    POINTER_MOVE,
 
     /**
      * The NativeView was resized (e.g. by changing the screen
@@ -98,6 +105,13 @@ struct Event {
 
   PixelPoint point;
 
+#ifdef ANDROID
+  /**
+   * Second finger position for #POINTER_DOWN / #POINTER_MOVE.
+   */
+  PixelPoint point2;
+#endif
+
 #ifdef USE_X11
   unsigned ch;
 #else
@@ -114,6 +128,10 @@ struct Event {
     :type(CALLBACK), ptr(_ptr), callback(_callback) {}
   Event(Type _type, PixelPoint _point)
     :type(_type), point(_point) {}
+#ifdef ANDROID
+  Event(Type _type, PixelPoint _point, PixelPoint _point2) noexcept
+    :type(_type), point(_point), point2(_point2) {}
+#endif
 
   bool IsKeyDown() const {
     return type == KEY_DOWN;

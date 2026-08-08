@@ -54,6 +54,7 @@ protected:
 
 #ifdef HAVE_MULTI_TOUCH
   bool OnMultiTouchDown() noexcept override;
+  bool OnMultiTouchMove(PixelPoint a, PixelPoint b) noexcept override;
   bool OnMultiTouchUp() noexcept override;
 #endif
 
@@ -140,6 +141,14 @@ public:
   bool FocusFirstControl() noexcept;
 
   /**
+   * Sets the keyboard focus on the last descendant window which has
+   * the WindowStyle::tab_stop() attribute.
+   *
+   * @return true if the focus has been moved
+   */
+  bool FocusLastControl() noexcept;
+
+  /**
    * Sets the keyboard focus on the next descendant window which has
    * the WindowStyle::tab_stop() attribute.
    *
@@ -159,5 +168,14 @@ public:
    * If this is a scrollable window, then attempt to make the given
    * rectangle visible in the view port.
    */
-  virtual void ScrollTo(const PixelRect &rc) noexcept;
+  virtual   void ScrollTo(const PixelRect &rc) noexcept;
+
+#ifdef USE_WINUSER
+  /**
+   * Win32 tracks focus via #HWND; walk from @c ::GetFocus() to the deepest
+   * #Window peer under this container.
+   */
+  [[gnu::pure]]
+  Window *GetFocusedWindow() noexcept;
+#endif
 };

@@ -20,11 +20,16 @@ private:
   void TestBallast();
   void TestBugs();
   void TestMC();
+  void TestDensityRatio();
 };
 
 void
 GlidePolarTest::Init()
 {
+  // Set operational parameters before any method that calls Update()
+  polar.bugs = 1;
+  polar.mc = 0;
+
   // Polar 1 from PolarStore (206 Hornet)
   polar.SetCoefficients(PolarCoefficients(0.0022032, -0.08784,
                                           1.47), false);
@@ -36,12 +41,8 @@ GlidePolarTest::Init()
 
   polar.SetWingArea(9.8);
 
-  // No ballast and no bugs on the wings
-  polar.ballast = 0;
-  polar.bugs = 1;
-
-  // MC zero
-  polar.mc = 0;
+  // No ballast
+  polar.SetBallastLitres(0);
 
   polar.SetVMax(Units::ToSysUnit(200, Unit::KILOMETER_PER_HOUR), false);
 }
@@ -71,7 +72,7 @@ GlidePolarTest::TestBasic()
 
   ok1(equals(polar.GetTotalMass(), 318));
   ok1(equals(polar.GetWingLoading(), 32.448979592));
-  ok1(equals(polar.GetBallast(), 0));
+  ok1(equals(polar.GetBallastFraction(), 0));
   ok1(equals(polar.GetBallastLitres(), 0));
   ok1(polar.IsBallastable());
   ok1(!polar.HasBallast());
@@ -80,15 +81,15 @@ GlidePolarTest::TestBasic()
 void
 GlidePolarTest::TestBallast()
 {
-  polar.SetBallast(0.25);
+  polar.SetBallastFraction(0.25);
 
   ok1(equals(polar.GetBallastLitres(), 25));
-  ok1(equals(polar.GetBallast(), 0.25));
+  ok1(equals(polar.GetBallastFraction(), 0.25));
 
   polar.SetBallastLitres(50);
 
   ok1(equals(polar.GetBallastLitres(), 50));
-  ok1(equals(polar.GetBallast(), 0.5));
+  ok1(equals(polar.GetBallastFraction(), 0.5));
   ok1(equals(polar.GetTotalMass(), 368));
   ok1(equals(polar.GetWingLoading(), 37.551020408));
   ok1(polar.HasBallast());
@@ -108,7 +109,7 @@ GlidePolarTest::TestBallast()
   ok1(equals(polar.GetVMin(), 21.44464));
   ok1(equals(polar.GetVBestLD(), 27.78703));
 
-  polar.SetBallast(0);
+  polar.SetBallastLitres(0);
   ok1(!polar.HasBallast());
 }
 
@@ -146,6 +147,45 @@ GlidePolarTest::TestMC()
 }
 
 void
+GlidePolarTest::TestDensityRatio()
+{
+  // Baseline values at sea level (density_ratio == 1.0 by default)
+  polar.SetDensityRatio(1.0);
+  const double vmin_sl    = polar.GetVMin();
+  const double vbld_sl    = polar.GetVBestLD();
+  const double sbld_sl    = polar.GetSBestLD();
+  const double bestld_sl  = polar.GetBestLD();
+  const double sink80_sl  = polar.SinkRate(Units::ToSysUnit(80, Unit::KILOMETER_PER_HOUR));
+
+  // Apply a density ratio representing high altitude (e.g. ~3500m MSL -> DR ~1.1)
+  const double dr = 1.1;
+  polar.SetDensityRatio(dr);
+
+  // All optimal airspeeds scale by DR
+  ok1(equals(polar.GetVMin(),    vmin_sl * dr));
+  ok1(equals(polar.GetVBestLD(), vbld_sl * dr));
+
+  // Sink rates at corresponding TAS scale by DR
+  ok1(equals(polar.GetSBestLD(), sbld_sl * dr));
+
+  // Best L/D ratio (dimensionless) is preserved at altitude
+  ok1(equals(polar.GetBestLD(), bestld_sl));
+
+  // SinkRate(V_TAS) at altitude == DR * SinkRate_IAS(V_TAS / DR)
+  // i.e. the same IAS as 80 km/h at sea level gives DR times the sea-level sink
+  const double v_tas_80ias = Units::ToSysUnit(80, Unit::KILOMETER_PER_HOUR) * dr;
+  ok1(equals(polar.SinkRate(v_tas_80ias), sink80_sl * dr));
+
+  // SinkRate at the altitude-corrected VBestLD must equal SBestLD
+  ok1(equals(polar.SinkRate(polar.GetVBestLD()), polar.GetSBestLD()));
+
+  // Reset to sea level: values must return to baseline
+  polar.SetDensityRatio(1.0);
+  ok1(equals(polar.GetVMin(),    vmin_sl));
+  ok1(equals(polar.GetVBestLD(), vbld_sl));
+}
+
+void
 GlidePolarTest::Run()
 {
   Init();
@@ -153,11 +193,12 @@ GlidePolarTest::Run()
   TestBallast();
   TestBugs();
   TestMC();
+  TestDensityRatio();
 }
 
 int main()
 {
-  plan_tests(46);
+  plan_tests(54);
 
   GlidePolarTest test;
   test.Run();

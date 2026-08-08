@@ -37,8 +37,6 @@ public:
   virtual void OnRotationSensor(float dtheta_x, float dtheta_y,
                                 float dtheta_z) noexcept = 0;
   virtual void OnMagneticFieldSensor(float h_x, float h_y, float h_z) noexcept = 0;
-  virtual void OnBarometricPressureSensor(float pressure,
-                                          float sensor_noise_variance) noexcept = 0;
   virtual void OnPressureAltitudeSensor(float altitude) noexcept = 0;
   virtual void OnI2CbaroSensor(int index, int sensorType,
                                AtmosphericPressure pressure) noexcept = 0;
@@ -76,6 +74,10 @@ public:
   virtual void OnBatteryPercent(double battery_percent) noexcept = 0;
 
   virtual void OnSensorStateChanged() noexcept = 0;
-  virtual void OnSensorError(const char *msg) noexcept = 0;
 #endif // ANDROID
+
+  virtual void OnSensorError(const char *msg) noexcept = 0;
+
+  virtual void OnBarometricPressureSensor(float pressure,
+                      float sensor_noise_variance) noexcept = 0;
 };

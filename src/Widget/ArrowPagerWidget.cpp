@@ -2,8 +2,13 @@
 // Copyright The XCSoar Project
 
 #include "ArrowPagerWidget.hpp"
+#include "ArrowPagerGesture.hpp"
+#include "QuickGuidePageWidget.hpp"
+#include "VScrollWidget.hpp"
+#include "WindowWidget.hpp"
 #include "Screen/Layout.hpp"
 #include "ui/event/KeyCode.hpp"
+#include "ui/window/ContainerWindow.hpp"
 #include "Language/Language.hpp"
 #include "Form/Form.hpp"
 #include "Renderer/SymbolButtonRenderer.hpp"
@@ -111,13 +116,39 @@ ArrowPagerWidget::Prepare(ContainerWindow &parent,
   style.TabStop();
 
   previous_button.Create(parent, layout.previous_button, style,
-                         std::make_unique<SymbolButtonRenderer>(look, _T("<")),
+                         std::make_unique<SymbolButtonRenderer>(look, "<"),
                          [this](){ Previous(false); });
   next_button.Create(parent, layout.next_button, style,
-                     std::make_unique<SymbolButtonRenderer>(look, _T(">")),
-                     [this](){ Next(false); });
-  close_button.Create(parent, look, _("Close"), layout.close_button,
+                     std::make_unique<SymbolButtonRenderer>(look, ">"),
+                     [this](){
+                       if (HasNextPage() && CanAdvance())
+                         Next(false);
+                     });
+  close_button.Create(parent, look,
+                      pending_close_caption ? pending_close_caption
+                                            : _("Close"),
+                      layout.close_button,
                       style, close_callback);
+  pending_close_caption = nullptr;
+
+  WireHorizontalSwipeToPages();
+}
+
+void
+ArrowPagerWidget::WireHorizontalSwipeToPages() noexcept
+{
+  if (GetSize() < 2)
+    return;
+
+  const auto swipe = MakeArrowPagerSwipeCallback(this);
+
+  for (unsigned i = 0; i < GetSize(); ++i) {
+    Widget &w = GetWidget(i);
+    if (auto *vs = dynamic_cast<VScrollWidget *>(&w))
+      vs->SetGestureCallback(swipe);
+    else if (auto *pg = dynamic_cast<QuickGuidePageWidget *>(&w))
+      pg->SetGestureCallback(swipe);
+  }
 }
 
 void
@@ -132,6 +163,8 @@ ArrowPagerWidget::Show(const PixelRect &rc) noexcept
 
   if (extra != nullptr)
     extra->Show(layout.extra);
+
+  UpdateButtons();
 }
 
 void
@@ -181,6 +214,99 @@ ArrowPagerWidget::HasFocus() const noexcept
 }
 
 bool
+ArrowPagerWidget::FocusPageBottom() noexcept
+{
+  Widget &page = GetCurrentWidget();
+  if (auto *qg = dynamic_cast<QuickGuidePageWidget *>(&page)) {
+    if (qg->FocusBottomBar(true))
+      return true;
+    return page.SetFocus();
+  }
+
+  /* Prefer the last TabStop so Up from chrome reverses Down leaving
+     a RowForm (SetFocus alone would hit the first control). */
+  Widget *inner = &page;
+  if (auto *vs = dynamic_cast<VScrollWidget *>(&page))
+    inner = &vs->GetWidget();
+
+  if (auto *ww = dynamic_cast<WindowWidget *>(inner)) {
+    auto *cw = dynamic_cast<ContainerWindow *>(&ww->GetWindow());
+    if (cw != nullptr && cw->FocusLastControl())
+      return true;
+  }
+
+  return page.SetFocus();
+}
+
+bool
+ArrowPagerWidget::MoveChromeFocusUp() noexcept
+{
+  /* Portrait chrome order: prev | next | Close.  Up walks toward the
+     page: Close → next → prev → page bottom. */
+  if (close_button.HasFocus()) {
+    if (next_button.IsEnabled()) {
+      next_button.SetFocus();
+      return true;
+    }
+    if (previous_button.IsEnabled()) {
+      previous_button.SetFocus();
+      return true;
+    }
+    return FocusPageBottom();
+  }
+
+  if (next_button.HasFocus()) {
+    if (previous_button.IsEnabled()) {
+      previous_button.SetFocus();
+      return true;
+    }
+    return FocusPageBottom();
+  }
+
+  if (previous_button.HasFocus())
+    return FocusPageBottom();
+
+  return false;
+}
+
+bool
+ArrowPagerWidget::MoveChromeFocusDown() noexcept
+{
+  if (close_button.HasFocus())
+    return true; /* end of chrome chain */
+
+  if (previous_button.HasFocus()) {
+    if (next_button.IsEnabled())
+      next_button.SetFocus();
+    else
+      close_button.SetFocus();
+    return true;
+  }
+
+  if (next_button.HasFocus()) {
+    close_button.SetFocus();
+    return true;
+  }
+
+  /* Quick Guide bottom bar → chrome.  Other pages return false so
+     WndForm can walk TabStops (z-order FocusNext would bounce back). */
+  auto *qg = dynamic_cast<QuickGuidePageWidget *>(&GetCurrentWidget());
+  if (qg == nullptr || !qg->IsBottomBarFocused())
+    return false;
+
+  if (previous_button.IsEnabled()) {
+    previous_button.SetFocus();
+    return true;
+  }
+  if (next_button.IsEnabled()) {
+    next_button.SetFocus();
+    return true;
+  }
+  close_button.SetFocus();
+  return true;
+}
+
+bool
 ArrowPagerWidget::KeyPress(unsigned key_code) noexcept
 {
   if (PagerWidget::KeyPress(key_code))
@@ -190,17 +316,45 @@ ArrowPagerWidget::KeyPress(unsigned key_code) noexcept
     return true;
 
   switch (key_code) {
+  case KEY_UP:
+    return MoveChromeFocusUp();
+
+  case KEY_DOWN:
+    return MoveChromeFocusDown();
+
   case KEY_LEFT:
     if (Previous(true))
       SetFocus();
     return true;
 
   case KEY_RIGHT:
-    if (Next(true))
+    if (CanAdvance() && Next(true))
       SetFocus();
     return true;
 
   default:
     return false;
   }
+}
+
+void
+ArrowPagerWidget::OnPageFlipped() noexcept
+{
+  PagerWidget::OnPageFlipped();
+  UpdateButtons();
+}
+
+void
+ArrowPagerWidget::UpdateNextButtonState() noexcept
+{
+  if (next_button.IsDefined())
+    next_button.SetEnabled(HasNextPage() && CanAdvance());
+}
+
+void
+ArrowPagerWidget::UpdateButtons() noexcept
+{
+  const bool enable = GetSize() >= 2;
+  previous_button.SetEnabled(enable);
+  next_button.SetEnabled(enable && HasNextPage() && CanAdvance());
 }

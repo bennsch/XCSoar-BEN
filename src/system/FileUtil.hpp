@@ -8,15 +8,18 @@
 #include <chrono>
 #include <cstdint>
 
-#include <tchar.h>
-
 #ifdef HAVE_POSIX
 #include <unistd.h>
 #include <stdio.h>
 #else
+#include "UTF8Win32.hpp"
+
 #include <fileapi.h>
 #include <windef.h> // for HWND (needed by winbase.h)
 #include <winbase.h>
+#ifdef CopyFile
+#undef CopyFile
+#endif
 #endif
 
 namespace File {
@@ -55,6 +58,32 @@ void
 Create(Path path) noexcept;
 
 /**
+ * Ensure the full directory hierarchy exists, creating any
+ * missing intermediate directories.
+ */
+void
+CreateRecursive(Path path) noexcept;
+
+/**
+ * Recursively remove a directory and all its contents.
+ * @param path Path to the directory to remove
+ * @return True if the directory was fully removed
+ */
+bool
+Remove(Path path) noexcept;
+
+/**
+ * Returns whether the given directory is writable.
+ * On POSIX this uses `access(path, W_OK)`.
+ * On Windows it will attempt to create a temporary file.
+ */
+#ifdef HAVE_POSIX
+[[gnu::pure]]
+#endif
+bool
+IsWritable(Path path) noexcept;
+
+/**
  * Visit all the files of a specific directory with the given visitor
  * @param path Path to visit
  * @param visitor Visitor that should be used
@@ -73,8 +102,29 @@ VisitFiles(Path path, File::Visitor &visitor,
  * @param recursive If true all subfolders will be visited too
  */
 void
-VisitSpecificFiles(Path path, const TCHAR *filter,
+VisitSpecificFiles(Path path, const char *filter,
                    File::Visitor &visitor, bool recursive = false);
+
+/**
+ * Visit files and directories.
+ */
+void VisitDirectoriesAndFiles(Path path, File::Visitor &visitor,
+                              bool recursive = false) noexcept;
+
+/**
+ * Receives each directory entry with an `is_dir` flag.
+ */
+class DirEntryVisitor {
+public:
+  virtual void Visit(Path full, Path filename, bool is_dir) noexcept = 0;
+  virtual ~DirEntryVisitor() noexcept = default;
+};
+
+/**
+ * Visit files and directories with entry type information.
+ */
+void VisitDirectoriesAndFiles(Path path, DirEntryVisitor &visitor,
+                              bool recursive = false) noexcept;
 
 } // namespace Directory
 
@@ -110,12 +160,6 @@ IsCharDev(Path path) noexcept;
 
 #endif // HAVE_POSIX
 
-#if defined(_WIN32) && defined(UNICODE)
-[[gnu::pure]]
-bool
-Exists(const char *path) noexcept;
-#endif
-
 /**
  * Deletes the given file
  * @param path Path to the file that should be deleted
@@ -127,7 +171,7 @@ Delete(Path path) noexcept
 #ifdef HAVE_POSIX
   return unlink(path.c_str()) == 0;
 #else
-  return DeleteFile(path.c_str());
+  return DeleteFileW(UTF8ToWide(path.c_str()).c_str()) != 0;
 #endif
 }
 
@@ -139,7 +183,8 @@ Rename(Path oldpath, Path newpath) noexcept
      rename() */
   return rename(oldpath.c_str(), newpath.c_str()) == 0;
 #else
-  return MoveFile(oldpath.c_str(), newpath.c_str()) != 0;
+  return MoveFileW(UTF8ToWide(oldpath.c_str()).c_str(),
+                   UTF8ToWide(newpath.c_str()).c_str()) != 0;
 #endif
 }
 
@@ -152,8 +197,9 @@ Replace(Path oldpath, Path newpath) noexcept
 #ifdef HAVE_POSIX
   return rename(oldpath.c_str(), newpath.c_str()) == 0;
 #else
-  return MoveFileEx(oldpath.c_str(), newpath.c_str(),
-                    MOVEFILE_REPLACE_EXISTING) != 0;
+  return MoveFileExW(UTF8ToWide(oldpath.c_str()).c_str(),
+                     UTF8ToWide(newpath.c_str()).c_str(),
+                     MOVEFILE_REPLACE_EXISTING) != 0;
 #endif
 }
 
@@ -191,6 +237,13 @@ Touch(Path path) noexcept;
  */
 bool
 ReadString(Path path, char *buffer, size_t size) noexcept;
+
+/**
+ * Read the target of a symlink into a std::string.
+ * Returns true on success and fills `out` with the link target.
+ */
+bool
+ReadLink(Path path, std::string &out) noexcept;
 
 /**
  * Write a string to an existing file.  It will never create a new

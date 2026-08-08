@@ -15,8 +15,8 @@
 struct FlarmHardware {
   Validity available;
 
-  NarrowString<32> device_type;
-  NarrowString<64> capabilities;
+  StaticString<32> device_type;
+  StaticString<64> capabilities;
   FlarmId radio_id;
 
   bool isPowerFlarm() noexcept {
@@ -29,6 +29,7 @@ struct FlarmHardware {
 
   constexpr void Clear() noexcept {
     available.Clear();
+    radio_id.Clear();
   }
 
   constexpr void Complement(const FlarmHardware &add) noexcept {

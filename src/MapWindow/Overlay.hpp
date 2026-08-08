@@ -5,7 +5,7 @@
 
 #include "util/Compiler.h"
 
-#include <tchar.h>
+#include <cstddef>
 
 class Canvas;
 class WindowProjection;
@@ -24,13 +24,25 @@ public:
    * Returns a human-readable name for this overlay.
    */
   [[gnu::pure]]
-  virtual const TCHAR *GetLabel() const noexcept = 0;
+  virtual const char *GetLabel() const noexcept = 0;
 
   /**
    * Check whether the given location is inside the overlay.
    */
   [[gnu::pure]]
   virtual bool IsInside(GeoPoint p) const noexcept = 0;
+
+  /**
+   * Format overlay-specific information for a tapped map point.
+   *
+   * Returns true and fills @p buffer on success. The default
+   * implementation provides no extra info.
+   */
+  virtual bool FormatPointInfo([[maybe_unused]] const GeoPoint &p,
+                               [[maybe_unused]] char *buffer,
+                               [[maybe_unused]] std::size_t size) const noexcept {
+    return false;
+  }
 
   /**
    * Draw the overlay to the given #Canvas.

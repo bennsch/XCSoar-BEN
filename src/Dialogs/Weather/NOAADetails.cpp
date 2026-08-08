@@ -4,6 +4,7 @@
 #include "NOAADetails.hpp"
 #include "Dialogs/Message.hpp"
 #include "Language/Language.hpp"
+#include "Language/FormatText.hpp"
 #include "Weather/Features.hpp"
 
 #ifdef HAVE_NOAA
@@ -54,20 +55,20 @@ NOAADetailsWidget::CreateButtons(WidgetDialog &buttons)
 void
 NOAADetailsWidget::Update()
 {
-  tstring metar_taf = _T("");
+  std::string metar_taf = "";
 
   NOAAFormatter::Format(*station_iterator, metar_taf);
 
   SetText(metar_taf.c_str());
 
   StaticString<100> caption;
-  caption.Format(_T("%s: "), _("METAR and TAF"));
+  caption.Format("%s: ", _("METAR and TAF"));
 
   if (!station_iterator->parsed_metar_available ||
       !station_iterator->parsed_metar.name_available)
     caption += station_iterator->GetCodeT();
   else
-    caption.AppendFormat(_T("%s (%s)"),
+    caption.AppendFormat("%s (%s)",
                          station_iterator->parsed_metar.name.c_str(),
                          station_iterator->GetCodeT());
 
@@ -94,8 +95,7 @@ inline void
 NOAADetailsWidget::RemoveClicked()
 {
   StaticString<256> tmp;
-  tmp.Format(_("Do you want to remove station %s?"),
-             station_iterator->GetCodeT());
+  FormatRemoveStationPrompt(tmp, station_iterator->GetCodeT());
 
   if (ShowMessageBox(tmp, _("Remove"), MB_YESNO) == IDNO)
     return;

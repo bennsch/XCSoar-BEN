@@ -11,6 +11,8 @@ namespace OpenGL {
 
 bool texture_non_power_of_two;
 
+unsigned max_texture_size;
+
 bool mapbuffer;
 
 GLenum render_buffer_depth_stencil, render_buffer_stencil;
@@ -25,8 +27,14 @@ PixelPoint translate;
 
 glm::mat4 projection_matrix;
 
+unsigned max_map_scale;
+
 #ifndef NDEBUG
+#ifdef _WIN32
+DWORD thread;
+#else
 pthread_t thread;
+#endif
 #endif
 
 } // namespace OpenGL

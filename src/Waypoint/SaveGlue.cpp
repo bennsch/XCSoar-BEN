@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright The XCSoar Project
 
+#include "DataFilePath.hpp"
 #include "WaypointGlue.hpp"
 #include "CupWriter.hpp"
 #include "LogFile.hpp"
+#include "lib/fmt/PathFormatter.hpp"
 #include "system/Path.hpp"
 #include "io/FileOutputStream.hxx"
 #include "io/BufferedOutputStream.hxx"
-#include "LocalPath.hpp"
+#include "Repository/FileType.hpp"
 
 void
 WaypointGlue::SaveWaypoints(const Waypoints &way_points)
 {
-  const auto path = LocalPath(_T("user.cup"));
+  const auto path = TypedDataSavePath(FileType::WAYPOINT, "user.cup");
 
   FileOutputStream file(path);
   BufferedOutputStream writer(file);
@@ -22,16 +24,20 @@ WaypointGlue::SaveWaypoints(const Waypoints &way_points)
   writer.Flush();
   file.Commit();
 
-  LogFormat(_T("Waypoint file '%s' saved"), path.c_str());
+  LogFmt("Waypoint file '{}' saved", path);
 }
 
 void
 WaypointGlue::SaveWaypoint(const Waypoint &wp)
 {
-  const auto path = LocalPath(_T("user.cup"));
+  const auto path = TypedDataSavePath(FileType::WAYPOINT, "user.cup");
 
   FileOutputStream file(path, FileOutputStream::Mode::APPEND_OR_CREATE);
   BufferedOutputStream writer(file);
+
+  /* write header when creating a new file */
+  if (file.Tell() == 0)
+    WriteCupHeader(writer);
 
   WriteCup(writer, wp);
 

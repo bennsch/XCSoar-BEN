@@ -21,9 +21,9 @@
 #include "Look/GestureLook.hpp"
 #include "Input/InputEvents.hpp"
 #include "Renderer/MapScaleRenderer.hpp"
-#include "Interface.hpp"
-#include "Units/Units.hpp"
-#include "Units/Descriptor.hpp"
+#include "Components.hpp"
+#include "BackendComponents.hpp"
+#include "Replay/Replay.hpp"
 
 #include <algorithm> // for std::clamp()
 
@@ -33,7 +33,7 @@ GlueMapWindow::DrawGesture(Canvas &canvas) const noexcept
   if (!gestures.HasPoints())
     return;
 
-  const TCHAR *gesture = gestures.GetGesture();
+  const char *gesture = gestures.GetGesture();
   if (gesture != nullptr && !InputEvents::IsGesture(gesture))
     canvas.Select(gesture_look.invalid_pen);
   else
@@ -113,8 +113,8 @@ GlueMapWindow::DrawPanInfo(Canvas &canvas) const noexcept
     TerrainHeight elevation = terrain->GetTerrainHeight(location);
     if (!elevation.IsSpecial()) {
       StaticString<64> elevation_long;
-      elevation_long = _("Elevation: ");
-      elevation_long += FormatUserAltitude(elevation.GetValue()).c_str();
+      elevation_long.Format("%s: %s", _("Elevation"),
+                            FormatUserAltitude(elevation.GetValue()).c_str());
 
       TextInBox(canvas, elevation_long, p, mode,
                 render_projection.GetScreenSize());
@@ -123,14 +123,14 @@ GlueMapWindow::DrawPanInfo(Canvas &canvas) const noexcept
     }
   }
 
-  TCHAR buffer[256];
-  FormatGeoPoint(location, buffer, ARRAY_SIZE(buffer), _T('\n'));
+  char buffer[256];
+  FormatGeoPoint(location, buffer, ARRAY_SIZE(buffer), '\n');
 
-  TCHAR *start = buffer;
+  char *start = buffer;
   while (true) {
-    auto *newline = StringFind(start, _T('\n'));
+    auto *newline = StringFind(start, '\n');
     if (newline != nullptr)
-      *newline = _T('\0');
+      *newline = '\0';
 
     TextInBox(canvas, start, p, mode, render_projection.GetScreenSize());
 
@@ -141,13 +141,33 @@ GlueMapWindow::DrawPanInfo(Canvas &canvas) const noexcept
 
     start = newline + 1;
   }
+
+  /* RASP field value at the panned location, analogous to the "map
+     items at this location" dialog. */
+  if (rasp_renderer && rasp_renderer->IsInside(location)) {
+    const char *label = rasp_renderer->GetLabel();
+    if (label != nullptr && *label != '\0') {
+      const auto value = FormatRaspValue(rasp_renderer->GetValueAt(location));
+
+      StaticString<128> rasp_line;
+      if (value.empty())
+        rasp_line = label;
+      else
+        rasp_line.Format("%s: %s", label, value.c_str());
+
+      TextInBox(canvas, rasp_line, p, mode,
+                render_projection.GetScreenSize());
+
+      p.y += height;
+    }
+  }
 }
 
 void
 GlueMapWindow::DrawGPSStatus(Canvas &canvas, const PixelRect &rc,
                              const NMEAInfo &info) const noexcept
 {
-  const TCHAR *txt;
+  const char *txt;
   const MaskedIcon *icon;
 
   if (!info.alive) {
@@ -160,18 +180,32 @@ GlueMapWindow::DrawGPSStatus(Canvas &canvas, const PixelRect &rc,
     // early exit
     return;
 
+  const Font &font = *look.overlay.overlay_font;
+  canvas.Select(font);
+
+  /* DrawMapScale paints the scale bar and the map-title line
+     (AUTO / Simulator / REPLAY / …) after this overlay.  Reserve that
+     band (and bottom_margin) so the GPS label sits above the title. */
+  const int scale_band = (int)font.GetCapitalHeight()
+    + (int)Layout::GetTextPadding();
+  const int title_band = (int)font.GetHeight()
+    + (int)Layout::GetTextPadding();
+  const int clear_bottom = rc.bottom - (int)bottom_margin
+    - scale_band - title_band - Layout::Scale(2);
+
+  const int row_height = std::max((int)icon->GetSize().height,
+                                  (int)font.GetHeight());
   PixelPoint p(rc.left + Layout::FastScale(2),
-               rc.bottom - Layout::FastScale(35));
+               clear_bottom - row_height);
   icon->Draw(canvas, p);
 
   p.x += icon->GetSize().width + Layout::FastScale(4);
-  p.y = rc.bottom - Layout::FastScale(34);
+  p.y = clear_bottom - (int)font.GetAscentHeight()
+    - ((row_height - (int)font.GetHeight()) / 2);
 
   TextInBoxMode mode;
   mode.shape = LabelShape::ROUNDED_BLACK;
 
-  const Font &font = *look.overlay.overlay_font;
-  canvas.Select(font);
   TextInBox(canvas, txt, p, mode, rc, nullptr);
 }
 
@@ -197,7 +231,7 @@ GlueMapWindow::DrawFlightMode(Canvas &canvas,
 
   bmp->Draw(canvas,
             PixelPoint(rc.right - offset,
-                       rc.bottom - bmp->GetSize().height - Layout::Scale(4)));
+                       rc.bottom - bottom_margin - bmp->GetSize().height - Layout::Scale(4)));
 
   // draw flarm status
   if (!GetMapSettings().show_flarm_alarm_level)
@@ -226,7 +260,7 @@ GlueMapWindow::DrawFlightMode(Canvas &canvas,
 
   bmp->Draw(canvas,
             PixelPoint(rc.right - offset,
-                       rc.bottom - bmp->GetSize().height - Layout::Scale(2)));
+                       rc.bottom - bottom_margin - bmp->GetSize().height - Layout::Scale(2)));
 }
 
 void
@@ -280,20 +314,35 @@ GlueMapWindow::SetBottomMargin(unsigned margin) noexcept
 }
 
 void
+GlueMapWindow::SetTopRightMargin(unsigned margin) noexcept
+{
+  if (margin == top_right_margin)
+    /* no change, don't redraw */
+    return;
+
+  top_right_margin = margin;
+  QuickRedraw();
+}
+
+void
 GlueMapWindow::SetBottomMarginFactor(unsigned margin_factor) noexcept
 {
+  if (follow_mode != FOLLOW_PAN || Layout::landscape) {
+    /* only apply bottom margin in portrait pan mode where
+       overlay buttons cover the bottom of the screen */
+    SetBottomMargin(0);
+    return;
+  }
+
   if (margin_factor == 0) {
     SetBottomMargin(0);
     return;
   }
 
-  PixelRect map_rect = GetClientRect();
+  PixelRect parent_rect = GetParentClientRect();
+  unsigned screen_height = parent_rect.GetHeight();
 
-  if (map_rect.GetHeight() > map_rect.GetWidth()) {
-    SetBottomMargin(map_rect.bottom / margin_factor);
-  } else {
-    SetBottomMargin(0);
-  }
+  SetBottomMargin(screen_height / margin_factor);
 }
 
 void
@@ -303,7 +352,14 @@ GlueMapWindow::DrawMapScale(Canvas &canvas, const PixelRect &rc,
 
   PixelRect scale_pos(rc.left, rc.top, rc.right, rc.bottom - bottom_margin);
 
-  RenderMapScale(canvas, projection, scale_pos, look.overlay);
+  unsigned contour_spacing_m = 0;
+  const auto &terrain = GetMapSettings().terrain;
+  if (projection.IsValid() &&
+      terrain.enable && terrain.contours != Contours::OFF &&
+      background.AreContoursVisible())
+    contour_spacing_m = background.GetContourSpacing();
+
+  RenderMapScale(canvas, projection, scale_pos, look.overlay, contour_spacing_m);
 
   if (!projection.IsValid())
     return;
@@ -313,39 +369,48 @@ GlueMapWindow::DrawMapScale(Canvas &canvas, const PixelRect &rc,
   buffer.clear();
 
   if (GetMapSettings().auto_zoom_enabled)
-    buffer = _T("AUTO ");
+    buffer = "AUTO ";
 
   switch (follow_mode) {
   case FOLLOW_SELF:
     break;
 
   case FOLLOW_PAN:
-    buffer += _T("PAN ");
+    buffer += "PAN ";
     break;
   }
 
   const UIState &ui_state = GetUIState();
-  if (ui_state.auxiliary_enabled) {
+  if (!ui_state.map_scale_page_title.empty()) {
+    buffer += ui_state.map_scale_page_title;
+    buffer += " ";
+  } else if (ui_state.auxiliary_enabled) {
     buffer += ui_state.panel_name;
-    buffer += _T(" ");
+    buffer += " ";
   }
 
-  if (Basic().gps.replay)
-    buffer += _T("REPLAY ");
-  else if (Basic().gps.simulator) {
+  if (Basic().gps.replay) {
+    if (backend_components != nullptr &&
+        backend_components->replay != nullptr)
+      buffer.AppendFormat(_("REPLAY %.0fx "),
+                          backend_components->replay->GetTimeScale());
+    else
+      buffer += _("REPLAY ");
+  } else if (Basic().gps.simulator) {
     buffer += _("Simulator");
-    buffer += _T(" ");
+    buffer += " ";
   }
 
   if (GetComputerSettings().polar.ballast_timer_active)
     buffer.AppendFormat(
-        _T("BALLAST %d LITERS "),
+        "BALLAST %d LITERS ",
         (int)GetComputerSettings().polar.glide_polar_task.GetBallastLitres());
 
-  if (rasp_renderer != nullptr) {
-    const TCHAR *label = rasp_renderer->GetLabel();
-    if (label != nullptr)
-      buffer += gettext(label);
+  if (rasp_renderer != nullptr &&
+      ui_state.page_overlay != PageLayout::Overlay::RASP) {
+    const auto label = rasp_renderer->GetExtendedLabel();
+    if (!label.empty())
+      buffer += label;
   }
 
   if (!buffer.empty()) {

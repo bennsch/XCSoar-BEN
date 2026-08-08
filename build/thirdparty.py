@@ -4,12 +4,14 @@ import os, os.path
 import re
 import sys
 
-if len(sys.argv) != 14:
-    print("Usage: build.py LIB_PATH HOST_TRIPLET TARGET_IS_IOS ARCH_CFLAGS CPPFLAGS ARCH_LDFLAGS CC CXX AR ARFLAGS RANLIB STRIP WINDRES", file=sys.stderr)
+if len(sys.argv) < 14 or len(sys.argv) > 15:
+    print("Usage: build.py LIB_PATH HOST_TRIPLET TARGET_IS_IOS ARCH_CFLAGS CPPFLAGS ARCH_LDFLAGS CC CXX AR ARFLAGS RANLIB STRIP WINDRES [ENABLE_SDL]", file=sys.stderr)
     sys.exit(1)
 
-lib_path, host_triplet, target_is_ios, arch_cflags, cppflags, arch_ldflags, cc, cxx, ar, arflags, ranlib, strip, windres = sys.argv[1:]
+lib_path, host_triplet, target_is_ios, arch_cflags, cppflags, arch_ldflags, cc, cxx, ar, arflags, ranlib, strip, windres = sys.argv[1:14]
+enable_sdl = sys.argv[14] if len(sys.argv) > 14 else ''
 target_is_ios = (target_is_ios == 'y') # convert to boolean
+enable_sdl = (enable_sdl == 'y') # convert to boolean
 
 # the path to the XCSoar sources
 xcsoar_path = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]) or '.', '..'))
@@ -37,6 +39,8 @@ toolchain = Toolchain(xcsoar_path, lib_path,
 # a list of third-party libraries to be used by XCSoar
 from build.libs import *
 
+geotiff_enabled = os.environ.get('GEOTIFF', 'n') == 'y'
+
 if toolchain.is_windows:
     thirdparty_libs = [
         zlib,
@@ -46,6 +50,16 @@ if toolchain.is_windows:
         curl,
         lua,
     ]
+
+    # Add SDL2, sqlite3, and their dependencies for OpenGL/ANGLE builds
+    if enable_sdl:
+        thirdparty_libs.extend([
+            sqlite3,
+            freetype,
+            libpng,
+            libjpeg,
+            sdl2,
+        ])
 
     # Some libraries (such as CURL) want to use the min()/max() macros
     toolchain.cppflags = cppflags.replace('-DNOMINMAX', '')
@@ -59,23 +73,27 @@ elif toolchain.is_darwin:
         zlib,
         libfmt,
         libsodium,
-        openssl,
         cares,
         curl,
         lua,
-        sqlite3,
-        proj,
-        libtiff,
-        libgeotiff,
         sdl2
     ]
+    if geotiff_enabled:
+        thirdparty_libs += [
+            sqlite3,
+            proj,
+            libtiff,
+            libgeotiff,
+        ]
 elif toolchain.is_android:
     thirdparty_libs = [
+        zlib,
         libfmt,
         libsodium,
         openssl,
         cares,
         curl,
+        libpng,
         lua,
         sqlite3,
         proj,

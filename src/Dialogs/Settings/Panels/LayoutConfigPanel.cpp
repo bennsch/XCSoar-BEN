@@ -13,10 +13,10 @@
 #include "Language/Language.hpp"
 #include "Widget/RowFormWidget.hpp"
 #include "UIGlobals.hpp"
-#include "UtilsSettings.hpp"
 #include "Asset.hpp"
 #include "Menu/ShowButton.hpp"
 #include "ActionInterface.hpp"
+#include "util/Macros.hpp"
 
 #ifdef ANDROID
 #include "Android/Main.hpp"
@@ -34,14 +34,17 @@ enum ControlIndex {
 #endif
   MapOrientation,
   DarkMode,
+  AppDisplayType,
   AppInfoBoxGeom,
   InfoBoxTitleScale,
   TabDialogStyle,
   AppStatusMessageAlignment,
   AppInfoBoxColors,
+  AppInfoBoxTheme,
   AppInfoBoxBorder,
   ShowMenuButton,
   ShowZoomButton,
+  ShowQuickMenuButton,
 #ifdef DRAW_MOUSE_CURSOR
   CursorSize,
   CursorInverted,
@@ -61,6 +64,22 @@ static constexpr StaticEnumChoice display_orientation_list[] = {
     N_("Reverse Landscape") },
   nullptr
 };
+
+static constexpr StaticEnumChoice display_type_list[] = {
+  { DisplayType::LCD, N_("LCD"),
+    N_("Conventional LCD or OLED. Full scrolling animations.") },
+  { DisplayType::E_INK, N_("E-ink"),
+    N_("Monochrome electronic paper. Disables kinetic and smooth "
+       "scrolling.") },
+  { DisplayType::COLOR_E_INK, N_("Color e-ink"),
+    N_("Color electronic paper. Disables kinetic and smooth "
+       "scrolling like monochrome e-ink.") },
+  nullptr
+};
+
+static_assert(ARRAY_SIZE(display_type_list) ==
+              unsigned(DisplayType::COUNT) + 1,
+              "display_type_list must match DisplayType::COUNT");
 
 static constexpr StaticEnumChoice info_box_geometry_list[] = {
   { InfoBoxSettings::Geometry::SPLIT_6,
@@ -148,13 +167,28 @@ static constexpr StaticEnumChoice dark_mode_list[] = {
   nullptr
 };
 
+static constexpr StaticEnumChoice infobox_theme_list[] = {
+  { InfoBoxSettings::Theme::FOLLOW_GLOBAL, N_("Follow global"),
+    N_("Use the same light/dark mode as the overall UI.") },
+  { InfoBoxSettings::Theme::LIGHT, N_("Light"),
+    N_("Always use dark text on a light InfoBox background.") },
+  { InfoBoxSettings::Theme::DARK, N_("Dark"),
+    N_("Always use light text on a dark InfoBox background.") },
+  nullptr
+};
+
 class LayoutConfigPanel final : public RowFormWidget {
+  /** Geometry when this panel was opened; restored if Settings is cancelled. */
+  InfoBoxSettings::Geometry original_geometry{};
+  bool saved = false;
+
 public:
   LayoutConfigPanel()
     :RowFormWidget(UIGlobals::GetDialogLook()) {}
 
-public:
   void Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept override;
+  void Unprepare() noexcept override;
+  bool Leave() noexcept override;
   bool Save(bool &changed) noexcept override;
 };
 
@@ -163,6 +197,9 @@ LayoutConfigPanel::Prepare(ContainerWindow &parent,
                            const PixelRect &rc) noexcept
 {
   const UISettings &ui_settings = CommonInterface::GetUISettings();
+
+  original_geometry = ui_settings.info_boxes.geometry;
+  saved = false;
 
   RowFormWidget::Prepare(parent, rc);
 
@@ -177,16 +214,27 @@ LayoutConfigPanel::Prepare(ContainerWindow &parent,
   else
     AddDummy();
 
+#ifndef KOBO
   AddEnum(_("Dark mode"), nullptr, dark_mode_list,
           (unsigned)ui_settings.dark_mode);
   SetExpertRow(DarkMode);
+#else
+  AddDummy();
+#endif
+
+  AddEnum(_("Display type"),
+          _("Select the display technology. E-ink modes disable kinetic "
+            "and smooth scrolling for slow refresh screens."),
+          display_type_list,
+          (unsigned)ui_settings.display.display_type);
+  SetExpertRow(AppDisplayType);
 
   AddEnum(_("InfoBox geometry"),
           _("A list of possible InfoBox layouts. Do some trials to find the best for your screen size."),
           info_box_geometry_list, (unsigned)ui_settings.info_boxes.geometry);
 
   AddInteger(_("InfoBox title size"), _("Zoom factor for InfoBox title and comment text"),
-             _T("%d %%"), _T("%d"), 50, 150, 5,
+             "%d %%", "%d", 50, 150, 5,
              ui_settings.info_boxes.scale_title_font);
   SetExpertRow(InfoBoxTitleScale);
 
@@ -207,6 +255,10 @@ LayoutConfigPanel::Prepare(ContainerWindow &parent,
   } else
     AddDummy();
 
+  AddEnum(_("InfoBox theme"), nullptr, infobox_theme_list,
+          (unsigned)ui_settings.info_boxes.theme);
+  SetExpertRow(AppInfoBoxTheme);
+
   AddEnum(_("InfoBox border"), nullptr, infobox_border_list,
           unsigned(ui_settings.info_boxes.border_style));
   SetExpertRow(AppInfoBoxBorder);
@@ -217,13 +269,36 @@ LayoutConfigPanel::Prepare(ContainerWindow &parent,
   AddBoolean(_("Show Zoom button"), _("Show the Zoom button"),
              ui_settings.show_zoom_button);
   SetExpertRow(ShowZoomButton);
+  AddBoolean(_("Show QuickMenu button"),
+             _("Show the QuickMenu button"),
+             ui_settings.show_quickmenu_button);
+  SetExpertRow(ShowQuickMenuButton);
 
 #ifdef DRAW_MOUSE_CURSOR
-  AddInteger(_("Cursor zoom"), _("Cursor zoom factor"), _T("%d x"), _T("%d x"), 1, 10, 1,
+  AddInteger(_("Cursor zoom"), _("Cursor zoom factor"), "%d x", "%d x", 1, 10, 1,
              (unsigned)ui_settings.display.cursor_size);
   AddBoolean(_("Invert cursor color"), _("Enable black cursor"),
              ui_settings.display.invert_cursor_colors);
 #endif
+}
+
+void
+LayoutConfigPanel::Unprepare() noexcept
+{
+  if (!saved)
+    CommonInterface::SetUISettings().info_boxes.geometry = original_geometry;
+
+  RowFormWidget::Unprepare();
+}
+
+bool
+LayoutConfigPanel::Leave() noexcept
+{
+  /* Switching to another settings page (still inside Configuration):
+     copy geometry so InfoBox Sets can read settings.geometry. */
+  SaveValueEnum(AppInfoBoxGeom,
+                CommonInterface::SetUISettings().info_boxes.geometry);
+  return true;
 }
 
 bool
@@ -232,6 +307,7 @@ LayoutConfigPanel::Save(bool &_changed) noexcept
   bool changed = false;
 
   UISettings &ui_settings = CommonInterface::SetUISettings();
+  saved = true;
 
 #ifdef ANDROID
   changed |= SaveValue(FullScreen, ProfileKeys::FullScreen,
@@ -248,11 +324,27 @@ LayoutConfigPanel::Save(bool &_changed) noexcept
     changed |= orientation_changed;
   }
 
+#ifndef KOBO
   changed |= SaveValueEnum(DarkMode, ProfileKeys::DarkMode,
                            ui_settings.dark_mode);
+#else
+  if (ui_settings.dark_mode != UISettings::DarkMode::OFF) {
+    ui_settings.dark_mode = UISettings::DarkMode::OFF;
+    changed = true;
+  }
+#endif
+
+  if (SaveValueEnum(AppDisplayType, ProfileKeys::DisplayType,
+                    ui_settings.display.display_type)) {
+    changed = true;
+    SetDisplayType(ui_settings.display.display_type);
+  }
 
   bool info_box_geometry_changed = false;
 
+  /* Leave() may already have synced the DataField into ui_settings;
+     re-base so SaveValueEnum still writes the profile when needed. */
+  ui_settings.info_boxes.geometry = original_geometry;
   info_box_geometry_changed |=
     SaveValueEnum(AppInfoBoxGeom, ProfileKeys::InfoBoxGeometry,
                   ui_settings.info_boxes.geometry);
@@ -265,18 +357,28 @@ LayoutConfigPanel::Save(bool &_changed) noexcept
   changed |= SaveValueEnum(AppStatusMessageAlignment, ProfileKeys::AppStatusMessageAlignment,
                            ui_settings.popup_message_position);
 
-  changed |= SaveValueEnum(AppInfoBoxBorder, ProfileKeys::AppInfoBoxBorder,
-                           ui_settings.info_boxes.border_style);
-
   if (HasColors())
     changed |= SaveValue(AppInfoBoxColors, ProfileKeys::AppInfoBoxColors,
                          ui_settings.info_boxes.use_colors);
 
-  if (SaveValue(ShowMenuButton, ProfileKeys::ShowMenuButton,ui_settings.show_menu_button))
-    require_restart = changed = true;
+  changed |= SaveValueEnum(AppInfoBoxTheme, ProfileKeys::AppInfoBoxTheme,
+                           ui_settings.info_boxes.theme);
+
+  changed |= SaveValueEnum(AppInfoBoxBorder, ProfileKeys::AppInfoBoxBorder,
+                           ui_settings.info_boxes.border_style);
+
+  bool overlay_buttons_changed = false;
+  if (SaveValue(ShowMenuButton, ProfileKeys::ShowMenuButton,
+                ui_settings.show_menu_button))
+    overlay_buttons_changed = changed = true;
   if (SaveValue(ShowZoomButton, ProfileKeys::ShowZoomButton,
-		ui_settings.show_zoom_button))
-    require_restart = changed = true;
+                ui_settings.show_zoom_button))
+    overlay_buttons_changed = changed = true;
+  if (SaveValue(ShowQuickMenuButton, ProfileKeys::ShowQuickMenuButton,
+                ui_settings.show_quickmenu_button))
+    overlay_buttons_changed = changed = true;
+  if (overlay_buttons_changed)
+    CommonInterface::main_window->ReinitialiseMapOverlayButtons();
 
   DialogSettings &dialog_settings = CommonInterface::SetUISettings().dialog;
   changed |= SaveValueEnum(TabDialogStyle, ProfileKeys::AppDialogTabStyle, dialog_settings.tab_style);
@@ -293,12 +395,8 @@ LayoutConfigPanel::Save(bool &_changed) noexcept
   if (orientation_changed) {
     assert(Display::RotateSupported());
 
-    if (ui_settings.display.orientation == DisplayOrientation::DEFAULT)
-      Display::RotateRestore();
-    else {
-      if (!Display::Rotate(ui_settings.display.orientation))
-        LogString("Display rotation failed");
-    }
+    if (!Display::Rotate(ui_settings.display.orientation))
+      LogString("Display rotation failed");
 
 #ifdef USE_POLL_EVENT
     UI::event_queue->SetDisplayOrientation(ui_settings.display.orientation);

@@ -14,6 +14,7 @@
 #include "system/FileUtil.hpp"
 #include "system/Path.hpp"
 #include "LocalPath.hpp"
+#include "Repository/FileType.hpp"
 #include "Profile/Profile.hpp"
 #include "Task/ProtectedTaskManager.hpp"
 #include "UIGlobals.hpp"
@@ -40,7 +41,7 @@ class PlaneListWidget final
     StaticString<32> name;
     AllocatedPath path;
 
-    ListItem(tstring_view _name, Path _path) noexcept
+    ListItem(std::string_view _name, Path _path) noexcept
       :name(_name), path(_path) {}
 
     bool operator<(const ListItem &i2) const noexcept {
@@ -56,14 +57,14 @@ class PlaneListWidget final
     PlaneFileVisitor(std::vector<ListItem> &_list) noexcept:list(_list) {}
 
     void Visit(Path path, Path filename) override {
-      tstring_view name{filename.c_str()};
-      RemoveSuffix(name, tstring_view{_T(".xcp")});
+      std::string_view name{filename.c_str()};
+      RemoveSuffix(name, std::string_view{".xcp"});
 
       list.emplace_back(name, path);
     }
   };
 
-  WndForm *form;
+  WidgetDialog *form;
   Button *edit_button, *copy_button, *delete_button, *load_button;
 
   std::vector<ListItem> list;
@@ -106,7 +107,7 @@ PlaneListWidget::UpdateList() noexcept
   list.clear();
 
   PlaneFileVisitor pfv(list);
-  VisitDataFiles(_T("*.xcp"), pfv);
+  VisitDataFiles(GetFileTypePatterns(FileType::PLANE), pfv);
 
   unsigned len = list.size();
 
@@ -122,6 +123,9 @@ PlaneListWidget::UpdateList() noexcept
   edit_button->SetEnabled(!empty);
   copy_button->SetEnabled(!empty);
   delete_button->SetEnabled(!empty);
+
+  if (form != nullptr)
+    form->ResyncButtonPanelSelection();
 }
 
 void
@@ -154,7 +158,7 @@ PlaneListWidget::OnPaintItem(Canvas &canvas, const PixelRect rc,
 
   if (Profile::GetPathIsEqual("PlanePath", list[i].path)) {
     StaticString<256> buffer;
-    buffer.Format(_T("%s - %s"), list[i].name.c_str(), _("Active"));
+    buffer.Format("%s - %s", list[i].name.c_str(), _("Active"));
     row_renderer.DrawFirstRow(canvas, rc, buffer);
   } else
     row_renderer.DrawFirstRow(canvas, rc, list[i].name);
@@ -178,6 +182,7 @@ LoadFile(Path path) noexcept
   PlaneGlue::Synchronize(settings.plane, settings,
                          settings.polar.glide_polar_task);
   backend_components->SetTaskPolar(settings.polar);
+  Profile::Save();
 
   return true;
 }
@@ -195,7 +200,7 @@ PlaneListWidget::LoadWithDialog(unsigned i) noexcept
 {
   bool result = Load(i);
   if (!result) {
-    const TCHAR *title = _("Error");
+    const char *title = _("Error");
     StaticString<256> text;
     text.Format(_("Activating plane \"%s\" failed."),
                 list[i].name.c_str());
@@ -225,9 +230,10 @@ PlaneListWidget::NewClicked() noexcept
     }
 
     StaticString<42> filename(plane.registration);
-    filename += _T(".xcp");
+    filename += ".xcp";
 
-    const auto path = LocalPath(filename);
+    const auto path = LocalPath(AllocatedPath::Build(
+      GetFileTypeDefaultDir(FileType::PLANE), filename));
 
     if (File::Exists(path)) {
       StaticString<256> tmp;
@@ -257,7 +263,7 @@ PlaneListWidget::EditClicked(bool copy) noexcept
 
   const unsigned index = GetList().GetCursorIndex();
   const Path old_path = list[index].path;
-  const TCHAR *old_filename = list[index].name;
+  const char *old_filename = list[index].name;
 
   Plane plane;
   PlaneGlue::ReadFile(plane, old_path);
@@ -270,7 +276,7 @@ PlaneListWidget::EditClicked(bool copy) noexcept
     }
 
     StaticString<42> filename(plane.registration);
-    filename += _T(".xcp");
+    filename += ".xcp";
 
     if (copy || filename != old_filename) {
       const auto path = AllocatedPath::Build(old_path.GetParent(),
@@ -345,7 +351,7 @@ PlaneListWidget::OnActivateItem(unsigned i) noexcept
   tmp.Format(_("Activate plane \"%s\"?"),
              list[i].name.c_str());
 
-  if (ShowMessageBox(tmp, _T(" "), MB_YESNO) == IDYES)
+  if (ShowMessageBox(tmp, " ", MB_YESNO) == IDYES)
     LoadWithDialog(i);
 }
 
@@ -359,6 +365,8 @@ dlgPlanesShowModal() noexcept
   dialog.SetWidget();
   dialog.GetWidget().CreateButtons(dialog);
   dialog.AddButton(_("Close"), mrOK);
+  /* Like Alternates: list cursor picks the plane; Left/Right arm an
+     action (New/Edit/…); Enter runs it. */
   dialog.EnableCursorSelection();
 
   dialog.ShowModal();

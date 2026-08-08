@@ -2,6 +2,8 @@
 // Copyright The XCSoar Project
 
 #include "util/UTF8.hpp"
+#include "util/StringUtil.hpp"
+#include "util/StaticString.hxx"
 #include "util/Macros.hpp"
 #include "TestUtil.hpp"
 
@@ -89,8 +91,6 @@ MyValidateUTF8(const char *p)
   }
 }
 
-#ifndef _UNICODE
-
 static constexpr struct {
   const char *src;
   size_t truncate, dest_size;
@@ -125,7 +125,130 @@ TestTruncateString()
   }
 }
 
-#endif
+/**
+ * Test that CopyString() never produces invalid UTF-8 when
+ * truncating.  Each test case specifies a source string, a
+ * destination buffer size, and the expected result after
+ * UTF-8-safe truncation.
+ */
+static constexpr struct {
+  const char *src;
+  size_t dest_size;
+  const char *expected_result;
+} copy_string_tests[] = {
+  /* no truncation needed */
+  { "", 10, "" },
+  { "abc", 10, "abc" },
+  { "abc", 4, "abc" },
+  { "\xc3\xbc", 3, "\xc3\xbc" },
+
+  /* ASCII truncation (no UTF-8 issue) */
+  { "abcd", 4, "abc" },
+  { "abcd", 2, "a" },
+  { "abcd", 1, "" },
+
+  /* 2-byte sequence: ü = \xc3\xbc */
+  { "foo\xc3\xbc", 6, "foo\xc3\xbc" }, /* fits exactly */
+  { "foo\xc3\xbc", 5, "foo" },          /* would cut after \xc3 → crop */
+  { "foo\xc3\xbc", 4, "foo" },          /* only room for "foo" */
+
+  /* 3-byte sequence: 目 = \xe7\x9b\xae */
+  { "foo\xe7\x9b\xae", 7, "foo\xe7\x9b\xae" }, /* fits exactly */
+  { "foo\xe7\x9b\xae", 6, "foo" },               /* cut after 2 of 3 → crop */
+  { "foo\xe7\x9b\xae", 5, "foo" },               /* cut after 1 of 3 → crop */
+  { "foo\xe7\x9b\xae", 4, "foo" },               /* only room for "foo" */
+
+  /* 4-byte emoji: 😀 = \xf0\x9f\x98\x80 */
+  { "a\xf0\x9f\x98\x80", 6, "a\xf0\x9f\x98\x80" }, /* fits */
+  { "a\xf0\x9f\x98\x80", 5, "a" },                   /* cut after 3 of 4 */
+  { "a\xf0\x9f\x98\x80", 4, "a" },                   /* cut after 2 of 4 */
+  { "a\xf0\x9f\x98\x80", 3, "a" },                   /* cut after 1 of 4 */
+
+  /* multiple multi-byte characters */
+  { "\xc3\xa4\xc3\xb6\xc3\xbc", 7, "\xc3\xa4\xc3\xb6\xc3\xbc" },
+  { "\xc3\xa4\xc3\xb6\xc3\xbc", 6, "\xc3\xa4\xc3\xb6" },  /* cut in 3rd ü */
+  { "\xc3\xa4\xc3\xb6\xc3\xbc", 4, "\xc3\xa4" },            /* cut in 2nd ö */
+};
+
+static void
+TestCopyString()
+{
+  for (const auto &t : copy_string_tests) {
+    char buffer[64];
+    CopyString(buffer, t.dest_size, t.src);
+    if (!ok1(strcmp(buffer, t.expected_result) == 0))
+      diag("CopyString(\"%s\", %zu) = \"%s\", expected \"%s\"",
+           t.src, t.dest_size, buffer, t.expected_result);
+    /* result must always be valid UTF-8 */
+    ok1(ValidateUTF8(buffer));
+  }
+}
+
+/**
+ * Test that StaticString::Format / AppendFormat never leave an
+ * incomplete UTF-8 sequence after snprintf truncation.  This is the
+ * map-item list crash path (WaypointListRenderer packs long CUP
+ * comments into StaticString<256>).
+ */
+static void
+TestStaticStringFormat()
+{
+  /* ü = \xc3\xbc — capacity 5 fits "foo" + leading \xc3 only */
+  {
+    StaticString<5> s;
+    s.Format("foo%s", "\xc3\xbc");
+    ok1(strcmp(s.c_str(), "foo") == 0);
+    ok1(ValidateUTF8(s.c_str()));
+  }
+
+  /* AppendFormat: "xx" + "fooü" into capacity 7 → append avail 5
+     truncates after \xc3, then crop */
+  {
+    StaticString<7> s;
+    s.Format("%s", "xx");
+    s.AppendFormat("%s", "foo\xc3\xbc");
+    ok1(strcmp(s.c_str(), "xxfoo") == 0);
+    ok1(ValidateUTF8(s.c_str()));
+  }
+
+  /* 3-byte 目 truncated mid-sequence */
+  {
+    StaticString<6> s;
+    s.Format("foo%s", "\xe7\x9b\xae");
+    ok1(strcmp(s.c_str(), "foo") == 0);
+    ok1(ValidateUTF8(s.c_str()));
+  }
+}
+
+static void
+TestSuffixUTF8()
+{
+  struct {
+    const char *src;
+    std::size_t tail_chars;
+    const char *expected;
+  } cases[] = {
+    { "", 2, "" },
+    { "A", 2, "A" },
+    { "AB", 2, "AB" },
+    { "ABC", 2, "BC" },
+    { "\xc3\x84\x42", 2, "\xc3\x84\x42" },
+    { "\x41\xc3\x84\x42", 2, "\xc3\x84\x42" },
+    { "\x41\xc3\x84\xc3\x96", 2, "\xc3\x84\xc3\x96" },
+  };
+
+  for (const auto &c : cases) {
+    const std::string_view suffix = SuffixUTF8(c.src, c.tail_chars);
+    ok1(suffix == c.expected);
+    ok1(ValidateUTF8(suffix));
+  }
+
+  const std::string_view bounded = std::string_view("XABCY").substr(1, 3);
+  const std::string_view bounded_suffix = SuffixUTF8(bounded, 2);
+  ok1(bounded_suffix == "BC");
+  ok1(bounded_suffix.size() == 2);
+  ok1(ValidateUTF8(bounded_suffix));
+}
 
 int main()
 {
@@ -134,10 +257,11 @@ int main()
              2 * ARRAY_SIZE(length) +
              ARRAY_SIZE(latin1_chars) +
              4 * ARRAY_SIZE(crop) +
-#ifndef _UNICODE
              ARRAY_SIZE(truncate_string_tests) +
-#endif
-             10 + 27);
+             2 * ARRAY_SIZE(copy_string_tests) +
+             2 * 7 + 3 +
+             10 + 27 +
+             6);
 
   for (auto i : valid) {
     ok1(ValidateUTF8(i));
@@ -170,9 +294,10 @@ int main()
     ok1(end == buffer + strlen(buffer));
   }
 
-#ifndef _UNICODE
   TestTruncateString();
-#endif
+  TestCopyString();
+  TestStaticStringFormat();
+  TestSuffixUTF8();
 
   /* test NextUTF8() */
   {

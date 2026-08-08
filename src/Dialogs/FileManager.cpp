@@ -2,6 +2,7 @@
 // Copyright The XCSoar Project
 
 #include "FileManager.hpp"
+#include "EmptyDownloadList.hpp"
 #include "WidgetDialog.hpp"
 #include "Message.hpp"
 #include "UIGlobals.hpp"
@@ -13,15 +14,12 @@
 #include "LocalPath.hpp"
 #include "system/FileUtil.hpp"
 #include "system/Path.hpp"
-#include "io/FileLineReader.hpp"
 #include "Formatter/ByteSizeFormatter.hpp"
 #include "Formatter/TimeFormatter.hpp"
 #include "time/BrokenDateTime.hpp"
 #include "net/http/Features.hpp"
-#include "util/ConvertString.hpp"
 #include "util/Macros.hpp"
 #include "Repository/FileRepository.hpp"
-#include "Repository/Parser.hpp"
 
 #ifdef HAVE_DOWNLOAD_MANAGER
 #include "Repository/Glue.hpp"
@@ -39,14 +37,28 @@
 
 #include <cassert>
 
+using std::string_view_literals::operator""sv;
+
+[[gnu::pure]]
 static AllocatedPath
-LocalPath(const AvailableFile &file)
+LocalPathByType(const char *name, FileType type)
 {
-  const UTF8ToWideConverter base(file.GetName());
-  if (!base.IsValid())
+  if (name == nullptr)
     return nullptr;
 
-  return LocalPath(base);
+  const AllocatedPath subdir = GetFileTypeDefaultDir(type);
+  const AllocatedPath path = (subdir == nullptr) ?
+                                    AllocatedPath(name) :
+                                    AllocatedPath::Build(subdir, Path(name));
+  return LocalPath(path);
+}
+
+static AllocatedPath
+LocalPathByType(const AvailableFile &file)
+{
+  const char *name = file.GetName();
+
+  return LocalPathByType(name, file.type);
 }
 
 #ifdef HAVE_DOWNLOAD_MANAGER
@@ -58,40 +70,21 @@ FindRemoteFile(const FileRepository &repository, const char *name)
   return repository.FindByName(name);
 }
 
-#ifdef _UNICODE
-[[gnu::pure]]
-static const AvailableFile *
-FindRemoteFile(const FileRepository &repository, const TCHAR *name)
-{
-  const WideToUTF8Converter name2(name);
-  if (!name2.IsValid())
-    return nullptr;
-
-  return FindRemoteFile(repository, name2);
-}
-#endif
-
 [[gnu::pure]]
 static bool
-CanDownload(const FileRepository &repository, const TCHAR *name)
+CanDownload(const FileRepository &repository, const char *name)
 {
   return FindRemoteFile(repository, name) != nullptr;
 }
 
 static bool
-UpdateAvailable(const FileRepository &repository, const TCHAR *name)
+UpdateAvailable(const FileRepository &repository, const char *name)
 {
   const AvailableFile *remote_file = FindRemoteFile(repository, name);
-
   if (remote_file == nullptr)
     return false;
 
-  BrokenDate remote_changed = remote_file->update_date;
-
-  const auto path = LocalPath(name);
-  BrokenDate local_changed = BrokenDateTime{File::GetLastModification(path)};
-
-  return local_changed < remote_changed;
+  return IsRemoteFileOutOfDate(*remote_file);
 }
 #endif
 
@@ -109,16 +102,18 @@ class ManagedFileListWidget
     StaticString<64u> name;
     StaticString<32u> size;
     StaticString<32u> last_modified;
+    FileType type = FileType::UNKNOWN;
 
     bool downloading, failed, out_of_date;
 
     DownloadStatus download_status;
 
-    void Set(const TCHAR *_name, const DownloadStatus *_download_status,
+    void Set(const char *_name, FileType _type, const DownloadStatus *_download_status,
              bool _failed, bool _out_of_date) {
       name = _name;
+      type = _type;
 
-      const auto path = LocalPath(name);
+      const auto path = LocalPathByType(name, type);
 
       if (File::Exists(path)) {
         FormatByteSize(size.buffer(), size.capacity(),
@@ -200,6 +195,7 @@ protected:
     const std::lock_guard lock{mutex};
     return downloads.find(name) != downloads.end();
 #else
+    (void)name;
     return false;
 #endif
   }
@@ -220,6 +216,8 @@ protected:
     status_r = i->second;
     return true;
 #else
+    (void)name;
+    (void)status_r;
     return false;
 #endif
   }
@@ -235,6 +233,7 @@ protected:
     const std::lock_guard lock{mutex};
     return failures.find(name) != failures.end();
 #else
+    (void)name;
     return false;
 #endif
   }
@@ -245,7 +244,7 @@ protected:
   }
 
   [[gnu::pure]]
-  int FindItem(const TCHAR *name) const noexcept;
+  int FindItem(const char *name) const noexcept;
 
   void LoadRepositoryFile();
   void RefreshList();
@@ -256,6 +255,10 @@ protected:
   void Cancel();
   void UpdateFiles();
 
+#ifdef HAVE_DOWNLOAD_MANAGER
+  void DownloadRemoteFile(const AvailableFile &remote_file);
+#endif
+
 public:
   /* virtual methods from class Widget */
   void Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept override;
@@ -264,7 +267,19 @@ public:
   /* virtual methods from class List::Handler */
   void OnPaintItem(Canvas &canvas, const PixelRect rc,
                    unsigned idx) noexcept override;
+  unsigned OnListResized() noexcept override;
   void OnCursorMoved(unsigned index) noexcept override;
+
+  /* virtual methods from ListCursorHandler */
+  bool CanActivateItem(unsigned index) const noexcept override {
+#ifdef HAVE_DOWNLOAD_MANAGER
+    if (items.empty())
+      return Net::DownloadManager::IsAvailable() && index == 0;
+#endif
+    return index < items.size();
+  }
+
+  void OnActivateItem(unsigned index) noexcept override;
 
 #ifdef HAVE_DOWNLOAD_MANAGER
   void OnTimer();
@@ -314,7 +329,7 @@ ManagedFileListWidget::Unprepare() noexcept
 }
 
 int
-ManagedFileListWidget::FindItem(const TCHAR *name) const noexcept
+ManagedFileListWidget::FindItem(const char *name) const noexcept
 {
   for (auto i = items.begin(), end = items.end(); i != end; ++i)
     if (StringIsEqual(i->name, name))
@@ -325,7 +340,7 @@ ManagedFileListWidget::FindItem(const TCHAR *name) const noexcept
 
 void
 ManagedFileListWidget::LoadRepositoryFile()
-try {
+{
 #ifdef HAVE_DOWNLOAD_MANAGER
   {
     const std::lock_guard lock{mutex};
@@ -335,11 +350,7 @@ try {
 #endif
 
   repository.Clear();
-
-  const auto path = LocalPath(_T("repository"));
-  FileLineReaderA reader(path);
-  ParseFileRepository(repository, reader);
-} catch (const std::runtime_error &e) {
+  LoadAllRepositories(repository);
 }
 
 void
@@ -347,20 +358,26 @@ ManagedFileListWidget::RefreshList()
 {
   items.clear();
 
+#ifdef HAVE_DOWNLOAD_MANAGER
   some_out_of_date = false;
+#endif
 
+#ifdef HAVE_DOWNLOAD_MANAGER
   bool download_active = false;
+#endif
   for (auto i = repository.begin(), end = repository.end(); i != end; ++i) {
     const auto &remote_file = *i;
     DownloadStatus download_status;
     const bool is_downloading = IsDownloading(remote_file, download_status);
 
-    const auto path = LocalPath(remote_file);
+    const AllocatedPath path = LocalPathByType(remote_file);
+
     const bool file_exists = File::Exists(path);
 
-    if (path != nullptr &&
-        (is_downloading || file_exists)) {
+    if (path != nullptr && (is_downloading || file_exists)) {
+#ifdef HAVE_DOWNLOAD_MANAGER
       download_active |= is_downloading;
+#endif
 
       const Path base = path.GetBase();
       if (base == nullptr)
@@ -371,18 +388,25 @@ ManagedFileListWidget::RefreshList()
         BrokenDate local_changed = BrokenDateTime{File::GetLastModification(path)};
         is_out_of_date = (local_changed < remote_file.update_date);
 
+#ifdef HAVE_DOWNLOAD_MANAGER
         if (is_out_of_date)
           some_out_of_date = true;
+#endif
       }
 
-      items.append().Set(base.c_str(),
+      items.append().Set(base.c_str(), i->type,
                          is_downloading ? &download_status : nullptr,
                          HasFailed(remote_file), is_out_of_date);
     }
   }
 
   ListControl &list = GetList();
+#ifdef HAVE_DOWNLOAD_MANAGER
+  list.SetLength(items.empty() && Net::DownloadManager::IsAvailable()
+                 ? size_t{1} : items.size());
+#else
   list.SetLength(items.size());
+#endif
   list.Invalidate();
 
 #ifdef HAVE_DOWNLOAD_MANAGER
@@ -403,6 +427,8 @@ ManagedFileListWidget::CreateButtons(WidgetDialog &dialog) noexcept
       UpdateFiles();
     });
   }
+#else
+  (void)dialog;
 #endif
 }
 
@@ -411,13 +437,32 @@ ManagedFileListWidget::UpdateButtons()
 {
 #ifdef HAVE_DOWNLOAD_MANAGER
   if (Net::DownloadManager::IsAvailable()) {
+    if (items.empty()) {
+      download_button->SetEnabled(false);
+      cancel_button->SetEnabled(false);
+      update_button->SetEnabled(false);
+      return;
+    }
+
     const unsigned current = GetList().GetCursorIndex();
 
-    download_button->SetEnabled(!items.empty() &&
-                                CanDownload(repository, items[current].name));
-    cancel_button->SetEnabled(!items.empty() && items[current].downloading);
-    update_button->SetEnabled(!items.empty() && some_out_of_date);
+    download_button->SetEnabled(CanDownload(repository, items[current].name));
+    cancel_button->SetEnabled(items[current].downloading);
+    update_button->SetEnabled(some_out_of_date);
   }
+#endif
+}
+
+void
+ManagedFileListWidget::OnActivateItem(unsigned index) noexcept
+{
+#ifdef HAVE_DOWNLOAD_MANAGER
+  if (items.empty()) {
+    assert(index == 0);
+    Add();
+  }
+#else
+  (void)index;
 #endif
 }
 
@@ -425,6 +470,14 @@ void
 ManagedFileListWidget::OnPaintItem(Canvas &canvas, const PixelRect rc,
                                    unsigned i) noexcept
 {
+#ifdef HAVE_DOWNLOAD_MANAGER
+  if (items.empty() && Net::DownloadManager::IsAvailable()) {
+    assert(i == 0);
+    DrawEmptyDownloadHint(row_renderer, canvas, rc);
+    return;
+  }
+#endif
+
   const FileItem &file = items[i];
 
   row_renderer.DrawFirstRow(canvas, rc, file.name.c_str());
@@ -434,18 +487,19 @@ ManagedFileListWidget::OnPaintItem(Canvas &canvas, const PixelRect rc,
     if (file.download_status.position < 0) {
       text = _("Queued");
     } else if (file.download_status.size > 0) {
-      text.Format(_T("%s (%u%%)"), _("Downloading"),
+      text.Format("%s (%u%%)", _("Downloading"),
                     unsigned(file.download_status.position * 100
                              / file.download_status.size));
     } else {
-      TCHAR size[32];
-      FormatByteSize(size, ARRAY_SIZE(size), file.download_status.position);
-      text.Format(_T("%s (%s)"), _("Downloading"), size);
+      char size[32];
+      FormatByteSize(size, ARRAY_SIZE(size),
+             static_cast<uint64_t>(file.download_status.position));
+      text.Format("%s (%s)", _("Downloading"), size);
     }
 
     row_renderer.DrawRightFirstRow(canvas, rc, text);
   } else if (file.failed) {
-    const TCHAR *text = _("Error");
+    const char *text = _("Error");
     row_renderer.DrawRightFirstRow(canvas, rc, text);
   }
 
@@ -456,6 +510,14 @@ ManagedFileListWidget::OnPaintItem(Canvas &canvas, const PixelRect rc,
   } else {
     row_renderer.DrawRightSecondRow(canvas, rc, file.last_modified.c_str());
   }
+}
+
+unsigned
+ManagedFileListWidget::OnListResized() noexcept
+{
+  const DialogLook &look = UIGlobals::GetDialogLook();
+  return row_renderer.CalculateLayout(*look.list.font_bold,
+                                      look.small_font);
 }
 
 void
@@ -482,28 +544,38 @@ ManagedFileListWidget::Download()
     return;
 
   const AvailableFile &remote_file = *remote_file_p;
-  const UTF8ToWideConverter base(remote_file.GetName());
-  if (!base.IsValid())
-    return;
-
-  Net::DownloadManager::Enqueue(remote_file.uri.c_str(), Path(base));
+  DownloadRemoteFile(remote_file);
 #endif
 }
 
 #ifdef HAVE_DOWNLOAD_MANAGER
 
+void
+ManagedFileListWidget::DownloadRemoteFile(const AvailableFile &remote_file)
+{
+  assert(Net::DownloadManager::IsAvailable());
+  EnqueueRemoteFileDownload(remote_file);
+}
+
+
 class AddFileListItemRenderer final : public ListItemRenderer {
   const std::vector<AvailableFile> &list;
+  const DialogLook &look;
 
   TwoTextRowsRenderer row_renderer;
 
 public:
-  explicit AddFileListItemRenderer(const std::vector<AvailableFile> &_list)
-    :list(_list) {}
+  AddFileListItemRenderer(const std::vector<AvailableFile> &_list,
+                          const DialogLook &_look)
+    :list(_list), look(_look) {}
 
-  unsigned CalculateLayout(const DialogLook &look) {
+  unsigned CalculateLayout() noexcept {
     return row_renderer.CalculateLayout(*look.list.font_bold,
-                                          look.small_font);
+                                        look.small_font);
+  }
+
+  unsigned OnListResized() noexcept override {
+    return CalculateLayout();
   }
 
   void OnPaintItem(Canvas &canvas, const PixelRect rc, unsigned i) noexcept override;
@@ -517,16 +589,14 @@ AddFileListItemRenderer::OnPaintItem(Canvas &canvas, const PixelRect rc,
 
   const AvailableFile &file = list[i];
 
-  const UTF8ToWideConverter name(file.GetName());
-  if (name.IsValid())
-    row_renderer.DrawFirstRow(canvas, rc, name);
+  if (file.GetName())
+    row_renderer.DrawFirstRow(canvas, rc, file.GetName());
 
-  const UTF8ToWideConverter description(file.GetDescription());
-  if (description.IsValid())
-    row_renderer.DrawSecondRow(canvas, rc, description);
+  if (file.GetDescription())
+    row_renderer.DrawSecondRow(canvas, rc, file.GetDescription());
 
   if (file.update_date.IsPlausible()) {
-    TCHAR string_buffer[21];
+    char string_buffer[21];
     FormatISO8601(string_buffer, file.update_date);
     row_renderer.DrawRightSecondRow(canvas, rc, string_buffer);
   }
@@ -540,27 +610,34 @@ ManagedFileListWidget::Add()
 #ifdef HAVE_DOWNLOAD_MANAGER
   assert(Net::DownloadManager::IsAvailable());
 
+  const DialogLook &look = UIGlobals::GetDialogLook();
+
   std::vector<AvailableFile> list;
   for (const auto &remote_file : repository) {
+    std::string_view name = remote_file.GetName();
     if (IsDownloading(remote_file.GetName()))
       /* already downloading this file */
       continue;
 
-    const UTF8ToWideConverter name(remote_file.GetName());
-    if (!name.IsValid())
+    if (name.empty())
       continue;
 
-    if (FindItem(name) < 0)
+    if (FindItem(name.data()) < 0)
       list.push_back(remote_file);
   }
 
-  if (list.empty())
+  if (list.empty()) {
+    /* Empty File Manager with no index yet: retry repository download
+       (same as DownloadFilePicker's empty-list activate). */
+    if (repository.begin() == repository.end())
+      EnqueueRepositoryDownload(true);
     return;
+  }
 
-  AddFileListItemRenderer item_renderer(list);
+  AddFileListItemRenderer item_renderer(list, look);
   int i = ListPicker(_("Select a file"),
                      list.size(), 0,
-                     item_renderer.CalculateLayout(UIGlobals::GetDialogLook()),
+                     item_renderer.CalculateLayout(),
                      item_renderer);
   if (i < 0)
     return;
@@ -568,11 +645,8 @@ ManagedFileListWidget::Add()
   assert((unsigned)i < list.size());
 
   const AvailableFile &remote_file = list[i];
-  const UTF8ToWideConverter base(remote_file.GetName());
-  if (!base.IsValid())
-    return;
 
-  Net::DownloadManager::Enqueue(remote_file.GetURI(), Path(base));
+  DownloadRemoteFile(remote_file);
 #endif
 }
 
@@ -586,11 +660,12 @@ ManagedFileListWidget::UpdateFiles() {
       const AvailableFile *remote_file = FindRemoteFile(repository, file.name);
 
       if (remote_file != nullptr) {
-        const UTF8ToWideConverter base(remote_file->GetName());
-        if (!base.IsValid())
-          return;
+        const auto relative_path = GetFileDownloadRelativePath(*remote_file);
+        if (relative_path == nullptr)
+          continue;
 
-        Net::DownloadManager::Enqueue(remote_file->GetURI(), Path(base));
+        Net::DownloadManager::Enqueue(remote_file->GetURI(),
+                                      Path(relative_path.c_str()));
       }
     }
   }
@@ -610,6 +685,15 @@ ManagedFileListWidget::Cancel()
   assert(current < items.size());
 
   const FileItem &item = items[current];
+  const AvailableFile *remote_file = FindRemoteFile(repository, item.name);
+  if (remote_file != nullptr) {
+    if (const auto relative_path = GetFileDownloadRelativePath(*remote_file);
+        relative_path != nullptr) {
+      Net::DownloadManager::Cancel(relative_path);
+      return;
+    }
+  }
+
   Net::DownloadManager::Cancel(Path(item.name));
 #endif
 }
@@ -639,19 +723,13 @@ ManagedFileListWidget::OnDownloadAdded(Path path_relative,
                                        int64_t size, int64_t position) noexcept
 {
   const auto name = path_relative.GetBase();
-  if (name == nullptr)
+  if (name == nullptr || name.empty())
     return;
-
-  const WideToUTF8Converter name2(name.c_str());
-  if (!name2.IsValid())
-    return;
-
-  const std::string name3(name2);
 
   {
     const std::lock_guard lock{mutex};
-    downloads[name3] = DownloadStatus{size, position};
-    failures.erase(name3);
+    downloads[name.c_str()] = DownloadStatus{size, position};
+    failures.erase(name.c_str());
   }
 
   download_notify.SendNotification();
@@ -661,22 +739,18 @@ void
 ManagedFileListWidget::OnDownloadComplete(Path path_relative) noexcept
 {
   const auto name = path_relative.GetBase();
-  if (name == nullptr)
+  if (name == nullptr || name.empty())
     return;
-
-  const WideToUTF8Converter name2(name.c_str());
-  if (!name2.IsValid())
-    return;
-
-  const std::string name3(name2);
 
   {
     const std::lock_guard lock{mutex};
 
-    downloads.erase(name3);
+    downloads.erase(name.c_str());
 
-    if (StringIsEqual(name2, "repository")) {
+    if (name.c_str() == "repository"sv) {
       repository_failed = false;
+      repository_modified = true;
+    } else if (IsUserRepositoryFile(name.c_str())) {
       repository_modified = true;
     }
   }
@@ -689,25 +763,19 @@ ManagedFileListWidget::OnDownloadError(Path path_relative,
                                        [[maybe_unused]] std::exception_ptr error) noexcept
 {
   const auto name = path_relative.GetBase();
-  if (name == nullptr)
+  if (name == nullptr || name.empty())
     return;
-
-  const WideToUTF8Converter name2(name.c_str());
-  if (!name2.IsValid())
-    return;
-
-  const std::string name3(name2);
 
   {
     const std::lock_guard lock{mutex};
 
-    downloads.erase(name3);
+    downloads.erase(name.c_str());
 
     // TODO: store the error
-    if (StringIsEqual(name2, "repository")) {
+    if (name.c_str() == "repository"sv) {
       repository_failed = true;
     } else
-      failures.insert(name3);
+      failures.insert(name.c_str());
   }
 
   download_notify.SendNotification();
@@ -763,7 +831,7 @@ ShowFileManager()
   }
 #endif
 
-  const TCHAR *message =
+  const char *message =
     _("The file manager is not available on this device.");
 
   ShowMessageBox(message, _("File Manager"), MB_OK);

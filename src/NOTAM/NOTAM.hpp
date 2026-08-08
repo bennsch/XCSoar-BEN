@@ -1,0 +1,112 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright The XCSoar Project
+
+#pragma once
+
+#include "Engine/Airspace/AirspaceAltitude.hpp"
+#include "Geo/GeoPoint.hpp"
+#include <chrono>
+#include <vector>
+#include <string>
+
+namespace NOTAMAltitude {
+
+/**
+ * Sentinel for an unset/invalid resolved altitude in parsed NOTAM limits.
+ *
+ * Special NOTAM concepts such as surface/GND/AGL and unlimited are carried by
+ * the boundary reference/type information or by later fallback handling, not
+ * by treating this negative value as a real aviation altitude.
+ */
+constexpr double INVALID_ALTITUDE = -1.0;
+
+} // namespace NOTAMAltitude
+
+/**
+ * Represents a single NOTAM (Notice to Airmen)
+ */
+struct NOTAM {
+  /** NOTAM unique identifier */
+  std::string id;
+
+  /** Timestamp of last update (ISO8601 string from API)
+  * Kept as ISO8601 string since it serves as a unique
+  * identifier for delta updates */
+  std::string last_updated;
+  
+  /** NOTAM number (e.g., A1234/24) */
+  std::string number;
+  
+  /** NOTAM series (e.g., F, M, B, W) */
+  std::string series;
+  
+  /** NOTAM type (R=Replace, N=New, C=Cancel) */
+  std::string type;
+  
+  /** Detailed NOTAM text */
+  std::string text;
+  
+  /** Start time of the NOTAM validity */
+  std::chrono::system_clock::time_point start_time;
+  
+  /** End time of the NOTAM validity */
+  std::chrono::system_clock::time_point end_time;
+
+  /** Whether the API specified a permanent ("PERM") end time. */
+  bool end_time_permanent = false;
+  
+  /** Geographic area affected by the NOTAM */
+  struct NOTAMGeometry {
+    enum class Type {
+      POINT,
+      CIRCLE,
+      POLYGON,
+      COUNT
+    } type = Type::POINT;
+    
+    /** Point center for POINT/CIRCLE; representative center for POLYGON. */
+    GeoPoint center;
+
+    /** Circle radius, or representative POLYGON extent for filtering/rendering. */
+    double radius_meters = 0.0;
+
+    /** Original polygon vertices for reconstructing exact geometry. */
+    std::vector<GeoPoint> polygon_points;
+  } geometry;
+  
+  /** Lower altitude limit; negative altitude means unset/invalid sentinel. */
+  AirspaceAltitude lower_altitude;
+  
+  /** Upper altitude limit; negative altitude means unset/invalid sentinel. */
+  AirspaceAltitude upper_altitude;
+  
+  /** NOTAM classification/type */
+  std::string classification;
+  
+  /** Feature type (e.g., AIRSPACE, OBST, NAV, COM, MILITARY) */
+  std::string feature_type;
+  
+  /** Minimum flight level (000-999) */
+  std::string minimum_fl;
+  
+  /** Maximum flight level (000-999) */
+  std::string maximum_fl;
+  
+  /** Source of the NOTAM */
+  std::string source;
+  
+  /** ICAO location code (e.g., EDGG) */
+  std::string location;
+  
+  /** Traffic type: I=IFR only, V=VFR only, IV=IFR and VFR */
+  std::string traffic;
+  
+  /**
+   * Check if this NOTAM is currently active
+   */
+  bool IsActive(std::chrono::system_clock::time_point now) const noexcept {
+    return now >= start_time &&
+      (end_time_permanent || now <= end_time);
+  }
+  
+};

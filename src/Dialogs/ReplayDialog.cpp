@@ -10,6 +10,8 @@
 #include "Replay/Replay.hpp"
 #include "Form/DataField/Base.hpp"
 #include "Language/Language.hpp"
+#include "Repository/FileType.hpp"
+#include "Form/DataField/File.hpp"
 
 class ReplayControlWidget final
   : public RowFormWidget
@@ -28,7 +30,7 @@ public:
   void CreateButtons(WidgetDialog &dialog) noexcept {
     dialog.AddButton(_("Start"), [this](){ OnStartClicked(); });
     dialog.AddButton(_("Stop"), [this](){ OnStopClicked(); });
-    dialog.AddButton(_T("+10'"), [this](){ OnFastForwardClicked(); });
+    dialog.AddButton("+10'", [this](){ OnFastForwardClicked(); });
   }
 
 private:
@@ -49,13 +51,14 @@ ReplayControlWidget::Prepare([[maybe_unused]] ContainerWindow &parent,
   AddFile(_("File"),
           _("Name of file to replay. May be an IGC file (.igc) or a raw NMEA log file (.nmea). Leave blank to run the demo."),
           {},
-          _T("*.nmea\0*.igc\0"),
+          {FileType::NMEA, FileType::IGC},
           true);
   LoadValue(FILE, replay.GetFilename());
+  GetFileDataField(FILE).Sort(FileDataField::SortOrder::DESCENDING, true);
 
   AddFloat(_("Rate"),
            _("Time acceleration of replay. Set to 0 for pause, 1 for normal real-time replay."),
-           _T("%.0f x"), _T("%.0f"),
+           "%.0f x", "%.0f",
            0, 10, 1, false, replay.GetTimeScale());
   GetDataField(RATE).SetOnModified([this]{
     replay.SetTimeScale(GetValueFloat(RATE));

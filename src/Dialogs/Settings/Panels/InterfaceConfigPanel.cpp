@@ -7,6 +7,7 @@
 #include "Form/DataField/Enum.hpp"
 #include "Dialogs/Dialogs.h"
 #include "util/StringCompare.hxx"
+#include "util/StaticString.hxx"
 #include "Interface.hpp"
 #include "Language/Table.hpp"
 #include "Asset.hpp"
@@ -17,6 +18,8 @@
 #include "Language/Language.hpp"
 #include "UIGlobals.hpp"
 #include "Hardware/Vibrator.hpp"
+#include "Repository/FileType.hpp"
+#include "Version.hpp"
 
 using namespace std::chrono;
 
@@ -29,7 +32,12 @@ enum ControlIndex {
 #endif
   MenuTimeout,
   TextInput,
-  HapticFeedback
+#ifdef HAVE_VIBRATOR
+  HapticFeedback,
+#endif
+  ShowQuickGuideOnStartup,
+  ShowReleaseNotesOnStartup,
+  DisclaimerAccepted,
 };
 
 class InterfaceConfigPanel final : public RowFormWidget {
@@ -70,7 +78,7 @@ InterfaceConfigPanel::Prepare(ContainerWindow &parent,
 
   AddInteger(_("Text size"),
              nullptr,
-             _T("%d %%"), _T("%d"), 75, 200, 5,
+             "%d %%", "%d", 75, 200, 5,
              settings.scale);
 
   WndProperty *wp_dpi = AddEnum(_("Display Resolution"),
@@ -86,8 +94,8 @@ InterfaceConfigPanel::Prepare(ContainerWindow &parent,
     DataFieldEnum &df = *(DataFieldEnum *)wp_dpi->GetDataField();
     df.AddChoice(0, _("Automatic"));
     for (const unsigned *dpi = dpi_choices; dpi != dpi_choices_end; ++dpi) {
-      TCHAR buffer[20];
-      _stprintf(buffer, _("%d dpi"), *dpi);
+      StaticString<20> buffer;
+      buffer.Format(_("%u dpi"), *dpi);
       df.AddChoice(*dpi, buffer);
     }
     df.SetValue(settings.custom_dpi);
@@ -98,7 +106,9 @@ InterfaceConfigPanel::Prepare(ContainerWindow &parent,
   AddFile(_("Events"),
           _("The Input Events file defines the menu system and how XCSoar responds to "
             "button presses and events from external devices."),
-          ProfileKeys::InputFile, _T("*.xci\0"), FileType::XCI);
+          ProfileKeys::InputFile,
+          GetFileTypePatterns(FileType::XCI),
+          FileType::XCI);
   SetExpertRow(InputFile);
 
 #ifdef HAVE_NLS
@@ -110,18 +120,18 @@ InterfaceConfigPanel::Prepare(ContainerWindow &parent,
   if (wp != nullptr) {
     DataFieldEnum &df = *(DataFieldEnum *)wp->GetDataField();
     df.addEnumText(_("Automatic"));
-    df.addEnumText(_T("English"));
+    df.addEnumText("English");
 
     for (const BuiltinLanguage *l = language_table;
          l->resource != nullptr; ++l) {
       StaticString<100> display_string;
-      display_string.Format(_T("%s (%s)"), l->name, l->resource);
+      display_string.Format("%s (%s)", l->name, l->resource);
       df.addEnumText(l->resource, display_string);
     }
 
 #ifdef HAVE_BUILTIN_LANGUAGES
     LanguageFileVisitor lfv(df);
-    VisitDataFiles(_T("*.mo"), lfv);
+    VisitDataFiles("*.mo", lfv);
 #endif
 
     df.Sort(2);
@@ -129,11 +139,11 @@ InterfaceConfigPanel::Prepare(ContainerWindow &parent,
     auto value_buffer = Profile::GetPath(ProfileKeys::LanguageFile);
     Path value = value_buffer;
     if (value == nullptr)
-      value = Path(_T(""));
+      value = Path("");
 
-    if (value == Path(_T("none")))
+    if (value == Path("none"))
       df.SetValue(1);
-    else if (!value.empty() && value != Path(_T("auto"))) {
+    else if (!value.empty() && value != Path("auto")) {
       const Path base = value.GetBase();
       if (base != nullptr)
         df.SetValue(base.c_str());
@@ -179,6 +189,41 @@ InterfaceConfigPanel::Prepare(ContainerWindow &parent,
                haptic_feedback_list, (unsigned)settings.haptic_feedback);
   SetExpertRow(HapticFeedback);
 #endif /* HAVE_VIBRATOR */
+
+  bool hide_quick_guide = false;
+  Profile::Get(ProfileKeys::HideQuickGuideDialogOnStartup,
+               hide_quick_guide);
+  AddBoolean(_("Show Quick Guide"),
+             _("If enabled, the Quick Guide is shown when XCSoar starts."),
+             !hide_quick_guide);
+
+  const char *last_seen_news =
+    Profile::Get(ProfileKeys::LastSeenNewsVersion);
+  const bool news_seen = last_seen_news != nullptr &&
+    StringIsEqual(last_seen_news, XCSoar_Version);
+  AddBoolean(_("Show release notes"),
+             _("If enabled, the What's New page is shown on the next "
+               "startup."),
+             !news_seen);
+
+  const char *disclaimer_acknowledged_version =
+    Profile::Get(ProfileKeys::DisclaimerAcknowledgedVersion);
+  const bool disclaimer_acknowledged =
+    disclaimer_acknowledged_version != nullptr &&
+    StringIsEqual(disclaimer_acknowledged_version, XCSoar_Version);
+
+  static constexpr StaticEnumChoice disclaimer_accepted_list[] = {
+    { 0, N_("No") },
+    { 1, N_("Yes") },
+    nullptr
+  };
+
+  AddEnum(_("Safety disclaimer accepted"),
+          _("Whether the safety disclaimer has been accepted for this "
+            "version."),
+          disclaimer_accepted_list,
+          disclaimer_acknowledged ? 1u : 0u);
+  SetExpertRow(DisclaimerAccepted);
 }
 
 bool
@@ -203,25 +248,30 @@ InterfaceConfigPanel::Save(bool &_changed) noexcept
   if (wp != nullptr) {
     DataFieldEnum &df = *(DataFieldEnum *)wp->GetDataField();
 
+    /* Use AllocatedPath here: Path::empty() null-dereferences, while
+       AllocatedPath::empty() is safe. Missing / empty LanguageFile means
+       automatic — same as ReadLanguageFile(); do not persist "auto" just
+       because the key was absent (#1793). */
     const auto old_value_buffer = Profile::GetPath(ProfileKeys::LanguageFile);
-    Path old_value = old_value_buffer;
-    if (old_value == nullptr)
-      old_value = Path(_T(""));
+    const bool old_is_auto =
+      old_value_buffer == nullptr || old_value_buffer.empty() ||
+      old_value_buffer == Path("auto");
+    Path old_value = old_is_auto ? Path("auto") : Path(old_value_buffer);
 
     auto old_base = old_value.GetBase();
     if (old_base == nullptr)
       old_base = old_value;
 
     AllocatedPath buffer = nullptr;
-    const TCHAR *new_value, *new_base;
+    const char *new_value, *new_base;
 
     switch (df.GetValue()) {
     case 0:
-      new_value = new_base = _T("auto");
+      new_value = new_base = "auto";
       break;
 
     case 1:
-      new_value = new_base = _T("none");
+      new_value = new_base = "none";
       break;
 
     default:
@@ -256,6 +306,42 @@ InterfaceConfigPanel::Save(bool &_changed) noexcept
 #ifdef HAVE_VIBRATOR
   changed |= SaveValueEnum(HapticFeedback, ProfileKeys::HapticFeedback, settings.haptic_feedback);
 #endif
+
+  bool hide_quick_guide = false;
+  Profile::Get(ProfileKeys::HideQuickGuideDialogOnStartup, hide_quick_guide);
+  if (SaveValue(ShowQuickGuideOnStartup,
+                ProfileKeys::HideQuickGuideDialogOnStartup,
+                hide_quick_guide, true))
+    changed = true;
+
+  const bool show_release_notes = GetValueBoolean(ShowReleaseNotesOnStartup);
+  const char *last_seen_news =
+    Profile::Get(ProfileKeys::LastSeenNewsVersion);
+  const bool news_seen = last_seen_news != nullptr &&
+    StringIsEqual(last_seen_news, XCSoar_Version);
+  if (show_release_notes != !news_seen) {
+    if (show_release_notes)
+      Profile::Set(ProfileKeys::LastSeenNewsVersion, "");
+    else
+      Profile::Set(ProfileKeys::LastSeenNewsVersion, XCSoar_Version);
+    changed = true;
+  }
+
+  const bool disclaimer_accepted =
+    GetValueEnum(DisclaimerAccepted) != 0;
+  const char *disclaimer_acknowledged_version =
+    Profile::Get(ProfileKeys::DisclaimerAcknowledgedVersion);
+  const bool disclaimer_acknowledged =
+    disclaimer_acknowledged_version != nullptr &&
+    StringIsEqual(disclaimer_acknowledged_version, XCSoar_Version);
+  if (disclaimer_accepted != disclaimer_acknowledged) {
+    if (disclaimer_accepted)
+      Profile::Set(ProfileKeys::DisclaimerAcknowledgedVersion,
+                   XCSoar_Version);
+    else
+      Profile::Set(ProfileKeys::DisclaimerAcknowledgedVersion, "");
+    changed = true;
+  }
 
   _changed |= changed;
   return true;

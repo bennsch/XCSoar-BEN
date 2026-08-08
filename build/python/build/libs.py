@@ -4,16 +4,37 @@ from os.path import abspath
 from build.zlib import ZlibProject
 from build.autotools import AutotoolsProject
 from build.meson import MesonProject
-from build.cmake import CmakeProject
+from build.cmake import CmakeProject, configure as configure_cmake
 from build.openssl import OpenSSLProject
 from build.gcc import BinutilsProject, GccProject, GccBootstrapProject
 from build.linux import SabotageLinuxHeadersProject
 from build.lua import LuaProject
 from build.musl import MuslProject
 
+
+class LibPngProject(CmakeProject):
+    def configure(self, toolchain):
+        src = self.unpack(toolchain)
+        build = self.make_build_path(toolchain)
+
+        configure_args = list(self.configure_args)
+        if toolchain.is_windows:
+            configure_args += self.windows_configure_args
+        if toolchain.is_android:
+            configure_args += self.android_configure_args
+            if toolchain.is_aarch64:
+                # libpng 1.6.43 enables arm/filter_neon.S for aarch64, but that
+                # source is ARM32 assembly and fails with the Android arm64 toolchain.
+                configure_args.append("-DPNG_ARM_NEON=off")
+        if toolchain.is_darwin:
+            configure_args += self.darwin_configure_args
+
+        configure_cmake(toolchain, src, build, configure_args, self.env)
+        return build
+
 binutils = BinutilsProject(
     (
-        "https://ftpmirror.gnu.org/binutils/binutils-2.42.tar.xz",
+        "https://ftp.gnu.org/gnu/binutils/binutils-2.42.tar.xz",
         "https://sourceware.org/pub/binutils/releases/binutils-2.42.tar.xz",
     ),
     "f6e4d41fd5fc778b06b7891457b3620da5ecea1006c6a4a41ae998109f85a800",
@@ -29,7 +50,7 @@ binutils = BinutilsProject(
 
 linux_headers = SabotageLinuxHeadersProject(
     (
-        "http://ftp.barfooze.de/pub/sabotage/tarballs/linux-headers-4.19.88.tar.xz",
+        "https://ftp.barfooze.de/pub/sabotage/tarballs/linux-headers-4.19.88.tar.xz",
         "https://mirrors.2f30.org/sabotage/tarballs/linux-headers-4.19.88.tar.xz",
     ),
     "5a975ba49b577869f2338aa80f44efd4e94f76e5b4bda11a6a1761a6d646848fdeaad7c820339b2c1c20d55f9bbf0e686121d621ac1cfa1dfc6cd71a166ade3a",
@@ -140,8 +161,8 @@ openssh = AutotoolsProject(
 )
 
 libfmt = CmakeProject(
-    "https://github.com/fmtlib/fmt/archive/11.1.4.tar.gz",
-    "ac366b7b4c2e9f0dde63a59b3feb5ee59b67974b14ee5dc9ea8ad78aa2c1ee1e",
+    "https://github.com/fmtlib/fmt/archive/11.2.0.tar.gz",
+    "bc23066d87ab3168f27cef3e97d545fa63314f5c79df5ea444d41d56f962c6af",
     "lib/libfmt.a",
     [
         "-DBUILD_SHARED_LIBS=OFF",
@@ -149,8 +170,8 @@ libfmt = CmakeProject(
         "-DFMT_TEST=OFF",
     ],
     name="fmt",
-    version="11.1.4",
-    base="fmt-11.1.4",
+    version="11.2.0",
+    base="fmt-11.2.0",
 )
 
 libsodium = AutotoolsProject(
@@ -176,10 +197,10 @@ libsodium = AutotoolsProject(
 
 zlib = ZlibProject(
     (
-        "http://zlib.net/zlib-1.3.1.tar.xz",
-        "https://github.com/madler/zlib/releases/download/v1.3.1/zlib-1.3.1.tar.xz",
+        "http://zlib.net/zlib-1.3.2.tar.xz",
+        "https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.xz",
     ),
-    "38ef96b8dfe510d42707d9c781877914792541133e1870841463bfa73f883e32",
+    "d7a0654783a4da529d1bb793b7ad9c3318020af77667bcae35f95d0e42a792f3",
     "lib/libz.a",
 )
 
@@ -197,6 +218,7 @@ freetype = MesonProject(
         "-Dpng=disabled",
         "-Dzlib=enabled",
     ],
+    patches=abspath("lib/freetype/patches"),
 )
 
 cares = CmakeProject(
@@ -244,6 +266,14 @@ curl = CmakeProject(
     ],
     windows_configure_args=[
         "-DCURL_USE_SCHANNEL=ON",
+    ],
+    android_configure_args=[
+        "-DENABLE_ARES=OFF",  # Disable c-ares on Android - use system getaddrinfo() instead
+    ],
+    # Darwin/iOS: use SecureTransport for SSL
+    darwin_configure_args=[
+        "-DCURL_USE_OPENSSL=OFF",
+        "-DCURL_USE_SECTRANSP=ON",
     ],
     patches=abspath("lib/curl/patches"),
 )
@@ -296,7 +326,7 @@ proj = CmakeProject(
     patches=abspath("lib/proj/patches"),
 )
 
-libpng = CmakeProject(
+libpng = LibPngProject(
     (
         "https://pub.sortix.org/mirror/libpng/libpng-1.6.43.tar.xz",
         "http://downloads.sourceforge.net/project/libpng/libpng16/1.6.43/libpng-1.6.43.tar.xz",
@@ -315,11 +345,8 @@ libpng = CmakeProject(
 )
 
 libjpeg = CmakeProject(
-    (
-        "http://downloads.sourceforge.net/project/libjpeg-turbo/3.0.1/libjpeg-turbo-3.0.1.tar.gz",
-        "https://netcologne.dl.sourceforge.net/project/libjpeg-turbo/3.0.1/libjpeg-turbo-3.0.1.tar.gz",
-    ),
-    "22429507714ae147b3acacd299e82099fce5d9f456882fc28e252e4579ba2a75",
+    "https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/3.2.0/libjpeg-turbo-3.2.0.tar.gz",
+    "6f30092cef9fb839779646608f4ee14ae3cbac989c47fa05e841b0841f09878e",
     "lib/libjpeg.a",
     [
         "-DENABLE_STATIC=ON",
@@ -453,6 +480,16 @@ sdl2 = CmakeProject(
         "-DSDL_LIBSAMPLERATE=OFF",
         "-DSDL_COCOA=OFF",
     ],
+    windows_configure_args=[
+        # Windows-specific SDL2 options for OpenGL ES via ANGLE
+        "-DSDL_DIRECTX=OFF",
+        "-DSDL_WASAPI=OFF",
+        "-DSDL_RENDER_D3D=OFF",
+        "-DSDL_LOADSO=ON",  # Required for SDL_VIDEO on Windows
+        # Disable joystick/xinput to avoid mingw-w64 header conflicts
+        "-DSDL_JOYSTICK=OFF",
+        "-DSDL_XINPUT=OFF",
+    ],
     patches=abspath("lib/sdl2/patches"),
 )
 
@@ -468,8 +505,8 @@ lua = LuaProject(
 
 libsalsa = AutotoolsProject(
     (
+        "https://ftp.suse.com/pub/people/tiwai/salsa-lib/salsa-lib-0.1.6.tar.bz2",
         "ftp://ftp.suse.com/pub/people/tiwai/salsa-lib/salsa-lib-0.1.6.tar.bz2",
-        "https://mirror.linux-ia64.org/ftp_suse_com/people/tiwai/salsa-lib/salsa-lib-0.1.6.tar.bz2",
     ),
     "08a6481cdbf4c79e05a9cba3b6c48375",
     "lib/libsalsa.a",

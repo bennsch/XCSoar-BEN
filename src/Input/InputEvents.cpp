@@ -39,6 +39,7 @@ https://xcsoar.readthedocs.io/en/latest/input_events.html
 #include "io/BufferedReader.hxx"
 #include "Pan.hpp"
 #include "Dialogs/LockScreen.hpp"
+#include "Weather/MapOverlay/InputEvents.hpp"
 #include "Menu/MenuBar.hpp"
 #include "MapWindow/GlueMapWindow.hpp"
 
@@ -49,13 +50,12 @@ https://xcsoar.readthedocs.io/en/latest/input_events.html
 #include "lua/InputEvent.hpp"
 
 #include <cassert>
-#include <tchar.h>
 #include <stdio.h>
 #include <memory>
 
 namespace InputEvents {
 
-static const TCHAR *flavour;
+static const char *flavour;
 
 static Mode current_mode = InputEvents::MODE_DEFAULT;
 
@@ -82,7 +82,7 @@ UpdateOverlayMode() noexcept;
 
 [[gnu::pure]]
 static unsigned
-gesture_to_event(const TCHAR *data) noexcept;
+gesture_to_event(const char *data) noexcept;
 
 /**
  * @param full if false, update only the dynamic labels
@@ -132,7 +132,7 @@ InputEvents::setMode(Mode mode) noexcept
 }
 
 void
-InputEvents::setMode(const TCHAR *mode) noexcept
+InputEvents::setMode(const char *mode) noexcept
 {
   int m = input_config.LookupMode(mode);
   if (m >= 0)
@@ -146,7 +146,7 @@ InputEvents::UpdatePan() noexcept
 }
 
 void
-InputEvents::SetFlavour(const TCHAR *_flavour) noexcept
+InputEvents::SetFlavour(const char *_flavour) noexcept
 {
   if (flavour == NULL && _flavour == NULL)
     /* optimised default case */
@@ -163,7 +163,7 @@ InputEvents::SetFlavour(const TCHAR *_flavour) noexcept
 }
 
 bool
-InputEvents::IsFlavour(const TCHAR *_flavour) noexcept
+InputEvents::IsFlavour(const char *_flavour) noexcept
 {
   if (flavour == NULL)
     return _flavour == NULL;
@@ -178,6 +178,13 @@ bool
 InputEvents::IsDefault() noexcept
 {
   return current_mode == MODE_DEFAULT;
+}
+
+bool
+InputEvents::IsMode(const char *name) noexcept
+{
+  const int id = GetModeId(name);
+  return id >= 0 && current_mode == Mode(id);
 }
 
 void
@@ -210,9 +217,14 @@ InputEvents::drawButtons(Mode mode, bool full) noexcept
     if (mode != MODE_DEFAULT)
     {
       /* Adjust the margin to ensure that GlueMapWindow elements,
-       * such as the scale, are not overdraw by the buttons
+       * such as the scale, are not overdrawn by the buttons
        * when in Pan mode. */
-      map->SetBottomMarginFactor(menubar_height_scale_factor);
+      PixelRect screen_rect = map->GetParentClientRect();
+      unsigned factor = (screen_rect.GetHeight() > screen_rect.GetWidth())
+        ? menubar_height_scale_factor
+        : 5;
+      
+      map->SetBottomMarginFactor(factor);
     } else {
       map->SetBottomMarginFactor(0);
     }
@@ -235,7 +247,7 @@ InputEvents::UpdateOverlayMode() noexcept
     /* build the "flavoured" mode name from the current "major" mode
        and the flavour name */
     StaticString<InputConfig::MAX_MODE_STRING + 32> name;
-    name.Format(_T("%s.%s"), input_config.modes[current_mode].c_str(),
+    name.Format("%s.%s", input_config.modes[current_mode].c_str(),
                 flavour);
 
     /* see if it exists */
@@ -361,20 +373,51 @@ InputEvents::processKey(unsigned key_code) noexcept
   return ProcessKey(getModeID(), key_code);
 }
 
+int
+InputEvents::GetModeId(const char *name) noexcept
+{
+  return input_config.LookupMode(name);
+}
+
+bool
+InputEvents::ProcessKeyInMode(Mode mode, unsigned key_code) noexcept
+{
+  if (!global_running)
+    return false;
+
+#ifdef KOBO
+#ifdef ENABLE_SDL
+  if (key_code == SDLK_POWER)
+    key_code = KEY_MENU;
+#endif
+#endif
+
+  if (Lua::FireKey(key_code)) {
+  }
+
+  const unsigned event_id = input_config.GetKeyEventInModeNoFallback(
+      (unsigned)mode, key_code);
+  if (event_id == 0)
+    return false;
+
+  ProcessEvent(event_id);
+  return true;
+}
+
 unsigned
-InputEvents::gesture_to_event(const TCHAR *data) noexcept
+InputEvents::gesture_to_event(const char *data) noexcept
 {
   return input_config.Gesture2Event.Get(data, 0);
 }
 
 bool
-InputEvents::IsGesture(const TCHAR *data) noexcept
+InputEvents::IsGesture(const char *data) noexcept
 {
   return (Lua::IsGesture(data)) || (gesture_to_event(data) != 0);
 }
 
 bool
-InputEvents::processGesture(const TCHAR *data) noexcept
+InputEvents::processGesture(const char *data) noexcept
 {
   // start with lua event if available!
   if (Lua::FireGesture(data))
@@ -391,7 +434,7 @@ InputEvents::processGesture(const TCHAR *data) noexcept
 }
 
 /*
-  InputEvent::processNmea(TCHAR *data)
+  InputEvent::processNmea(char *data)
   Take hard coded inputs from NMEA processor.
   Return = TRUE if we have a valid key match
 */
@@ -473,7 +516,7 @@ InputEvents::ShowMenu() noexcept
 }
 
 Menu *
-InputEvents::GetMenu(const TCHAR *mode) noexcept
+InputEvents::GetMenu(const char *mode) noexcept
 {
   int m = input_config.LookupMode(mode);
   if (m >= 0) return &input_config.menus[m];
@@ -504,7 +547,20 @@ InputEvents::ProcessTimer() noexcept
 }
 
 void
-InputEvents::eventLockScreen([[maybe_unused]] const TCHAR *mode)
+InputEvents::eventLockScreen([[maybe_unused]] const char *mode)
 {
   ShowLockBox();
+}
+
+// WeatherOverlay
+// Adjusts the active map weather overlay cursor bar.
+// time +/-, time auto on/off/toggle/show
+// altitude +/-, altitude auto on/off/toggle/show
+// field/layer/level picker (secondary axis list)
+// level +/- and level auto … (EDL pressure level alias for altitude)
+// setup (open Info → Weather for the active overlay)
+void
+InputEvents::eventWeatherOverlay(const char *misc)
+{
+  WeatherMapOverlay::HandleInputEvent(misc);
 }

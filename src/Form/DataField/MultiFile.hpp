@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // Copyright The XCSoar Project
 
-#ifndef XCSOAR_MULTIFILE_DATA_FIELD_HPP
-#define XCSOAR_MULTIFILE_DATA_FIELD_HPP
+#pragma once
 
 #include "Base.hpp"
 #include "File.hpp"
 #include "Repository/FileType.hpp"
 #include "system/Path.hpp"
-#include "util/tstring.hpp"
 
+#include <string>
 #include <vector>
 
 /**
@@ -28,7 +27,7 @@ class MultiFileDataField final : public DataField {
 
   FileType file_type;
 
-  tstring display_string;
+  std::string display_string;
 
 public:
   explicit MultiFileDataField(DataFieldListener *listener = nullptr);
@@ -57,6 +56,9 @@ public:
   // Return the currently selected items
   std::vector<Path> GetPathFiles() const;
 
+  // Return all available items from the embedded FileDataField.
+  std::vector<Path> GetAllPaths() const;
+
   // Set selection to the given index(es)
   void AddValue(Path new_value);
   void ForceModify(Path path);
@@ -71,19 +73,19 @@ public:
    * Scan multiple shell patterns.  Each pattern is terminated by a
    * null byte, and the list ends with an empty pattern.
    */
-  void ScanMultiplePatterns(const TCHAR *patterns);
+  void ScanMultiplePatterns(const char *patterns);
 
   Path GetItem(unsigned index) const;
 
   /**
    * Virtual methods from the DataField class
    */
-  const TCHAR *GetAsString() const noexcept override;
-  const TCHAR *GetAsDisplayString() const noexcept override;
+  const char *GetAsString() const noexcept override;
+  const char *GetAsDisplayString() const noexcept override;
 
-  ComboList CreateComboList(const TCHAR *reference) const noexcept override;
+  ComboList CreateComboList(const char *reference) const noexcept override;
   void SetFromCombo(int datafield_index,
-                    const TCHAR *string_value) noexcept override;
+                    const char *string_value) noexcept override;
 
   /*
    * Stub implementations for virtual methods from DataField class, because
@@ -93,5 +95,3 @@ public:
   void Inc() noexcept override {}
   void Dec() noexcept override {}
 };
-
-#endif

@@ -40,11 +40,11 @@ ForceCalculation() noexcept
 }
 
 void
-TriggerVarioUpdate() noexcept
+TriggerVarioUpdate(const bool vario_bar_redraw) noexcept
 {
   assert(CommonInterface::main_window != nullptr);
 
-  CommonInterface::main_window->SendGPSUpdate();
+  CommonInterface::main_window->SendGPSUpdate(vario_bar_redraw);
 }
 
 void
@@ -75,8 +75,10 @@ CreateCalculationThread() noexcept
 
   /* create and run MergeThread, because GlideComputer's first
      iteration depends on MergeThread's results */
-  backend_components->merge_thread = std::make_unique<MergeThread>(*backend_components->device_blackboard,
-                                                                   backend_components->devices.get());
+  backend_components->merge_thread =
+    std::make_unique<MergeThread>(*backend_components->device_blackboard,
+                                  backend_components->devices.get(),
+                                  &backend_components->glide_computer->GetTraceComputer());
   backend_components->merge_thread->FirstRun();
 
   /* copy the MergeThead::FirstRun() results to the

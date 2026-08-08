@@ -6,16 +6,19 @@
 #include "Language/Language.hpp"
 #include "Interface.hpp"
 #include "Widget/RowFormWidget.hpp"
+#include "Form/DataField/Enum.hpp"
 #include "Form/DataField/Float.hpp"
 #include "UIGlobals.hpp"
 #include "Audio/Features.hpp"
 #include "Audio/VarioGlue.hpp"
+#include "Audio/VarioSettings.hpp"
 #include "Units/Units.hpp"
 #include "Formatter/UserUnits.hpp"
 
 enum ControlIndex {
-  Enabled,
-  Volume,
+  ENABLED,
+  VOLUME,
+  SWITCHING_MODE,
   DEAD_BAND_ENABLED,
   SPACER,
   MIN_FREQUENCY,
@@ -24,6 +27,12 @@ enum ControlIndex {
   SPACER2,
   DEAD_BAND_MIN,
   DEAD_BAND_MAX,
+};
+
+static constexpr StaticEnumChoice switching_modes[] = {
+  { VarioSoundSwitchingMode::MANUAL, N_("Manual") },
+  { VarioSoundSwitchingMode::AUTO, N_("Auto") },
+  nullptr
 };
 
 
@@ -48,35 +57,40 @@ AudioVarioConfigPanel::Prepare(ContainerWindow &parent,
 
   const auto &settings = CommonInterface::GetUISettings().sound.vario;
 
-  AddBoolean(_("Audio vario"),
+  AddBoolean(_("Audio Vario"),
              _("Emulate the sound of an electronic vario."),
              settings.enabled);
 
-  AddInteger(_("Volume"), nullptr, _T("%u %%"), _T("%u"),
+  AddInteger(_("Volume"),
+             _("The audio vario sound volume."), "%u %%", "%u",
              0, 100, 1, settings.volume);
 
+  AddEnum(_("Mode switching"),
+      _("Choose whether the audio vario stays in manual mode or switches automatically between Vario in circling and STF in cruise. Manual mode starts in Vario after each restart and can be changed by external input events. In the built-in simulator, STF audio needs valid airspeed and total-energy vario input; without those, manual STF is silent and auto cruise falls back to vario."),
+          switching_modes, (unsigned)settings.switching_mode);
+
   AddBoolean(_("Enable Deadband"),
-             _("Mute the audio output in when the current lift is in a certain "
-               "range around zero"), settings.dead_band_enabled);
+             _("Mute the audio output in when the current lift is in a "
+               "certain range around zero"), settings.dead_band_enabled);
 
   AddSpacer();
   SetExpertRow(SPACER);
 
   AddInteger(_("Min. Frequency"),
              _("The tone frequency that is played at maximum sink rate."),
-             _T("%u Hz"), _T("%u"),
+             "%u Hz", "%u",
              50, 3000, 50, settings.min_frequency);
   SetExpertRow(MIN_FREQUENCY);
 
   AddInteger(_("Zero Frequency"),
              _("The tone frequency that is played at zero climb rate."),
-             _T("%u Hz"), _T("%u"),
+             "%u Hz", "%u",
              50, 3000, 50, settings.zero_frequency);
   SetExpertRow(ZERO_FREQUENCY);
 
   AddInteger(_("Max. Frequency"),
              _("The tone frequency that is played at maximum climb rate."),
-             _T("%u Hz"), _T("%u"),
+             "%u Hz", "%u",
              50, 3000, 50, settings.max_frequency);
   SetExpertRow(MAX_FREQUENCY);
 
@@ -85,7 +99,7 @@ AudioVarioConfigPanel::Prepare(ContainerWindow &parent,
 
   AddFloat(_("Deadband min. lift"),
            _("Below this lift threshold the vario will start to play sounds if the 'Deadband' feature is enabled."),
-           _T("%.1f %s"), _T("%.1f"),
+           "%.1f %s", "%.1f",
            Units::ToUserVSpeed(-5), 0,
            GetUserVerticalSpeedStep(), false, UnitGroup::VERTICAL_SPEED,
            settings.min_dead);
@@ -95,7 +109,7 @@ AudioVarioConfigPanel::Prepare(ContainerWindow &parent,
 
   AddFloat(_("Deadband max. lift"),
            _("Above this lift threshold the vario will start to play sounds if the 'Deadband' feature is enabled."),
-           _T("%.1f %s"), _T("%.1f"),
+           "%.1f %s", "%.1f",
            0, Units::ToUserVSpeed(2),
            GetUserVerticalSpeedStep(), false, UnitGroup::VERTICAL_SPEED,
            settings.max_dead);
@@ -112,11 +126,14 @@ AudioVarioConfigPanel::Save(bool &changed) noexcept
 
   auto &settings = CommonInterface::SetUISettings().sound.vario;
 
-  changed |= SaveValue(Enabled, ProfileKeys::SoundAudioVario,
+  changed |= SaveValue(ENABLED, ProfileKeys::SoundAudioVario,
                        settings.enabled);
 
-  changed |= SaveValueInteger(Volume, ProfileKeys::SoundVolume,
+  changed |= SaveValueInteger(VOLUME, ProfileKeys::SoundVolume,
                               settings.volume);
+
+  changed |= SaveValueEnum(SWITCHING_MODE, ProfileKeys::VarioSoundSwitchingMode,
+                           settings.switching_mode);
 
   changed |= SaveValue(DEAD_BAND_ENABLED, ProfileKeys::VarioDeadBandEnabled,
                        settings.dead_band_enabled);

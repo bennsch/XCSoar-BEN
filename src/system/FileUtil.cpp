@@ -16,6 +16,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <cstdio>
+#include <string>
+#include <vector>
 
 #ifdef HAVE_POSIX
 #include <dirent.h>
@@ -23,6 +26,12 @@
 #include <fnmatch.h>
 #include <utime.h>
 #include <time.h>
+#endif
+
+#if defined(_WIN32)
+#include "UTF8Win32.hpp"
+
+#include <windows.h>
 #endif
 
 void
@@ -33,6 +42,19 @@ Directory::Create(Path path) noexcept
 #else /* !HAVE_POSIX */
   CreateDirectory(path.c_str(), nullptr);
 #endif /* !HAVE_POSIX */
+}
+
+void
+Directory::CreateRecursive(Path path) noexcept
+{
+  if (path == nullptr || Exists(path))
+    return;
+
+  AllocatedPath parent = path.GetParent();
+  if (parent != nullptr && parent != path)
+    CreateRecursive(parent);
+
+  Create(path);
 }
 
 bool
@@ -51,6 +73,68 @@ Directory::Exists(Path path) noexcept
 #endif
 }
 
+bool
+Directory::IsWritable(Path path) noexcept
+{
+#ifdef HAVE_POSIX
+  struct stat st;
+  if (stat(path.c_str(), &st) != 0)
+    return false;
+
+  if (!S_ISDIR(st.st_mode))
+    return false;
+
+  return access(path.c_str(), W_OK) == 0;
+#elif defined(_WIN32)
+  if (!Directory::Exists(path))
+    return false;
+
+  // Try to create a uniquely-named file using CreateFileA and remove it
+  // immediately. This avoids CRT path formatting and keeps overhead low.
+  std::string base = path.c_str();
+  if (base.empty())
+    return false;
+
+  const bool needs_sep = base.back() != '\\' &&
+    base.back() != '/';
+  if (needs_sep)
+    base.push_back('\\');
+
+  constexpr size_t hex_len = 8;
+  constexpr std::string_view suffix = "_wt";
+  constexpr std::string_view ext = ".tmp";
+  if (base.size() + suffix.size() + hex_len + ext.size() >= MAX_PATH)
+    return false;
+
+  const unsigned seed = GetTickCount() ^ GetCurrentProcessId();
+  for (unsigned attempt = 0; attempt < 8; ++attempt) {
+    char hexbuf[hex_len + 1];
+    std::snprintf(hexbuf, sizeof(hexbuf), "%08x", seed ^ attempt);
+
+    std::string tmpname = base;
+    tmpname.append(suffix);
+    tmpname.append(hexbuf);
+    tmpname.append(ext);
+
+    HANDLE h = CreateFile(tmpname.c_str(),
+                          GENERIC_WRITE,
+                          FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                          nullptr,
+                          CREATE_NEW,
+                          FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE,
+                          nullptr);
+    if (h != INVALID_HANDLE_VALUE) {
+      CloseHandle(h);
+      return true;
+    }
+  }
+  return false;
+#else
+  // assume writability
+  return true;
+#endif
+}
+
 /**
  * Checks whether the given string str equals "." or ".."
  * @param str The string to check
@@ -58,9 +142,9 @@ Directory::Exists(Path path) noexcept
  */
 #ifndef HAVE_POSIX
 static bool
-IsDots(const TCHAR *str) noexcept
+IsDots(const char *str) noexcept
 {
-  return StringIsEqual(str, _T(".")) || StringIsEqual(str, _T(".."));
+  return StringIsEqual(str, ".") || StringIsEqual(str, "..");
 }
 #endif
 
@@ -68,182 +152,154 @@ IsDots(const TCHAR *str) noexcept
 
 [[gnu::pure]]
 static bool
-checkFilter(const TCHAR *filename, const TCHAR *filter) noexcept
+checkFilter(const char *filename, const char *filter) noexcept
 {
-  // filter = e.g. "*.igc" or "config/*.prf"
-  // todo: make filters like "config/*.prf" work
-
-  // if invalid or short filter "*" -> return true
-  // todo: check for asterisk
-  if (!filter || StringIsEmpty(filter + 1))
+  // filter = e.g. "*.igc" or "*-rasp*.dat"
+  if (!filter)
     return true;
 
-  return StringEndsWithIgnoreCase(filename, filter + 1);
+  return WildcardMatchIgnoreCase(filter, filename);
+}
+
+static void
+AppendDirSeparator(std::string &dir) noexcept
+{
+  if (!dir.empty() && dir.back() != '\\' && dir.back() != '/')
+    dir += DIR_SEPARATOR_S;
+}
+
+/**
+ * Enumerate directory entries with FindFirstFileW and UTF-8 names.
+ *
+ * @return false if FindFirstFileW fails or FindNextFileW fails for a
+ * reason other than ERROR_NO_MORE_FILES
+ */
+template<typename V>
+static bool
+ForEachFindFile(std::string_view pattern, V &&visit) noexcept
+{
+  WIN32_FIND_DATAW fd;
+  HANDLE h = FindFirstFileW(UTF8ToWide(pattern).c_str(), &fd);
+  if (h == INVALID_HANDLE_VALUE)
+    return false;
+
+  do {
+    visit(fd);
+  } while (FindNextFileW(h, &fd));
+
+  const DWORD err = GetLastError();
+  FindClose(h);
+  return err == ERROR_NO_MORE_FILES;
 }
 
 static bool
 ScanFiles(File::Visitor &visitor, Path sPath,
-          const TCHAR* filter = _T("*"))
+          const char* filter = "*")
 {
-  TCHAR DirPath[MAX_PATH];
-  TCHAR FileName[MAX_PATH];
-
+  std::string dir;
   if (sPath != nullptr)
-    // e.g. "/test/data/something"
-    _tcscpy(DirPath, sPath.c_str());
-  else
-    DirPath[0] = 0;
+    dir = sPath.c_str();
+  AppendDirSeparator(dir);
 
-  // "/test/data/something/"
-  _tcscat(DirPath, _T(DIR_SEPARATOR_S));
-  _tcscpy(FileName, DirPath);
+  std::string pattern = dir;
+  pattern += filter ? filter : "*";
 
-  // "/test/data/something/*.igc"
-  _tcscat(FileName, filter);
+  return ForEachFindFile(pattern, [&](const WIN32_FIND_DATAW &fd) {
+    const std::string name = WideToUTF8(fd.cFileName);
+    if (IsDots(name.c_str()) ||
+        (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ||
+        !checkFilter(name.c_str(), filter))
+      return;
 
-  // Find the first matching file
-  WIN32_FIND_DATA FindFileData;
-  HANDLE hFind = FindFirstFile(FileName, &FindFileData);
-
-  // If no matching file found -> return false
-  if (hFind == INVALID_HANDLE_VALUE)
-    return false;
-
-  // Loop through remaining matching files
-  while (true) {
-    if (!IsDots(FindFileData.cFileName) &&
-        !(FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) &&
-        checkFilter(FindFileData.cFileName, filter)) {
-      // "/test/data/something/"
-      _tcscpy(FileName, DirPath);
-      // "/test/data/something/blubb.txt"
-      _tcscat(FileName, FindFileData.cFileName);
-      // Call visitor with the file that was found
-      visitor.Visit(Path(FileName), Path(FindFileData.cFileName));
-    }
-
-    // Look for next matching file
-    if (!FindNextFile(hFind, &FindFileData)) {
-      if (GetLastError() == ERROR_NO_MORE_FILES)
-        // No more files/folders
-        // -> Jump out of the loop
-        break;
-      else {
-        // Some error occured
-        // -> Close the handle and return false
-        FindClose(hFind);
-        return false;
-      }
-    }
-  }
-  // Close the file handle
-  FindClose(hFind);
-
-  return true;
+    const std::string full = dir + name;
+    visitor.Visit(Path(full.c_str()), Path(name.c_str()));
+  });
 }
 #endif /* !HAVE_POSIX */
 
 static bool
 ScanDirectories(File::Visitor &visitor, bool recursive,
-                Path sPath, const TCHAR* filter = _T("*"))
+                Path sPath, const char* filter = "*", bool show_dir = false,
+                Directory::DirEntryVisitor *dir_entry_cb = nullptr)
 {
 #ifdef HAVE_POSIX
   DIR *dir = opendir(sPath.c_str());
   if (dir == nullptr)
     return false;
 
-  TCHAR FileName[MAX_PATH];
-  _tcscpy(FileName, sPath.c_str());
-  size_t FileNameLength = _tcslen(FileName);
+  char FileName[MAX_PATH];
+  strcpy(FileName, sPath.c_str());
+  size_t FileNameLength = strlen(FileName);
   FileName[FileNameLength++] = '/';
 
   struct dirent *ent;
   while ((ent = readdir(dir)) != nullptr) {
     // omit '.', '..' and any other files/directories starting with '.'
-    if (*ent->d_name == _T('.'))
+    if (*ent->d_name == '.')
       continue;
 
-    _tcscpy(FileName + FileNameLength, ent->d_name);
+    strcpy(FileName + FileNameLength, ent->d_name);
 
     struct stat st;
     if (stat(FileName, &st) < 0)
       continue;
 
-    if (S_ISDIR(st.st_mode) && recursive)
-      ScanDirectories(visitor, true, Path(FileName), filter);
-    else {
+    if (S_ISDIR(st.st_mode)) {
+      if (dir_entry_cb)
+        dir_entry_cb->Visit(Path(FileName), Path(ent->d_name), true);
+      else if (show_dir)
+        visitor.Visit(Path(FileName), Path(ent->d_name));
+      if (recursive)
+        ScanDirectories(visitor, true, Path(FileName), filter, show_dir, dir_entry_cb);
+    } else {
       int flags = 0;
 #ifdef FNM_CASEFOLD
       flags = FNM_CASEFOLD;
 #endif
-      if (S_ISREG(st.st_mode) && fnmatch(filter, ent->d_name, flags) == 0)
-        visitor.Visit(Path(FileName), Path(ent->d_name));
+      if (S_ISREG(st.st_mode) && fnmatch(filter, ent->d_name, flags) == 0) {
+        if (dir_entry_cb)
+          dir_entry_cb->Visit(Path(FileName), Path(ent->d_name), false);
+        else
+          visitor.Visit(Path(FileName), Path(ent->d_name));
+      }
     }
   }
 
   closedir(dir);
 #else /* !HAVE_POSIX */
-  TCHAR DirPath[MAX_PATH];
-  TCHAR FileName[MAX_PATH];
+  std::string dir;
+  if (sPath != nullptr)
+    dir = sPath.c_str();
 
-  if (sPath != nullptr) {
-    // e.g. "/test/data/something"
-    _tcscpy(DirPath, sPath.c_str());
-    _tcscpy(FileName, sPath.c_str());
-  } else {
-    DirPath[0] = 0;
-    FileName[0] = 0;
-  }
+  /* Scan matching files first.  The loop below still enumerates all
+     entries to find subdirectories, but must not visit the same files
+     again through File::Visitor. */
+  if (dir_entry_cb == nullptr)
+    ScanFiles(visitor, sPath, filter);
 
-  // Scan for files in "/test/data/something"
-  ScanFiles(visitor, Path(FileName), filter);
+  AppendDirSeparator(dir);
 
-  // If we are not scanning recursive we are done now
-  if (!recursive)
-    return true;
+  return ForEachFindFile(dir + "*", [&](const WIN32_FIND_DATAW &fd) {
+    const std::string name = WideToUTF8(fd.cFileName);
+    if (IsDots(name.c_str()))
+      return;
 
-  // "test/data/something/"
-  _tcscat(DirPath, _T(DIR_SEPARATOR_S));
-  // "test/data/something/*"
-  _tcscat(FileName, _T(DIR_SEPARATOR_S "*"));
+    const std::string full = dir + name;
 
-  // Find the first file
-  WIN32_FIND_DATA FindFileData;
-  HANDLE hFind = FindFirstFile(FileName, &FindFileData);
+    if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+      if (dir_entry_cb)
+        dir_entry_cb->Visit(Path(full.c_str()), Path(name.c_str()), true);
+      else if (show_dir)
+        visitor.Visit(Path(full.c_str()), Path(name.c_str()));
 
-  // If no file found -> return false
-  if (hFind == INVALID_HANDLE_VALUE)
-    return false;
-
-  // Loop through remaining files
-  while (true) {
-    if (!IsDots(FindFileData.cFileName) &&
-        (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)) {
-      // "test/data/something/"
-      _tcscpy(FileName, DirPath);
-      // "test/data/something/SUBFOLDER"
-      _tcscat(FileName, FindFileData.cFileName);
-      // Scan subfolder for matching files too
-      ScanDirectories(visitor, true, Path(FileName), filter);
+      if (recursive)
+        ScanDirectories(visitor, true, Path(full.c_str()), filter, show_dir,
+                        dir_entry_cb);
+    } else if (dir_entry_cb != nullptr &&
+               checkFilter(name.c_str(), filter)) {
+      dir_entry_cb->Visit(Path(full.c_str()), Path(name.c_str()), false);
     }
-
-    // Look for next file/folder
-    if (!FindNextFile(hFind, &FindFileData)) {
-      if (GetLastError() == ERROR_NO_MORE_FILES)
-        // No more files/folders
-        // -> Jump out of the loop
-        break;
-      else {
-        // Some error occured
-        // -> Close the handle and return false
-        FindClose(hFind);
-        return false;
-      }
-    }
-  }
-  // Close the file handle
-  FindClose(hFind);
-
+  });
 #endif /* !HAVE_POSIX */
 
   return true;
@@ -256,10 +312,86 @@ Directory::VisitFiles(Path path, File::Visitor &visitor, bool recursive)
 }
 
 void
-Directory::VisitSpecificFiles(Path path, const TCHAR* filter,
+Directory::VisitSpecificFiles(Path path, const char* filter,
                               File::Visitor &visitor, bool recursive)
 {
   ScanDirectories(visitor, recursive, path, filter);
+}
+
+void
+Directory::VisitDirectoriesAndFiles(Path path, File::Visitor &visitor,
+                                    bool recursive) noexcept
+{
+  ScanDirectories(visitor, recursive, path, "*", true);
+}
+
+void
+Directory::VisitDirectoriesAndFiles(Path path, DirEntryVisitor &visitor,
+                                    bool recursive) noexcept
+{
+  // Use the internal mixed scanner and ignore File::Visitor callbacks.
+  struct NullVisitor : File::Visitor { void Visit(Path, Path) override {} } nullv;
+  ScanDirectories(nullv, recursive, path, "*", true, &visitor);
+}
+
+bool
+Directory::Remove(Path path) noexcept
+{
+  if (!Exists(path))
+    return true;
+
+#ifdef HAVE_POSIX
+  DIR *dir = opendir(path.c_str());
+  if (dir == nullptr)
+    return false;
+
+  bool ok = true;
+
+  struct dirent *ent;
+  while ((ent = readdir(dir)) != nullptr) {
+    if (*ent->d_name == '.')
+      continue;
+
+    AllocatedPath child = AllocatedPath::Build(path, Path(ent->d_name));
+
+    struct stat st;
+    if (stat(child.c_str(), &st) < 0) {
+      ok = false;
+      continue;
+    }
+
+    if (S_ISDIR(st.st_mode))
+      ok &= Remove(child);
+    else
+      ok &= (unlink(child.c_str()) == 0);
+  }
+
+  closedir(dir);
+  return ok && rmdir(path.c_str()) == 0;
+#else
+  AllocatedPath search = AllocatedPath::Build(path, Path("*"));
+
+  WIN32_FIND_DATA fd;
+  HANDLE hFind = FindFirstFile(search.c_str(), &fd);
+  if (hFind == INVALID_HANDLE_VALUE)
+    return RemoveDirectoryA(path.c_str());
+
+  bool ok = true;
+  do {
+    if (IsDots(fd.cFileName))
+      continue;
+
+    AllocatedPath child = AllocatedPath::Build(path, Path(fd.cFileName));
+
+    if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+      ok &= Remove(child);
+    else
+      ok &= (DeleteFile(child.c_str()) != 0);
+  } while (FindNextFile(hFind, &fd));
+
+  FindClose(hFind);
+  return ok && RemoveDirectoryA(path.c_str());
+#endif
 }
 
 bool
@@ -269,7 +401,8 @@ File::ExistsAny(Path path) noexcept
   struct stat st;
   return stat(path.c_str(), &st) == 0;
 #else
-  return GetFileAttributes(path.c_str()) != INVALID_FILE_ATTRIBUTES;
+  return GetFileAttributesW(UTF8ToWide(path.c_str()).c_str()) !=
+    INVALID_FILE_ATTRIBUTES;
 #endif
 }
 
@@ -283,7 +416,7 @@ File::Exists(Path path) noexcept
 
   return (st.st_mode & S_IFREG);
 #else
-  DWORD attributes = GetFileAttributes(path.c_str());
+  DWORD attributes = GetFileAttributesW(UTF8ToWide(path.c_str()).c_str());
   return attributes != INVALID_FILE_ATTRIBUTES &&
     (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
 #endif
@@ -300,18 +433,6 @@ File::IsCharDev(Path path) noexcept
 
 #endif // HAVE_POSIX
 
-#if defined(_WIN32) && defined(UNICODE)
-
-bool
-File::Exists(const char *path) noexcept
-{
-  DWORD attributes = GetFileAttributesA(path);
-  return attributes != INVALID_FILE_ATTRIBUTES &&
-    (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
-}
-
-#endif
-
 uint64_t
 File::GetSize(Path path) noexcept
 {
@@ -323,7 +444,8 @@ File::GetSize(Path path) noexcept
   return st.st_size;
 #else
   WIN32_FILE_ATTRIBUTE_DATA data;
-  if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &data) ||
+  if (!GetFileAttributesExW(UTF8ToWide(path.c_str()).c_str(),
+                            GetFileExInfoStandard, &data) ||
       (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
     return 0;
 
@@ -343,7 +465,8 @@ File::GetLastModification(Path path) noexcept
   return std::chrono::system_clock::from_time_t(st.st_mtime);
 #else
   WIN32_FILE_ATTRIBUTE_DATA data;
-  if (!GetFileAttributesEx(path.c_str(), GetFileExInfoStandard, &data) ||
+  if (!GetFileAttributesExW(UTF8ToWide(path.c_str()).c_str(),
+                            GetFileExInfoStandard, &data) ||
       (data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
     return {};
 
@@ -360,8 +483,9 @@ File::Touch(Path path) noexcept
   /// @see http://msdn.microsoft.com/en-us/library/windows/desktop/ms724205(v=vs.85).aspx
 
   // Create a file handle
-  HANDLE handle = ::CreateFile(path.c_str(), GENERIC_WRITE, 0, nullptr,
-                               OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+  HANDLE handle = ::CreateFileW(UTF8ToWide(path.c_str()).c_str(),
+                                GENERIC_WRITE, 0, nullptr,
+                                OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
 
   if (handle == INVALID_HANDLE_VALUE)
     return false;
@@ -399,7 +523,7 @@ File::ReadString(Path path, char *buffer, size_t size) noexcept
   flags |= O_CLOEXEC;
 #endif
 
-  int fd = _topen(path.c_str(), flags);
+  int fd = open(path.c_str(), flags);
   if (fd < 0)
     return false;
 
@@ -410,6 +534,34 @@ File::ReadString(Path path, char *buffer, size_t size) noexcept
 
   buffer[nbytes] = '\0';
   return true;
+}
+
+bool
+File::ReadLink([[maybe_unused]] Path path,
+               [[maybe_unused]] std::string &out) noexcept
+{
+#ifdef HAVE_POSIX
+  // readlink does not null-terminate; resize buffer as needed
+  size_t bufsize = 256;
+  std::vector<char> buf;
+
+  while (true) {
+    buf.resize(bufsize);
+    ssize_t n = readlink(path.c_str(), buf.data(), buf.size());
+    if (n < 0)
+      return false;
+    if (static_cast<size_t>(n) < buf.size()) {
+      out.assign(buf.data(), static_cast<size_t>(n));
+      return true;
+    }
+    // truncated, increase buffer and retry
+    bufsize *= 2;
+    if (bufsize > 65536)
+      return false;
+  }
+#else
+  return false;
+#endif
 }
 
 bool
@@ -426,7 +578,7 @@ File::WriteExisting(Path path, const char *value) noexcept
   flags |= O_CLOEXEC;
 #endif
 
-  int fd = _topen(path.c_str(), flags);
+  int fd = open(path.c_str(), flags);
   if (fd < 0)
     return false;
 
@@ -448,7 +600,7 @@ File::CreateExclusive(Path path) noexcept
   flags |= O_CLOEXEC;
 #endif
 
-  int fd = _topen(path.c_str(), flags, 0666);
+  int fd = open(path.c_str(), flags, 0666);
   if (fd < 0)
     return false;
 

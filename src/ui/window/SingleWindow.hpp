@@ -19,16 +19,14 @@ struct Event;
  * the process quits.
  */
 class SingleWindow : public TopWindow {
-#ifdef USE_WINUSER
-  static constexpr const TCHAR *class_name = _T("XCSoarMain");
-#endif
-
   std::forward_list<WndForm *> dialogs;
 
 public:
   using TopWindow::TopWindow;
 
 #ifdef USE_WINUSER
+  static constexpr const char *class_name = "XCSoarMain";
+
   /**
    * Register the WIN32 window class.
    */
@@ -38,7 +36,7 @@ public:
   /**
    * Throws on error.
    */
-  void Create(const TCHAR *text, PixelSize size,
+  void Create(const char *text, PixelSize size,
               TopWindowStyle style=TopWindowStyle()) {
 #ifdef USE_WINUSER
     TopWindow::Create(class_name, text, size, style);

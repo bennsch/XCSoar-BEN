@@ -19,6 +19,7 @@
 #include "Profile/Current.hpp"
 #include "Profile/Keys.hpp"
 #include "Profile/MapProfile.hpp"
+#include "Repository/FileType.hpp"
 #include "Terrain/Loader.hpp"
 #include "Terrain/RasterTerrain.hpp"
 #include "Topography/TopographyGlue.hpp"
@@ -108,7 +109,8 @@ LoadFiles(PlacesOfInterestSettings &poi_settings,
   WaypointGlue::SetHome(way_points, terrain, poi_settings, team_code_settings,
                         NULL, false);
 
-  const auto paths = Profile::GetMultiplePaths(ProfileKeys::AirspaceFileList);
+  const auto paths = Profile::GetMultiplePaths(ProfileKeys::AirspaceFileList,
+                                               GetFileTypePatterns(FileType::AIRSPACE));
   for (auto it = paths.begin(); it < paths.end(); it++) {
     ParseAirspaceFile(airspace_database, *it, operation);
   }

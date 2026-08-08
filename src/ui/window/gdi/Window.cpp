@@ -3,16 +3,40 @@
 
 #include "../Window.hpp"
 #include "../ContainerWindow.hpp"
+#include "../SingleWindow.hpp"
+#include "../MinimumSize.hpp"
 #include "ui/canvas/Font.hpp"
 #include "Screen/Debug.hpp"
 #include "ui/event/Idle.hpp"
 #include "Asset.hpp"
 
 #include <cassert>
+#include <cstring>
 #include <windowsx.h>
+#include <winerror.h>
+
+#include <libloaderapi.h>
+#include <errhandlingapi.h>
+
+/** Dedicated class for HWND_MESSAGE windows (UI::Notify fallback). */
+static constexpr char MESSAGE_WINDOW_CLASS[] = "XCSoarMessage";
+
+static bool
+RegisterMessageWindowClass() noexcept
+{
+  WNDCLASS wc{};
+  wc.lpfnWndProc = Window::WndProc;
+  wc.hInstance = ::GetModuleHandle(nullptr);
+  wc.lpszClassName = MESSAGE_WINDOW_CLASS;
+  if (::RegisterClass(&wc) != 0)
+    return true;
+
+  /* Already registered by another CreateMessageWindow() call. */
+  return ::GetLastError() == ERROR_CLASS_ALREADY_EXISTS;
+}
 
 void
-Window::Create(ContainerWindow *parent, const TCHAR *cls, const TCHAR *text,
+Window::Create(ContainerWindow *parent, const char *cls, const char *text,
                PixelRect rc, const WindowStyle window_style) noexcept
 {
   assert(IsScreenInitialized());
@@ -38,7 +62,15 @@ Window::Create(ContainerWindow *parent, const TCHAR *cls, const TCHAR *text,
 void
 Window::CreateMessageWindow() noexcept
 {
-  hWnd = ::CreateWindowEx(0, _T("PaintWindow"), nullptr, 0, 0, 0, 0, 0,
+  /* Lazily register a dedicated class for HWND_MESSAGE windows.
+     Reusing "PaintWindow" shares WndProc's WM_GETMINMAXINFO path,
+     which used to treat parent-less message windows as top-level
+     and could make CreateWindowEx fail (issue #2720). */
+  static const bool registered = RegisterMessageWindowClass();
+  assert(registered);
+
+  hWnd = ::CreateWindowEx(0, MESSAGE_WINDOW_CLASS, nullptr, 0,
+                          0, 0, 0, 0,
                           HWND_MESSAGE,
                           nullptr, nullptr, this);
   assert(hWnd != nullptr);
@@ -124,6 +156,10 @@ Window::SetEnabled(bool enabled) noexcept
          thing */
       root->SetFocus();
   }
+
+  /* Force redraw to update visual appearance - ::EnableWindow() may
+     not trigger a visual update in all cases */
+  ::InvalidateRect(hWnd, nullptr, false);
 }
 
 void
@@ -155,6 +191,12 @@ bool
 Window::OnUser([[maybe_unused]] unsigned id) noexcept
 {
   return false;
+}
+
+LRESULT
+Window::OnChildColor([[maybe_unused]] HDC hdc) noexcept
+{
+  return 0;
 }
 
 LRESULT
@@ -224,6 +266,16 @@ Window::OnMessage([[maybe_unused]] HWND _hWnd, UINT message,
     }
     break;
 
+  case WM_INJECT_KEYPRESS:
+    /* private message from InjectKeyPress(): return 1 if handled,
+       0 if not, so the caller can distinguish from the ambiguous
+       DefWindowProc(WM_KEYDOWN) return value */
+    if (OnKeyDown(wParam)) {
+      ResetUserIdle();
+      return 1;
+    }
+    return 0;
+
   case WM_KEYUP:
     if (OnKeyUp(wParam)) {
       /* true returned: message was handled */
@@ -233,7 +285,7 @@ Window::OnMessage([[maybe_unused]] HWND _hWnd, UINT message,
     break;
 
   case WM_CHAR:
-    if (OnCharacter((TCHAR)wParam))
+    if (OnCharacter((char)wParam))
       /* true returned: message was handled */
       return 0;
 
@@ -264,6 +316,17 @@ Window::OnMessage([[maybe_unused]] HWND _hWnd, UINT message,
        it's not focused anymore */
     break;
 
+  case WM_CTLCOLORSTATIC:
+  case WM_CTLCOLOREDIT: {
+    Window *child = GetUnchecked((HWND)lParam);
+    if (child != nullptr) {
+      LRESULT result = child->OnChildColor((HDC)wParam);
+      if (result != 0)
+        return result;
+    }
+    break;
+  }
+
   case WM_GETDLGCODE:
     if (OnKeyCheck(wParam))
       return DLGC_WANTMESSAGE;
@@ -280,10 +343,27 @@ LRESULT CALLBACK
 Window::WndProc(HWND _hWnd, UINT message,
                 WPARAM wParam, LPARAM lParam) noexcept
 {
-  if (message == WM_GETMINMAXINFO)
-    /* WM_GETMINMAXINFO is called before WM_CREATE, and we havn't set
-       a Window pointer yet - let DefWindowProc() handle it */
-    return ::DefWindowProc(_hWnd, message, wParam, lParam);
+  if (message == WM_GETMINMAXINFO) {
+    /* WM_GETMINMAXINFO is called before WM_CREATE, and we have not
+       set a Window pointer yet.  Let DefWindowProc fill defaults,
+       then clamp the main window only (issue #2110).  Do not apply
+       this to message-only windows: GetParent() is also null for
+       HWND_MESSAGE, and forcing a minimum size can make
+       CreateMessageWindow() fail (issue #2720). */
+    const LRESULT result =
+      ::DefWindowProc(_hWnd, message, wParam, lParam);
+
+    char class_name[64];
+    if (::GetClassNameA(_hWnd, class_name, sizeof(class_name)) > 0 &&
+        std::strcmp(class_name, UI::SingleWindow::class_name) == 0) {
+      MINMAXINFO *mmi = reinterpret_cast<MINMAXINFO *>(lParam);
+      /* Allow either landscape (320x240) or portrait (240x320). */
+      mmi->ptMinTrackSize.x = LONG(UI::MIN_HEIGHT);
+      mmi->ptMinTrackSize.y = LONG(UI::MIN_HEIGHT);
+    }
+
+    return result;
+  }
 
   Window *window;
   if (message == WM_NCCREATE) {

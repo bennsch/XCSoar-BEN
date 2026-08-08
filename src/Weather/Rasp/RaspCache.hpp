@@ -5,8 +5,6 @@
 
 #include <memory>
 
-#include <tchar.h>
-
 struct BrokenTime;
 struct GeoPoint;
 class RaspStore;
@@ -24,6 +22,8 @@ class RaspCache {
 
   unsigned time = 0;
   unsigned last_time = 0;
+  unsigned failed_time = unsigned(-1);
+  unsigned loaded_time_index = 0;
 
   std::unique_ptr<RasterMap> map;
 
@@ -44,14 +44,14 @@ public:
    * Returns the current map's name.
    */
   [[gnu::pure]]
-  const TCHAR *GetMapName() const;
+  const char *GetMapName() const;
 
   /**
    * Returns the human-readable name for the current RASP map, or
    * nullptr if no RASP map is enabled.
    */
   [[gnu::pure]]
-  const TCHAR *GetMapLabel() const;
+  const char *GetMapLabel() const;
 
   /**
    * Returns the index of the weather map being displayed.
@@ -79,4 +79,11 @@ public:
    * Sets the current time index.
    */
   void SetTime(BrokenTime t);
+
+  /**
+   * Returns the time of the actually loaded map data,
+   * or BrokenTime::Invalid() if no time is available or no map loaded
+   */
+  [[gnu::pure]]
+  BrokenTime GetLoadedTime() const;
 };

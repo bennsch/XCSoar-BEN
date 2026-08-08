@@ -5,31 +5,96 @@
 #include "NOAAList.hpp"
 #include "RASPDialog.hpp"
 #include "PCMetDialog.hpp"
+#include "Dialogs/Settings/Panels/PCMetConfigPanel.hpp"
+#ifdef HAVE_HTTP
+#include "XCThermDialog.hpp"
+#include "WeatherCredentialGateWidget.hpp"
+#include "Dialogs/Settings/Panels/XCThermConfigPanel.hpp"
+#endif
+#include "Dialogs/Settings/Panels/WeatherConfigPanel.hpp"
+#include "Weather/Features.hpp"
 #if 0
 #include "MapOverlayWidget.hpp"
 #endif
+#include "Widget/TextWidget.hpp"
 #include "Dialogs/WidgetDialog.hpp"
 #include "Widget/TabWidget.hpp"
 #include "Widget/ButtonWidget.hpp"
+#ifdef HAVE_EDL
+#include "EdlSettingsWidget.hpp"
+#endif
 #include "UIGlobals.hpp"
 #include "Look/DialogLook.hpp"
 #include "Language/Language.hpp"
-#include "Weather/Features.hpp"
+#include "Language/FormatText.hpp"
+#include "Interface.hpp"
 #include "util/StaticString.hxx"
 
 static int weather_page = 0;
+
+#ifdef HAVE_HTTP
+static std::unique_ptr<Widget>
+CreateXCThermTabWidget() noexcept
+{
+  return CreateWeatherCredentialGateWidget(
+    []() {
+      return CommonInterface::GetComputerSettings()
+        .weather.xctherm.credentials.IsDefined();
+    },
+    CreateXCThermConfigPanel,
+    CreateXCThermMainWidget);
+}
+#endif
+
+#ifdef HAVE_PCMET
+static std::unique_ptr<Widget>
+CreatePCMetTabWidget() noexcept
+{
+  return CreateWeatherCredentialGateWidget(
+    []() {
+      return CommonInterface::GetComputerSettings()
+        .weather.pcmet.www_credentials.IsDefined();
+    },
+    CreatePCMetConfigPanel,
+    CreatePCMetMainWidget);
+}
+#endif
+
+#ifndef HAVE_EDL
+class EDLUnavailableWidget final : public TextWidget {
+  const char *text;
+
+public:
+  explicit EDLUnavailableWidget(const char *_text) noexcept
+    :text(_text) {}
+
+  void Prepare(ContainerWindow &parent, const PixelRect &rc) noexcept override {
+    TextWidget::Prepare(parent, rc);
+    SetText(text);
+  }
+};
+
+static std::unique_ptr<Widget>
+CreateEDLUnavailableWidget() noexcept
+{
+  static StaticString<128> message;
+  FormatFeatureNotAvailableInThisBuildWithoutOpenGLRenderer(
+    message, N_("EDL weather"));
+  return std::make_unique<EDLUnavailableWidget>(message.c_str());
+}
+#endif
 
 static void
 SetTitle(WndForm &form, const TabWidget &pager)
 {
   StaticString<128> title;
-  title.Format(_T("%s: %s"), _("Weather"),
+  title.Format("%s: %s", _("Weather"),
                pager.GetButtonCaption(pager.GetCurrentIndex()));
   form.SetCaption(title);
 }
 
 void
-ShowWeatherDialog(const TCHAR *page)
+ShowWeatherDialog(const char *page)
 {
   const DialogLook &look = UIGlobals::GetDialogLook();
 
@@ -53,22 +118,38 @@ ShowWeatherDialog(const TCHAR *page)
   /* setup tabs */
 
 #ifdef HAVE_NOAA
-  if (page != nullptr && StringIsEqual(page, _T("list")))
+  if (page != nullptr && StringIsEqual(page, "list"))
     start_page = widget.GetSize();
 
   widget.AddTab(CreateNOAAListWidget(), _("METAR and TAF"));
 #endif
 
-  if (page != nullptr && StringIsEqual(page, _T("rasp")))
+#ifdef HAVE_HTTP
+  if (page != nullptr && StringIsEqual(page, "xctherm"))
     start_page = widget.GetSize();
 
-  widget.AddTab(CreateRaspWidget(), _T("RASP"));
+  widget.AddTab(CreateXCThermTabWidget(), "XCTherm");
+#endif
+
+  if (page != nullptr && StringIsEqual(page, "rasp"))
+    start_page = widget.GetSize();
+
+  widget.AddTab(CreateRaspWidget(), "RASP");
+
+  if (page != nullptr && StringIsEqual(page, "edl"))
+    start_page = widget.GetSize();
+
+#ifdef HAVE_EDL
+  widget.AddTab(CreateEdlSettingsWidget(), "EDL");
+#else
+  widget.AddTab(CreateEDLUnavailableWidget(), "EDL");
+#endif
 
 #ifdef HAVE_PCMET
-  if (page != nullptr && StringIsEqual(page, _T("pc_met")))
+  if (page != nullptr && StringIsEqual(page, "pc_met"))
     start_page = widget.GetSize();
 
-  widget.AddTab(CreatePCMetWidget(), _T("pc_met"));
+  widget.AddTab(CreatePCMetTabWidget(), "Flugwetter");
 #endif
 
 #if 0
@@ -77,11 +158,11 @@ ShowWeatherDialog(const TCHAR *page)
      eventually, we should refactor the code to be generic, allowing
      arbitrary georeferenced images */
 
-  if (page != nullptr && StringIsEqual(page, _T("overlay")))
+  if (page != nullptr && StringIsEqual(page, "overlay"))
     start_page = widget.GetSize();
 
   // TODO: better and translatable title?
-  widget.AddTab(CreateWeatherMapOverlayWidget(), _T("Overlay"));
+  widget.AddTab(CreateWeatherMapOverlayWidget(), "Overlay");
 #endif
 
   /* restore previous page */

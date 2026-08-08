@@ -5,17 +5,24 @@
 
 #include "WindowWidget.hpp"
 
-#include <tchar.h>
-
 class Color;
 
 /**
  * A #Widget implementation that displays multi-line text.
+ *
+ * @param top_separator draw a thin line along the top edge (e.g. to
+ *        separate list-dialog help text from the list above)
  */
 class TextWidget : public WindowWidget {
+  const bool top_separator;
+
 public:
-  void SetText(const TCHAR *text) noexcept;
+  explicit TextWidget(bool _top_separator = false) noexcept
+    :top_separator(_top_separator) {}
+
+  void SetText(const char *text) noexcept;
   void SetColor(Color _color) noexcept;
+  void SetBackgroundColor(Color _color) noexcept;
 
   /* virtual methods from class Widget */
   PixelSize GetMinimumSize() const noexcept override;

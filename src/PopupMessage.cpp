@@ -10,7 +10,6 @@
 #include "StatusMessage.hpp"
 #include "UISettings.hpp"
 
-#include <tchar.h>
 #include <algorithm>
 
 using std::min;
@@ -19,14 +18,16 @@ using std::max;
 void
 PopupMessage::Message::Set(Type _type,
                            std::chrono::steady_clock::duration _tshow,
-                           const TCHAR *_text,
-                           std::chrono::steady_clock::time_point now) noexcept
+                           const char *_text,
+                           std::chrono::steady_clock::time_point now,
+                           const char *_sound) noexcept
 {
   type = _type;
   tshow = _tshow;
   tstart = now;
   texpiry = now;
   text = _text;
+  sound = _sound;
 }
 
 bool
@@ -66,7 +67,7 @@ PopupMessage::Message::AppendTo(StaticString<2000> &buffer,
   }
 
   if (!buffer.empty())
-    buffer.append(_T("\r\n"));
+    buffer.append("\r\n");
   buffer.append(text);
   return true;
 }
@@ -106,11 +107,12 @@ PopupMessage::OnMouseDown([[maybe_unused]] PixelPoint p) noexcept
 void
 PopupMessage::OnPaint(Canvas &canvas) noexcept
 {
-  canvas.ClearWhite();
+  canvas.Clear(look.dark_mode ? look.background_color : COLOR_WHITE);
 
   auto rc = GetClientRect();
 #ifndef USE_WINUSER
-  canvas.DrawOutlineRectangle(rc, COLOR_BLACK);
+  canvas.DrawOutlineRectangle(rc,
+                              look.dark_mode ? COLOR_GRAY : COLOR_BLACK);
 #endif
 
   const int padding = Layout::GetTextPadding();
@@ -127,7 +129,6 @@ inline unsigned
 PopupMessage::CalculateWidth() const noexcept
 {
   if (settings.popup_message_position == UISettings::PopupMessagePosition::TOP_LEFT)
-    // TODO code: this shouldn't be hard-coded
     return rc.GetWidth();
   else
     return unsigned(rc.GetWidth() * 0.9);
@@ -242,12 +243,12 @@ PopupMessage::GetEmptySlot() noexcept
 
 void
 PopupMessage::AddMessage(std::chrono::steady_clock::duration tshow, Type type,
-                         const TCHAR *Text) noexcept
+                         const char *Text, const char *snd) noexcept
 {
   const auto now = std::chrono::steady_clock::now();
 
   int i = GetEmptySlot();
-  messages[i].Set(type, tshow, Text, now);
+  messages[i].Set(type, tshow, Text, now, snd);
 }
 
 void
@@ -274,6 +275,8 @@ PopupMessage::Repeat(Type type) noexcept
   if (imax >= 0) {
     messages[imax].tstart = now;
     messages[imax].texpiry = messages[imax].tstart;
+    if (enable_sound && messages[imax].sound != nullptr)
+      PlayResource(messages[imax].sound);
   }
 }
 
@@ -310,7 +313,7 @@ PopupMessage::Acknowledge(Type type) noexcept
 // into AddMessage ?
 
 void
-PopupMessage::AddMessage(const TCHAR* text, const TCHAR *data) noexcept
+PopupMessage::AddMessage(const char* text, const char *data) noexcept
 {
   const std::lock_guard lock{mutex};
 
@@ -321,13 +324,13 @@ PopupMessage::AddMessage(const TCHAR* text, const TCHAR *data) noexcept
 
   // TODO code: consider what is a sensible size?
   if (msg.visible) {
-    TCHAR msgcache[1024];
-    _tcscpy(msgcache, text);
+    char msgcache[1024];
+    strcpy(msgcache, text);
     if (data != nullptr) {
-      _tcscat(msgcache, _T(" "));
-      _tcscat(msgcache, data);
+      strcat(msgcache, " ");
+      strcat(msgcache, data);
     }
 
-    AddMessage(msg.delay, MSG_USERINTERFACE, msgcache);
+    AddMessage(msg.delay, MSG_USERINTERFACE, msgcache, msg.sound);
   }
 }

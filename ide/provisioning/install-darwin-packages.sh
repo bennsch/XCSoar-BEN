@@ -16,7 +16,7 @@ fi
 
 install_base() {
   echo Installing base dependencies...
-  brew install quilt \
+  brew install pkg-config quilt \
     librsvg make \
     sox gettext \
     imagemagick
@@ -38,7 +38,8 @@ install_ios() {
   echo Installing dependencies for the iOS target...
   brew install automake autoconf \
     libtool \
-    cmake ninja
+    cmake ninja \
+    lua
   echo
 }
 

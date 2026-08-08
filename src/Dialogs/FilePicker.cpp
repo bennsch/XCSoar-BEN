@@ -3,8 +3,10 @@
 
 #include "FilePicker.hpp"
 #include "ComboPicker.hpp"
+#include "Repository/Glue.hpp"
 #include "Form/DataField/ComboList.hpp"
 #include "Form/DataField/File.hpp"
+#include "Form/Form.hpp"
 #include "Language/Language.hpp"
 #include "net/http/Features.hpp"
 
@@ -14,27 +16,27 @@
 #endif
 
 bool
-FilePicker(const TCHAR *caption, FileDataField &df, const TCHAR *help_text,
+FilePicker(const char *caption, FileDataField &df, const char *help_text,
            bool nullable)
 {
   ComboList combo_list = df.CreateComboList(nullptr);
-  // if nullable it's mean that combo_list must have at least a null element
-  if (combo_list.size() == 0 && nullable) return false;
 
-  const TCHAR *extra_caption = nullptr;
+  const char *extra_caption = nullptr;
 #ifdef HAVE_DOWNLOAD_MANAGER
-  // with FileType::IGC don't show the 'Download'-Button!
-  if (df.GetFileType() != FileType::IGC &&
-    df.GetFileType() != FileType::UNKNOWN &&
-    Net::DownloadManager::IsAvailable())
-      extra_caption = _("Download");
+  const auto file_type = df.GetFileType();
+  if (FileTypeSupportsDownload(file_type))
+    extra_caption = _("Download");
 #endif
 
-  int i = ComboPicker(caption, combo_list, help_text, false, extra_caption);
+  if (combo_list.size() == 0 && nullable && extra_caption == nullptr)
+    return false;
+
+  const int i = ComboPicker(caption, combo_list, help_text, false,
+                            extra_caption);
 
 #ifdef HAVE_DOWNLOAD_MANAGER
-  if (i == -2) {
-    const auto path = DownloadFilePicker(df.GetFileType());
+  if (i == mrExtra) {
+    const auto path = DownloadFilePicker(file_type);
     if (path == nullptr)
       return false;
 
@@ -52,7 +54,7 @@ FilePicker(const TCHAR *caption, FileDataField &df, const TCHAR *help_text,
 }
 
 AllocatedPath
-FilePicker(const TCHAR *caption, const TCHAR *patterns)
+FilePicker(const char *caption, const char *patterns)
 {
   assert(patterns != nullptr);
 

@@ -17,7 +17,9 @@
 #include "Widget/TwoWidgets.hpp"
 #include "Interface.hpp"
 #include "Language/Language.hpp"
+#include "MapWindow/GlueMapWindow.hpp"
 
+#include <algorithm>
 #include <cassert>
 #include <stdio.h>
 
@@ -26,10 +28,23 @@
  */
 static constexpr int SWITCH_INFO_BOX = 100;
 
+/**
+ * Pointer to the currently open InfoBox dialog, or nullptr if none is open.
+ */
+static WndForm *current_dialog = nullptr;
+
+/**
+ * ID of the InfoBox that owns the current dialog, or -1 if none.
+ */
+static int current_dialog_id = -1;
+
 void
 dlgInfoBoxAccessShowModeless(const int id, const InfoBoxPanel *panels)
 {
   assert (id > -1);
+
+  /* Close any existing InfoBox dialog before opening a new one */
+  dlgInfoBoxAccessClose();
 
   const InfoBoxSettings &settings = CommonInterface::SetUISettings().info_boxes;
   const unsigned panel_index = CommonInterface::GetUIState().panel_index;
@@ -47,9 +62,10 @@ dlgInfoBoxAccessShowModeless(const int id, const InfoBoxPanel *panels)
   dialog.SetWidget(TabWidget::Orientation::HORIZONTAL);
   dialog.PrepareWidget();
   auto &tab_widget = dialog.GetWidget();
-
-  bool found_setup = false;
-
+  
+  /* Track the current dialog and its owner */
+  current_dialog = &dialog;
+  current_dialog_id = id;
   if (panels != nullptr) {
     for (; panels->load != nullptr; ++panels) {
       assert(panels->name != nullptr);
@@ -58,8 +74,8 @@ dlgInfoBoxAccessShowModeless(const int id, const InfoBoxPanel *panels)
 
       if (widget == NULL)
         continue;
-
-      if (!found_setup && StringIsEqual(panels->name, _T("Setup"))) {
+#if 0  // removed "Switch InfoBox" botton
+      if (!found_setup && StringIsEqual(panels->name, "Setup")) {
         /* add a "Switch InfoBox" button to the "Setup" tab -
            kludge! */
         found_setup = true;
@@ -79,31 +95,86 @@ dlgInfoBoxAccessShowModeless(const int id, const InfoBoxPanel *panels)
                                               std::move(button),
                                               false);
       }
+#endif
 
       tab_widget.AddTab(std::move(widget), gettext(panels->name));
     }
   }
 
-  if (!found_setup) {
-    /* the InfoBox did not provide a "Setup" tab - create a default
-       one that allows switching the contents */
-    tab_widget.AddTab(std::make_unique<ActionWidget>(dialog.MakeModalResultCallback(SWITCH_INFO_BOX)),
-                      _("Switch InfoBox"));
-  }
-
   tab_widget.AddTab(std::make_unique<ActionWidget>(dialog.MakeModalResultCallback(mrOK)),
                     _("Close"));
 
-  const PixelRect client_rc = dialog.GetClientAreaWindow().GetClientRect();
-  const PixelSize max_size = tab_widget.GetMaximumSize();
-  if (max_size.height < client_rc.GetHeight()) {
-    form_rc.top += client_rc.GetHeight() - max_size.height;
-    dialog.Move(form_rc);
-  }
+  /* Dock to the bottom of the map area and lift map overlays by the
+     visible dialog height.  Size to the *current* tab so a short page
+     (Altitude → Simulator) does not reserve space for a taller sibling
+     (Setup); re-dock when the user flips tabs. */
+  const auto dock_dialog = [&dialog, &tab_widget]() noexcept {
+    PixelRect rc = InfoBoxManager::layout.remaining;
+    const PixelSize content = tab_widget.GetCurrentMaximumSize();
+    const PixelSize dialog_size = dialog.ClientAreaToDialogSize(content);
+    if (dialog_size.height < rc.GetHeight())
+      rc.top = rc.bottom - (int)dialog_size.height;
+    dialog.Move(rc);
+
+    GlueMapWindow *map = UIGlobals::GetMap();
+    if (map == nullptr)
+      return;
+
+    const PixelRect map_rc = map->GetPosition();
+    const PixelRect dlg_rc = dialog.GetPosition();
+    if (dlg_rc.top < map_rc.bottom && dlg_rc.bottom > map_rc.top) {
+      const unsigned margin =
+        (unsigned)(map_rc.bottom - std::max(dlg_rc.top, map_rc.top));
+      map->SetBottomMargin(margin);
+    } else
+      map->SetBottomMargin(0);
+  };
+
+  tab_widget.SetPageFlippedCallback(dock_dialog);
+  dock_dialog();
 
   dialog.SetModeless();
+
+  GlueMapWindow *map = UIGlobals::GetMap();
+
   int result = dialog.ShowModal();
+
+  if (map != nullptr)
+    map->SetBottomMargin(0);
+
+  current_dialog = nullptr;
+  current_dialog_id = -1;
 
   if (result == SWITCH_INFO_BOX)
     InfoBoxManager::ShowInfoBoxPicker(id);
+}
+
+void
+dlgInfoBoxAccessClose() noexcept
+{
+  if (current_dialog != nullptr) {
+    /* Prevent focus restoration to the InfoBox that owned this dialog
+       by signaling the dialog to close via SetModalResult(mrCancel) and
+       clearing current_dialog/current_dialog_id so ownership and focus
+       won't be restored. The dialog is destroyed later by the caller. */
+    current_dialog->SetModalResult(mrCancel);
+    current_dialog = nullptr;
+    current_dialog_id = -1;
+
+    /* Restore map scale position when panel closes */
+    GlueMapWindow *map = UIGlobals::GetMap();
+    if (map != nullptr)
+      map->SetBottomMargin(0);
+  }
+}
+
+bool
+dlgInfoBoxAccessCloseOthers(int id) noexcept
+{
+  /* Only close if a different InfoBox owns the dialog */
+  if (current_dialog != nullptr && current_dialog_id != id) {
+    dlgInfoBoxAccessClose();
+    return true;
+  }
+  return false;
 }

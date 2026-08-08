@@ -17,6 +17,9 @@
 #include "Dialogs/Airspace/Airspace.hpp"
 #include "Dialogs/Airspace/AirspaceWarningDialog.hpp"
 #include "NMEA/Aircraft.hpp"
+#include "Profile/Profile.hpp"
+#include "Profile/Keys.hpp"
+#include "util/StringCompare.hxx"
 
 /*
  * This even currently toggles DrawAirSpace() and does nothing else.
@@ -29,24 +32,30 @@
  * but 0 should mean OFF all the way.
  */
 void
-InputEvents::eventAirSpace(const TCHAR *misc)
+InputEvents::eventAirSpace(const char *misc)
 {
   AirspaceRendererSettings &settings =
     CommonInterface::SetMapSettings().airspace;
 
-  if (StringIsEqual(misc, _T("toggle")))
+  if (StringIsEqual(misc, "toggle")) {
     settings.enable = !settings.enable;
-  else if (StringIsEqual(misc, _T("off")))
+    Message::AddMessage(settings.enable
+                        ? _("Airspace shown")
+                        : _("Airspace hidden"));
+  } else if (StringIsEqual(misc, "off")) {
     settings.enable = false;
-  else if (StringIsEqual(misc, _T("on")))
+    Message::AddMessage(_("Airspace hidden"));
+  } else if (StringIsEqual(misc, "on")) {
     settings.enable = true;
-  else if (StringIsEqual(misc, _T("show"))) {
+    Message::AddMessage(_("Airspace shown"));
+  }
+  else if (StringIsEqual(misc, "show")) {
     if (!settings.enable)
       Message::AddMessage(_("Show airspace off"));
     if (settings.enable)
       Message::AddMessage(_("Show airspace on"));
     return;
-  } else if (StringIsEqual(misc, _T("list"))) {
+  } else if (StringIsEqual(misc, "list")) {
     ShowAirspaceListDialog(*data_components->airspaces,
                            backend_components->GetAirspaceWarnings());
     return;
@@ -55,13 +64,58 @@ InputEvents::eventAirSpace(const TCHAR *misc)
   ActionInterface::SendMapSettings(true);
 }
 
+void
+InputEvents::eventAirspaceLabels(const char *misc)
+{
+  AirspaceRendererSettings &settings =
+    CommonInterface::SetMapSettings().airspace;
+
+  const bool currently_on =
+    settings.label_selection == AirspaceRendererSettings::LabelSelection::ALL;
+
+  if (StringIsEqual(misc, "toggle")) {
+    settings.label_selection = currently_on
+      ? AirspaceRendererSettings::LabelSelection::NONE
+      : AirspaceRendererSettings::LabelSelection::ALL;
+    Message::AddMessage(currently_on
+                        ? _("Airspace labels hidden")
+                        : _("Airspace labels shown"));
+  } else if (StringIsEqual(misc, "off") || StringIsEqual(misc, "none")) {
+    settings.label_selection = AirspaceRendererSettings::LabelSelection::NONE;
+    Message::AddMessage(_("Airspace labels hidden"));
+  } else if (StringIsEqual(misc, "on") || StringIsEqual(misc, "all")) {
+    settings.label_selection = AirspaceRendererSettings::LabelSelection::ALL;
+    Message::AddMessage(_("Airspace labels shown"));
+  } else if (StringIsEqual(misc, "show")) {
+    Message::AddMessage(currently_on
+                        ? _("Airspace labels on")
+                        : _("Airspace labels off"));
+    return;
+  } else
+    return;
+
+  Profile::Set(ProfileKeys::AirspaceLabelSelection,
+               (int)settings.label_selection);
+  ActionInterface::SendMapSettings(true);
+}
+
 // ClearAirspaceWarnings
 // Clears airspace warnings for the selected airspace
 void
-InputEvents::eventClearAirspaceWarnings([[maybe_unused]] const TCHAR *misc)
+InputEvents::eventClearAirspaceWarnings([[maybe_unused]] const char *misc)
 {
   if (auto *airspace_warnings = backend_components->GetAirspaceWarnings())
     airspace_warnings->AcknowledgeAll();
+}
+
+// AirspaceWarnings
+// Shows the airspace warnings dialog
+void
+InputEvents::eventAirspaceWarnings([[maybe_unused]] const char *misc)
+{
+  auto *airspace_warnings = backend_components->GetAirspaceWarnings();
+  if (airspace_warnings != nullptr)
+    dlgAirspaceWarningsShowModal(*airspace_warnings);
 }
 
 // NearestAirspaceDetails
@@ -72,7 +126,7 @@ InputEvents::eventClearAirspaceWarnings([[maybe_unused]] const TCHAR *misc)
 // to the nearest exit to the airspace.
 
 void 
-InputEvents::eventNearestAirspaceDetails([[maybe_unused]] const TCHAR *misc)
+InputEvents::eventNearestAirspaceDetails([[maybe_unused]] const char *misc)
 {
   const MoreData &basic = CommonInterface::Basic();
   const DerivedInfo &calculated = CommonInterface::Calculated();

@@ -5,7 +5,6 @@
 
 #include "BinaryProtocol.hpp"
 #include "util/AllocatedArray.hxx"
-#include "tchar.h"
 #include "Device/Driver.hpp"
 #include "Device/SettingsMap.hpp"
 
@@ -32,6 +31,7 @@ class FlarmDevice: public AbstractDevice
   Port &port;
 
   Mode mode = Mode::UNKNOWN;
+  bool was_binary = false;
 
   uint16_t sequence_number = 0;
 
@@ -98,7 +98,7 @@ protected:
   bool TextMode(OperationEnvironment &env);
   bool BinaryMode(OperationEnvironment &env);
 
-  bool ParsePFLAC(NMEAInputLine &line);
+  bool ParsePFLAC(NMEAInputLine &line, NMEAInfo &info);
 
 public:
   /* virtual methods from class Device */
@@ -110,23 +110,23 @@ public:
                OperationEnvironment &env) override;
   bool PutPilotEvent(OperationEnvironment &env) override;
 
-  bool GetPilot(TCHAR *buffer, size_t length, OperationEnvironment &env);
-  bool SetPilot(const TCHAR *pilot_name, OperationEnvironment &env);
-  bool GetCoPilot(TCHAR *buffer, size_t length, OperationEnvironment &env);
-  bool SetCoPilot(const TCHAR *copilot_name, OperationEnvironment &env);
-  bool GetPlaneType(TCHAR *buffer, size_t length, OperationEnvironment &env);
-  bool SetPlaneType(const TCHAR *plane_type, OperationEnvironment &env);
-  bool GetPlaneRegistration(TCHAR *buffer, size_t length,
+  bool GetPilot(char *buffer, size_t length, OperationEnvironment &env);
+  bool SetPilot(const char *pilot_name, OperationEnvironment &env);
+  bool GetCoPilot(char *buffer, size_t length, OperationEnvironment &env);
+  bool SetCoPilot(const char *copilot_name, OperationEnvironment &env);
+  bool GetPlaneType(char *buffer, size_t length, OperationEnvironment &env);
+  bool SetPlaneType(const char *plane_type, OperationEnvironment &env);
+  bool GetPlaneRegistration(char *buffer, size_t length,
                             OperationEnvironment &env);
-  bool SetPlaneRegistration(const TCHAR *registration,
+  bool SetPlaneRegistration(const char *registration,
                             OperationEnvironment &env);
-  bool GetCompetitionId(TCHAR *buffer, size_t length,
+  bool GetCompetitionId(char *buffer, size_t length,
                         OperationEnvironment &env);
-  bool SetCompetitionId(const TCHAR *competition_id,
+  bool SetCompetitionId(const char *competition_id,
                         OperationEnvironment &env);
-  bool GetCompetitionClass(TCHAR *buffer, size_t length,
+  bool GetCompetitionClass(char *buffer, size_t length,
                            OperationEnvironment &env);
-  bool SetCompetitionClass(const TCHAR *competition_class,
+  bool SetCompetitionClass(const char *competition_class,
                            OperationEnvironment &env);
 
   bool GetStealthMode(bool &enabled, OperationEnvironment &env);
@@ -137,6 +137,14 @@ public:
   bool SetBaudRate(unsigned baud_id, OperationEnvironment &env);
 
   void Restart(OperationEnvironment &env);
+
+  /**
+   * Start a FLARM simulation scenario (PFLAF).
+   * Not available on Classic FLARM or while in flight.
+   *
+   * @param scenario 1-6, see FTD-012 for descriptions
+   */
+  void RunSimulation(unsigned scenario, OperationEnvironment &env);
 
 private:
   /**
@@ -151,13 +159,6 @@ private:
                  OperationEnvironment &env);
   bool SetConfig(const char *setting, const char *value,
                  OperationEnvironment &env);
-
-#ifdef _UNICODE
-  bool GetConfig(const char *setting, TCHAR *buffer, size_t length,
-                 OperationEnvironment &env);
-  bool SetConfig(const char *setting, const TCHAR *value,
-                 OperationEnvironment &env);
-#endif
 
   bool DeclareInternal(const Declaration &declaration,
                        OperationEnvironment &env);

@@ -2,10 +2,15 @@ DEBUG ?= y
 DEBUG_GLIBCXX ?= n
 
 ifeq ($(DEBUG),y)
-  TARGET_CPPFLAGS += -DXCSOAR_TESTING
-  OPTIMIZE := -Og
-  ifeq ($(CLANG),n)
-    OPTIMIZE += -funit-at-a-time
+  ifeq ($(HAVE_WIN32),y)
+    # MinGW -Og builds are often flagged as malware by Windows
+    # Defender (PWS:Win32/Banjori.A); -O0 stays debug-friendly.
+    OPTIMIZE := -O0
+  else
+    OPTIMIZE := -Og
+    ifeq ($(CLANG),n)
+      OPTIMIZE += -funit-at-a-time
+    endif
   endif
 else
   OPTIMIZE := -Os
@@ -20,6 +25,11 @@ HOST_OPTIMIZE := -g
 # the difference between -0 and +0.  This allows using non-conforming
 # vector units on some platforms, e.g. ARM NEON.
 OPTIMIZE += -ffast-math
+ifeq ($(CLANG),y)
+  # Clang 18+ warns that -ffast-math's -ffinite-math-only breaks isfinite/isnan/isinf.
+  # Override just that sub-flag to keep NaN/Inf checks working.
+  OPTIMIZE += -fno-finite-math-only
+endif
 
 ifeq ($(CLANG)$(DEBUG),nn)
   # Enable gcc auto-vectorisation on some architectures (e.g. ARM

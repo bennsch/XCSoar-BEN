@@ -2,6 +2,8 @@
 // Copyright The XCSoar Project
 
 #include "ProgressWindow.hpp"
+#include "GlobalSettings.hpp"
+#include "Look/Colors.hpp"
 #include "Screen/Layout.hpp"
 #include "Look/FontDescription.hpp"
 #include "Resources.hpp"
@@ -13,7 +15,9 @@
 #endif
 
 ProgressWindow::ProgressWindow(ContainerWindow &parent) noexcept
-  :background_color(COLOR_WHITE)
+  :background_color(GlobalSettings::dark_mode
+                    ? COLOR_DARK_THEME_BACKGROUND : COLOR_WHITE),
+   dark_mode(GlobalSettings::dark_mode)
 {
   message.clear();
 
@@ -63,7 +67,7 @@ ProgressWindow::UpdateLayout(PixelRect rc) noexcept
 
   message_position = rc;
   message_position.bottom -= progress_border_height + height / 48;
-  message_position.top = message_position.bottom - text_height;
+  message_position.top = message_position.bottom - text_height * 2;
 
   bottom_position = rc;
   bottom_position.top = bottom_position.bottom - progress_border_height;
@@ -75,12 +79,12 @@ ProgressWindow::UpdateLayout(PixelRect rc) noexcept
 }
 
 void
-ProgressWindow::SetMessage(const TCHAR *text) noexcept
+ProgressWindow::SetMessage(const char *text) noexcept
 {
   AssertThread();
 
   if (text == nullptr)
-    text = _T("");
+    text = "";
 
   message = text;
   Invalidate(message_position);
@@ -130,7 +134,7 @@ ProgressWindow::OnPaint(Canvas &canvas) noexcept
 {
   canvas.Clear(background_color);
 
-  logo.draw(canvas, logo_position);
+  logo.draw(canvas, logo_position, dark_mode);
 
   // Draw progress bar background
   canvas.Stretch(bottom_position.GetTopLeft(), bottom_position.GetSize(),
@@ -140,11 +144,9 @@ ProgressWindow::OnPaint(Canvas &canvas) noexcept
   canvas.Select(font);
 #endif
   canvas.SetBackgroundTransparent();
-  canvas.SetTextColor(COLOR_BLACK);
-  canvas.DrawText({(message_position.left + message_position.right
-                    - (int)canvas.CalcTextWidth(message.c_str())) / 2,
-      message_position.top},
-                  message.c_str());
+  canvas.SetTextColor(dark_mode ? COLOR_WHITE : COLOR_BLACK);
+  canvas.DrawFormattedText(message_position, message.c_str(),
+                           DT_CENTER);
 
   ContainerWindow::OnPaint(canvas);
 }

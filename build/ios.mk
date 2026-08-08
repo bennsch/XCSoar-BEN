@@ -7,7 +7,12 @@ IPA_TMPDIR = $(TARGET_OUTPUT_DIR)/ipa
 IPA_NAME = xcsoar.ipa
 IOS_APP_DIR_NAME = XCSoar.app
 
-IOS_APP_VERSION ?= 1.0.0
+ifeq ($(wildcard VERSION.txt),)
+$(error VERSION.txt is missing)
+endif
+
+IOS_PATCH_VERSION ?= 0
+IOS_APP_VERSION ?= $(shell cat VERSION.txt).$(IOS_PATCH_VERSION)
 IOS_APP_BUILD_NUMBER ?= 1
 
 ifeq ($(TESTING),y)
@@ -48,7 +53,11 @@ $(IOS_GRAPHICS_DIR)/Assets.xcassets: $(topdir)/Data/iOS/Assets.xcassets $(IOS_IC
 	$(Q)rsvg-convert $(IOS_ICON_SVG) -w 1024 -h 1024 -a -b white -o $@/AppIcon.appiconset/Icon-1024.png
 
 $(IOS_GRAPHICS_DIR)/Assets.car $(IOS_GRAPHICS_DIR)/AppIcon*.png: $(IOS_GRAPHICS_DIR)/Assets.xcassets
-	xcrun actool $< --compile $(dir $@) --platform iphoneos --minimum-deployment-target 8.0 --app-icon AppIcon --output-partial-info-plist $(IOS_GRAPHICS_DIR)/assets-partial.plist
+	xcrun actool $< --compile $(dir $@) --platform iphoneos --minimum-deployment-target $(IOS_MIN_SUPPORTED_VERSION) --app-icon AppIcon --output-partial-info-plist $(IOS_GRAPHICS_DIR)/assets-partial.plist
+
+$(IOS_GRAPHICS_DIR)/LaunchScreen.storyboardc: $(topdir)/Data/iOS/LaunchScreen.storyboard
+	mkdir -p $(IOS_GRAPHICS_DIR)
+	xcrun -sdk iphoneos ibtool --minimum-deployment-target $(IOS_MIN_SUPPORTED_VERSION) --target-device iphone --target-device ipad $< --compile $@
 
 $(IOS_GRAPHICS_DIR)/LaunchScreen.storyboardc: $(topdir)/Data/iOS/LaunchScreen.storyboard
 	mkdir -p $(IOS_GRAPHICS_DIR)
@@ -96,7 +105,7 @@ $(TARGET_OUTPUT_DIR)/$(IPA_NAME): $(TARGET_BIN_DIR)/xcsoar $(TARGET_OUTPUT_DIR)/
 	$(Q)cp $(TARGET_OUTPUT_DIR)/Info.plist $(IPA_TMPDIR)/Payload/$(IOS_APP_DIR_NAME)
 	$(Q)cp -r $(IOS_GRAPHICS_DIR)/. $(IPA_TMPDIR)/Payload/$(IOS_APP_DIR_NAME)
 	$(Q)cp -r $(DATA)/sound/. $(IPA_TMPDIR)/Payload/$(IOS_APP_DIR_NAME)
-	$(Q)cd $(IPA_TMPDIR) && $(ZIP) -r ../$(IPA_NAME) ./*
+	$(Q)cd $(IPA_TMPDIR) && $(ZIP) -qr ../$(IPA_NAME) ./*
 
 ipa: $(TARGET_OUTPUT_DIR)/$(IPA_NAME)
 

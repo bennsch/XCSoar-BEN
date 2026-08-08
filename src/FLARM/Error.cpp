@@ -5,14 +5,14 @@
 #include "util/Macros.hpp"
 #include "Language/Language.hpp"
 
-static const TCHAR *const severity_strings[] = {
+static const char *const severity_strings[] = {
   N_("No error"),
   N_("Information"),
   N_("Reduced functionality"),
   N_("Fatal problem"),
 };
 
-const TCHAR *
+const char *
 FlarmError::ToString(Severity severity) noexcept
 {
   unsigned i = (unsigned)severity;
@@ -23,7 +23,7 @@ FlarmError::ToString(Severity severity) noexcept
 
 static constexpr struct {
   FlarmError::Code code;
-  const TCHAR *string;
+  const char *string;
 } error_strings[] = {
   { FlarmError::Code::FIRMWARE_TIMEOUT, N_("Firmware expired") },
   { FlarmError::Code::FIRMWARE_UPDATE_ERROR, N_("Firmware update error") },
@@ -34,6 +34,7 @@ static constexpr struct {
   { FlarmError::Code::SDCARD, N_("SDCARD error") },
   { FlarmError::Code::LED, N_("LED error") },
   { FlarmError::Code::EEPROM, N_("EEPROM error") },
+  { FlarmError::Code::EEPROM2, N_("EEPROM error") },
   { FlarmError::Code::GPIO, N_("GPIO error") },
   { FlarmError::Code::GENERAL, N_("General hardware error") },
   { FlarmError::Code::TRANSPONDER_ADSB, N_("Transponder receiver Mode-C/S/ADS-B unserviceable") },
@@ -46,7 +47,8 @@ static constexpr struct {
   { FlarmError::Code::COMMUNICATION, N_("Communication") },
   { FlarmError::Code::FLASH_MEMORY, N_("Flash memory") },
   { FlarmError::Code::PRESSURE_SENSOR, N_("Pressure sensor") },
-  { FlarmError::Code::OBSTACLE_DATABASE, N_("Obstacle database expired") },
+  { FlarmError::Code::OBSTACLE_DATABASE, N_("Obstacle database") },
+  { FlarmError::Code::OBSTACLE_DATABASE_EXPIRED, N_("Obstacle database expired") },
   { FlarmError::Code::FLIGHT_RECORDER, N_("Flight recorder") },
   { FlarmError::Code::ENL, N_("Engine-noise recording not possible") },
   { FlarmError::Code::INVALID_OBSTACLE_LICENSE, N_("Invalid obstacle database license") },
@@ -64,7 +66,7 @@ static constexpr struct {
   { FlarmError::Code::OTHER, nullptr }
 };
 
-const TCHAR *
+const char *
 FlarmError::ToString(Code code) noexcept
 {
   for (auto i = error_strings; i->string != nullptr; ++i)

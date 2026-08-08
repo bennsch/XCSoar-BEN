@@ -20,6 +20,7 @@ AUDIO_SRC_DIR = $(SRC)/Audio
 
 AUDIO_SOURCES = \
 	$(AUDIO_SRC_DIR)/ToneSynthesiser.cpp \
+	$(AUDIO_SRC_DIR)/VarioAudioValue.cpp \
 	$(AUDIO_SRC_DIR)/VarioSynthesiser.cpp \
 	$(AUDIO_SRC_DIR)/PCMPlayer.cpp
 
@@ -52,7 +53,7 @@ endif
 
 AUDIO_CPPFLAGS_INTERNAL = $(SDL_CPPFLAGS)
 AUDIO_CPPFLAGS = $(ALSA_CPPFLAGS)
-AUDIO_LDLIBS = $(ALSA_LDLIBS)
+AUDIO_LDLIBS = $(ALSA_LDLIBS) $(SDL_LDLIBS)
 
 $(eval $(call link-library,libaudio,AUDIO))
 

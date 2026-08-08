@@ -1,1 +1,1 @@
-sphinxcontrib-blockdiag
+sphinx>=7.0

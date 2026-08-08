@@ -22,6 +22,7 @@
 #include "NativeSensorListener.hpp"
 #include "TextUtil.hpp"
 #include "TextEntryDialog.hpp"
+#include "CertificateUtil.hpp"
 #include "Product.hpp"
 #include "Language/Language.hpp"
 #include "Language/LanguageGlue.hpp"
@@ -46,6 +47,7 @@
 #include "java/Closeable.hxx"
 #include "util/Compiler.h"
 #include "org_xcsoar_NativeView.h"
+#include "Simulator.hpp"
 #include "io/async/GlobalAsioThread.hpp"
 #include "io/async/AsioThread.hpp"
 #include "net/http/Init.hpp"
@@ -59,6 +61,8 @@
 #include "I2CbaroDevice.hpp"
 #include "NunchuckDevice.hpp"
 #include "VoltageDevice.hpp"
+#include "SAFHelper.hpp"
+#include "Storage/android/SAFOutputStream.hpp"
 
 #include <cassert>
 #include <mutex>
@@ -76,6 +80,7 @@ Vibrator *vibrator;
 BluetoothHelper *bluetooth_helper;
 UsbSerialHelper *usb_serial_helper;
 IOIOHelper *ioio_helper;
+SAFHelper *saf_helper;
 
 /**
  * This mutex protects shutdown against other JNI calls, to avoid
@@ -113,6 +118,10 @@ InitNative(JNIEnv *env) noexcept
   NunchuckDevice::Initialise(env);
   VoltageDevice::Initialise(env);
   AndroidTextEntryDialog::Initialise(env);
+  CertificateUtil::Initialise(env);
+
+  SAFHelper::Initialise(env);
+  SAFOutputStream::Initialise(env);
 }
 
 gcc_visibility_default
@@ -129,7 +138,9 @@ void
 Java_org_xcsoar_NativeView_deinitNative(JNIEnv *env,
                                         [[maybe_unused]] jclass cls)
 {
+  SAFHelper::Deinitialise(env);
   AndroidTextEntryDialog::Deinitialise(env);
+  CertificateUtil::Deinitialise(env);
   BMP085Device::Deinitialise(env);
   I2CbaroDevice::Deinitialise(env);
   NunchuckDevice::Deinitialise(env);
@@ -172,6 +183,17 @@ Java_org_xcsoar_NativeView_onConfigurationChangedNative([[maybe_unused]] JNIEnv 
 }
 
 gcc_visibility_default
+void
+Java_org_xcsoar_NativeView_onRotationSuggestion([[maybe_unused]] JNIEnv *env,
+                                                [[maybe_unused]] jclass cls)
+{
+  const std::scoped_lock shutdown_lock{shutdown_mutex};
+
+  if (CommonInterface::main_window != nullptr)
+    CommonInterface::main_window->SendRotationSuggestion();
+}
+
+gcc_visibility_default
 JNIEXPORT jstring JNICALL
 Java_org_xcsoar_NativeView_onReceiveXCTrackTask(JNIEnv *env,
                                                 [[maybe_unused]] jclass cls,
@@ -181,6 +203,18 @@ try {
   return nullptr;
 } catch (...) {
   return env->NewStringUTF(GetFullMessage(std::current_exception()).c_str());
+}
+
+gcc_visibility_default
+jboolean
+Java_org_xcsoar_NativeView_isSimulatorNative([[maybe_unused]] JNIEnv *env,
+                                             [[maybe_unused]] jclass cls)
+{
+#ifdef SIMULATOR_AVAILABLE
+  return is_simulator() ? JNI_TRUE : JNI_FALSE;
+#else
+  return JNI_FALSE;
+#endif
 }
 
 gcc_visibility_default
@@ -200,6 +234,16 @@ try {
   const bool have_usb_serial = UsbSerialHelper::Initialise(env);
   const bool have_ioio = IOIOHelper::Initialise(env);
 
+  /* These class globals must be cleared before runNative can be
+     entered again in the same process (e.g. surface recreate before
+     System.exit).  Helper instances below are destroyed first because
+     AtScopeExit runs in reverse registration order. */
+  AtScopeExit(env) {
+    IOIOHelper::Deinitialise(env);
+    UsbSerialHelper::Deinitialise(env);
+    BluetoothHelper::Deinitialise(env);
+  };
+
   context = new Context(env, _context);
   AtScopeExit() {
     delete context;
@@ -215,7 +259,7 @@ try {
   InitialiseDataPath();
   AtScopeExit() { DeinitialiseDataPath(); };
 
-  LogFormat(_T("Starting %s"), XCSoar_ProductToken);
+  LogFormat("Starting %s", XCSoar_ProductToken);
 
   TextUtil::Initialise(env);
   AtScopeExit(env) { TextUtil::Deinitialise(env); };
@@ -279,6 +323,17 @@ try {
     ioio_helper = nullptr;
   };
 
+  try {
+    saf_helper = new SAFHelper(env, *context);
+  } catch (...) {
+    LogError(std::current_exception(), "Failed to initialise SAF helper");
+  }
+
+  AtScopeExit() {
+    delete saf_helper;
+    saf_helper = nullptr;
+  };
+
   ScreenGlobalInit screen_init;
   AtScopeExit() { Fonts::Deinitialize(); };
 
@@ -314,15 +369,23 @@ try {
 gcc_visibility_default
 JNIEXPORT void JNICALL
 Java_org_xcsoar_NativeView_resizedNative(JNIEnv *env, jobject obj,
-                                         jint width, jint height)
+                                         jint width, jint height,
+                                         jint inset_left, jint inset_top,
+                                         jint inset_right, jint inset_bottom)
 {
+  (void)inset_left;
+  (void)inset_top;
+  (void)inset_right;
+  (void)inset_bottom;
+
   const std::scoped_lock shutdown_lock{shutdown_mutex};
 
   if (event_queue == nullptr)
     return;
 
-  if (auto *main_window = NativeView::GetPointer(env, obj))
+  if (auto *main_window = NativeView::GetPointer(env, obj)) {
     main_window->AnnounceResize({width, height});
+  }
 
   event_queue->Purge(UI::Event::RESIZE);
 

@@ -5,15 +5,59 @@
 
 #include "thread/Mutex.hxx"
 #include "Engine/Trace/Trace.hpp"
+#include "Geo/GeoBounds.hpp"
+#include "util/OverwritingRingBuffer.hpp"
+
+#include <vector>
 
 struct ComputerSettings;
 struct MoreData;
 struct DerivedInfo;
 
 /**
+ * High-rate netto vario sample from MergeThread (between GPS trace fixes).
+ */
+struct TrailVarioSample {
+  TracePoint::Time time{};
+  float vario{};
+};
+
+/**
+ * Parameters for a filtered trace read (time, bounds, screen-space thinning).
+ */
+struct TrailQuery {
+  std::chrono::duration<unsigned> min_time{};
+  GeoBounds bounds{};
+  GeoPoint project_location{};
+  double min_distance_m{};
+  /** Minimum stride before budget (usually 1). */
+  unsigned point_stride = 1;
+  /** Cap kept points; 0 = unlimited. */
+  unsigned max_points = 0;
+};
+
+/**
  * Record a trace of the current flight.
  */
 class TraceComputer {
+public:
+  /**
+   * Full snail-trail capacity on fast hosts: ~14 h at
+   * \a Trace::push_back minimum spacing (2 s between stored fixes).
+   */
+  static constexpr unsigned FULL_TRACE_MAX_POINTS = 25200;
+
+  /**
+   * Full snail-trail capacity on slow hosts (≤ 1.4 GHz): v7.44 size.
+   */
+  static constexpr unsigned FULL_TRACE_MAX_POINTS_SLOW = 1024;
+
+private:
+  /**
+   * Capacity for #merge_vario_samples (must match ring template size).
+   */
+  static constexpr unsigned MERGE_VARIO_SAMPLES_CAPACITY = 512;
+
   /**
    * This mutex protects trace_full: it must be locked while editing
    * the trace, and while reading it from a thread other than the
@@ -22,6 +66,31 @@ class TraceComputer {
   mutable Mutex mutex;
 
   Trace full, contest, sprint;
+
+  /**
+   * Netto vario samples at merge frequency for snail-trail colouring
+   * between stored GPS trace points.
+   */
+  OverwritingRingBuffer<TrailVarioSample, MERGE_VARIO_SAMPLES_CAPACITY>
+      merge_vario_samples;
+
+  /** Merge-vario samples for completed GPS legs (ring holds the open leg). */
+  std::vector<TrailVarioSample> merge_vario_archive;
+
+  /**
+   * Append merge-vario samples for the half-open interval [t0, t1) to
+   * #merge_vario_archive (mutex must already be held).
+   */
+  void ArchiveMergeVarioForLegUnlocked(TracePoint::Time t0,
+                                       TracePoint::Time t1);
+
+  /**
+   * Copy archived merge-vario samples plus the open-leg ring (mutex must
+   * already be held).  When \a min_time is non-zero, omit older samples.
+   */
+  void CopyMergeVarioSamplesUnlocked(
+      std::vector<TrailVarioSample> &vario_samples,
+      TracePoint::Time min_time = {}) const;
 
 public:
   TraceComputer();
@@ -63,12 +132,73 @@ public:
   void LockedCopyTo(TracePointVector &v) const;
 
   /**
+   * Atomically copy full trace and merge-time vario samples under one
+   * lock (consistent snapshot for rendering).
+   */
+  void LockedCopySnapshot(TracePointVector &v,
+                          std::vector<TrailVarioSample> &vario_samples) const;
+
+  /**
    * Extract some trace points.  The trace is locked, and the method
    * may be called from any thread.
    */
   void LockedCopyTo(TracePointVector &v,
                     std::chrono::duration<unsigned> min_time,
                     const GeoPoint &location, double resolution) const;
+
+  /**
+   * Atomically copy filtered trace points and merge-time vario samples
+   * under one lock (consistent snapshot for rendering).
+   */
+  void LockedCopySnapshot(TracePointVector &v,
+                          std::vector<TrailVarioSample> &vario_samples,
+                          std::chrono::duration<unsigned> min_time,
+                          const GeoPoint &location, double resolution) const;
+
+  /**
+   * Copy trace points and merge-vario samples matching \a query under one
+   * lock.  When \a append_serial and \a modify_serial are non-null, they
+   * are filled with the current trace serials.
+   */
+  void LockedTrailQuery(const TrailQuery &query,
+                        TracePointVector &v,
+                        std::vector<TrailVarioSample> &vario_samples,
+                        Serial *append_serial = nullptr,
+                        Serial *modify_serial = nullptr) const;
+
+  /** Read append/modify serials under the trace mutex. */
+  void LockedGetSerials(Serial &append_serial,
+                        Serial &modify_serial) const noexcept;
+
+  /**
+   * Copy the time-windowed history (no bounds filter) and matching
+   * merge-vario samples for UI-side spatial re-filtering.
+   */
+  void LockedCopyHistory(std::chrono::duration<unsigned> min_time,
+                         TracePointVector &history,
+                         std::vector<TrailVarioSample> &vario_samples,
+                         Serial *append_serial = nullptr,
+                         Serial *modify_serial = nullptr) const;
+
+  /**
+   * Append store points with time greater than \a after onto \a history
+   * and extend \a vario_samples for the new span.
+   */
+  void LockedAppendHistoryAfter(TracePoint::Time after,
+                                TracePointVector &history,
+                                std::vector<TrailVarioSample> &vario_samples,
+                                Serial *append_serial = nullptr,
+                                Serial *modify_serial = nullptr) const;
+
+  /** Project query bounds/spacing into a flat spatial filter. */
+  [[nodiscard]]
+  TrailSpatialFilter LockedMakeSpatialFilter(const TrailQuery &query) const noexcept;
+
+  /**
+   * Called from #MergeThread after merged basic data is computed (must
+   * not be called while holding #DeviceBlackboard::mutex).
+   */
+  void PushMergeVarioSample(TracePoint::Time time, float vario) noexcept;
 
   void Update(const ComputerSettings &settings_computer,
               const MoreData &basic, const DerivedInfo &calculated);

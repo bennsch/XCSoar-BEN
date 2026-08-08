@@ -8,6 +8,7 @@
 #include "Dialogs/ComboPicker.hpp"
 #include "Language/Language.hpp"
 #include "LocalPath.hpp"
+#include "Repository/FileType.hpp"
 #include "system/Path.hpp"
 #include "system/FileUtil.hpp"
 #include "Form/DataField/ComboList.hpp"
@@ -28,16 +29,18 @@ public:
 };
 
 static AllocatedPath
-SelectLuaFile(const TCHAR *path)
+SelectLuaFile(const char *path)
 {
   if (StringIsEmpty(path)) {
     /* no parameter: let user select a *.lua file */
     LuaFileVisitor visitor;
 
-    Directory::VisitSpecificFiles(LocalPath(_T("lua")), _T("*.lua"),
+    const auto lua_dir = LocalPath(GetFileTypeDefaultDir(FileType::LUA));
+    Directory::VisitSpecificFiles(lua_dir,
+                                  GetFileTypePatterns(FileType::LUA),
                                   visitor, true);
     if (visitor.combo_list.empty()) {
-      ShowMessageBox(_("Not found"), _T("RunLuaFile"),
+      ShowMessageBox(_("Not found"), "RunLuaFile",
                      MB_OK|MB_ICONINFORMATION);
       return nullptr;
     }
@@ -47,20 +50,20 @@ SelectLuaFile(const TCHAR *path)
       return nullptr;
 
     return Path(visitor.combo_list[i].string_value.c_str());
-  } else if (StringEndsWith(path, _T(".lua"))) {
+  } else if (FilenameMatchesFileType(path, FileType::LUA)) {
     /* *.lua file specified: run this file */
     return Path(path).IsAbsolute()
       ? AllocatedPath(Path(path))
-      : AllocatedPath::Build(LocalPath(_T("lua")), path);
+      : AllocatedPath::Build(LocalPath(GetFileTypeDefaultDir(FileType::LUA)), path);
   } else {
-    ShowMessageBox(_T("RunLuaFile expects *.lua parameter"),
-                   _T("RunLuaFile"), MB_OK|MB_ICONINFORMATION);
+    ShowMessageBox("RunLuaFile expects *.lua parameter",
+                   "RunLuaFile", MB_OK|MB_ICONINFORMATION);
     return nullptr;
   }
 }
 
 void
-InputEvents::eventRunLuaFile(const TCHAR *misc)
+InputEvents::eventRunLuaFile(const char *misc)
 {
   const auto path = SelectLuaFile(misc);
   if (path == nullptr)
@@ -69,8 +72,8 @@ InputEvents::eventRunLuaFile(const TCHAR *misc)
   try {
     Lua::StartFile(path);
   } catch (...) {
-    TCHAR buffer[MAX_PATH];
-    StringFormat(buffer, MAX_PATH, _T("RunLuaFile %s"), misc);
+    char buffer[MAX_PATH];
+    StringFormat(buffer, MAX_PATH, "RunLuaFile %s", misc);
     ShowError(std::current_exception(), buffer);
   }
 }

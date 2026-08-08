@@ -11,6 +11,7 @@
 #include "Device/Driver/CAI302.hpp"
 #include "Device/Driver/CProbe.hpp"
 #include "Device/Driver/Condor.hpp"
+#include "Device/Driver/Condor3UDP.hpp"
 #include "Device/Driver/EW.hpp"
 #include "Device/Driver/EWMicroRecorder.hpp"
 #include "Device/Driver/Eye.hpp"
@@ -23,10 +24,12 @@
 #include "Device/Driver/IMI.hpp"
 #include "Device/Driver/LX.hpp"
 #include "Device/Driver/LX/Internal.hpp"
+#include "Device/Driver/LX/LXNavDeclare.hpp"
 #include "Device/Driver/LX_Eos.hpp"
 #include "Device/Driver/Larus.hpp"
 #include "Device/Driver/Leonardo.hpp"
 #include "Device/Driver/LevilAHRS_G.hpp"
+#include "Device/Driver/LoEFGREN.hpp"
 #include "Device/Driver/OpenVario.hpp"
 #include "Device/Driver/PosiGraph.hpp"
 #include "Device/Driver/Vaulter.hpp"
@@ -38,12 +41,26 @@
 #include "Device/Driver/Zander.hpp"
 #include "Device/Parser.hpp"
 #include "Device/Port/NullPort.hpp"
+#include "FLARM/Error.hpp"
+#include "FLARM/Progress.hpp"
+#include "FLARM/State.hpp"
+#include "FLARM/Global.hpp"
+#include "FLARM/TrafficDatabases.hpp"
+#include "FLARM/MessagingRecord.hpp"
+#include "Tracking/SkyLines/FlarmTrafficBuilder.hpp"
+#include "Tracking/SkyLines/TrafficExtensions.hpp"
+#include "Tracking/SkyLines/Protocol.hpp"
+#include "Tracking/SkyLines/Handler.hpp"
+#include "Tracking/CloudSettings.hpp"
 #include "Device/RecordedFlight.hpp"
 #include "Device/device.hpp"
 #include "Engine/Waypoint/Waypoint.hpp"
+#include "Engine/Waypoint/Ptr.hpp"
 #include "FaultInjectionPort.hpp"
 #include "Input/InputEvents.hpp"
 #include "Logger/Settings.hpp"
+#include "LocalPath.hpp"
+#include "NMEA/GPSState.hpp"
 #include "NMEA/Info.hpp"
 #include "Operation/Operation.hpp"
 #include "Plane/Plane.hpp"
@@ -51,12 +68,50 @@
 #include "TestUtil.hpp"
 #include "Units/System.hpp"
 #include "io/NullDataHandler.hpp"
+#include "system/Path.hpp"
+#include "util/StaticString.hxx"
 #include "util/ByteOrder.hxx"
 #include "util/PackedFloat.hxx"
 
+#include <chrono>
+#include <cstring>
 #include <memory>
+#include <span>
+
+#ifdef _WIN32
+#include <process.h>
+/* winerror.h may define NO_ERROR after FLARM/Error.hpp was included. */
+#undef NO_ERROR
+#else
+#include <unistd.h>
+#endif
 
 static const DeviceConfig dummy_config = DeviceConfig();
+
+static unsigned long
+GetProcessId() noexcept
+{
+#ifdef _WIN32
+  return (unsigned long)_getpid();
+#else
+  return (unsigned long)getpid();
+#endif
+}
+
+static AllocatedPath
+MakeTestDriverDataPath() noexcept
+{
+  using namespace std::chrono;
+
+  const auto timestamp = duration_cast<microseconds>(
+    system_clock::now().time_since_epoch()).count();
+
+  StaticString<96> name;
+  name.Format("TestDriverDataPath-%lld-%lu",
+              (long long)timestamp,
+              GetProcessId());
+  return AllocatedPath::Build(Path("output"), name.c_str());
+}
 
 /*
  * Unit tests
@@ -147,6 +202,78 @@ TestTasman()
 }
 
 static void
+TestLK8EX1()
+{
+  NMEAParser parser;
+
+  NMEAInfo nmea_info;
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+
+  /* pressure present: altitude field ignored; voltage battery */
+  ok1(parser.ParseLine("$LK8EX1,101325,99999,0,25.0,3.70*31", nmea_info));
+  ok1(nmea_info.static_pressure_available);
+  ok1(equals(nmea_info.static_pressure.GetPascal(), 101325));
+  ok1(!nmea_info.pressure_altitude_available);
+  ok1(nmea_info.noncomp_vario_available);
+  ok1(equals(nmea_info.noncomp_vario, 0));
+  ok1(nmea_info.temperature_available);
+  ok1(equals(nmea_info.temperature.ToCelsius(), 25));
+  ok1(nmea_info.voltage_available);
+  ok1(equals(nmea_info.voltage, 3.70));
+  ok1(!nmea_info.battery_level_available);
+
+  /* altitude-only + negative vario; missing temp/battery sentinels */
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+  ok1(parser.ParseLine("$LK8EX1,999999,1500,-50,99,999*2A", nmea_info));
+  ok1(!nmea_info.static_pressure_available);
+  ok1(nmea_info.pressure_altitude_available);
+  ok1(equals(nmea_info.pressure_altitude, 1500));
+  ok1(nmea_info.noncomp_vario_available);
+  ok1(equals(nmea_info.noncomp_vario, -0.5));
+  ok1(!nmea_info.temperature_available);
+  ok1(!nmea_info.voltage_available);
+  ok1(!nmea_info.battery_level_available);
+
+  /* all missing sentinels */
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+  ok1(parser.ParseLine("$LK8EX1,999999,99999,9999,99,999*3F", nmea_info));
+  ok1(!nmea_info.static_pressure_available);
+  ok1(!nmea_info.pressure_altitude_available);
+  ok1(!nmea_info.noncomp_vario_available);
+  ok1(!nmea_info.temperature_available);
+  ok1(!nmea_info.voltage_available);
+  ok1(!nmea_info.battery_level_available);
+
+  /* battery percentage encoding (14%) */
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+  ok1(parser.ParseLine("$LK8EX1,98725,99999,120,21.5,1014*18", nmea_info));
+  ok1(nmea_info.static_pressure_available);
+  ok1(equals(nmea_info.static_pressure.GetPascal(), 98725));
+  ok1(nmea_info.noncomp_vario_available);
+  ok1(equals(nmea_info.noncomp_vario, 1.2));
+  ok1(nmea_info.temperature_available);
+  ok1(equals(nmea_info.temperature.ToCelsius(), 21.5));
+  ok1(nmea_info.battery_level_available);
+  ok1(equals(nmea_info.battery_level, 14));
+  ok1(!nmea_info.voltage_available);
+
+  /* 0% battery via 1000+percent */
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+  ok1(parser.ParseLine("$LK8EX1,101325,99999,0,25,1000*34", nmea_info));
+  ok1(nmea_info.battery_level_available);
+  ok1(equals(nmea_info.battery_level, 0));
+  ok1(!nmea_info.voltage_available);
+
+  /* bad checksum */
+  ok1(!parser.ParseLine("$LK8EX1,101325,99999,0,25.0,3.70*00", nmea_info));
+}
+
+static void
 TestFLARM()
 {
   NMEAParser parser;
@@ -163,6 +290,50 @@ TestFLARM()
   ok1(nmea_info.flarm.status.alarm_level == FlarmTraffic::AlarmType::NONE);
   ok1(nmea_info.flarm.traffic.GetActiveTrafficCount() == 0);
   ok1(!nmea_info.flarm.traffic.new_traffic);
+  ok1(!nmea_info.flarm.status.has_extended);
+
+  // PFLAU with all 10 fields: alarm=2, bearing=45, type=3, vert=-200,
+  // dist=1500, ID=DDA85C
+  ok1(parser.ParseLine("$PFLAU,5,1,2,1,2,45,3,-200,1500,DDA85C*5D",
+                       nmea_info));
+  ok1(nmea_info.flarm.status.rx == 5);
+  ok1(nmea_info.flarm.status.alarm_level == FlarmTraffic::AlarmType::IMPORTANT);
+  ok1(nmea_info.flarm.status.has_extended);
+  ok1(nmea_info.flarm.status.relative_bearing == 45);
+  ok1(nmea_info.flarm.status.alarm_type == 3);
+  ok1(nmea_info.flarm.status.relative_vertical == -200);
+  ok1(nmea_info.flarm.status.relative_distance == 1500);
+  ok1(nmea_info.flarm.status.target_id == FlarmId::Parse("DDA85C", NULL));
+
+  // PFLAU alarm=3 with negative bearing
+  ok1(parser.ParseLine("$PFLAU,8,1,2,1,3,-30,2,150,800,DEADFF*63",
+                       nmea_info));
+  ok1(nmea_info.flarm.status.alarm_level == FlarmTraffic::AlarmType::URGENT);
+  ok1(nmea_info.flarm.status.has_extended);
+  ok1(nmea_info.flarm.status.relative_bearing == -30);
+  ok1(nmea_info.flarm.status.alarm_type == 2);
+  ok1(nmea_info.flarm.status.relative_vertical == 150);
+  ok1(nmea_info.flarm.status.relative_distance == 800);
+  ok1(nmea_info.flarm.status.target_id == FlarmId::Parse("DEADFF", NULL));
+
+  // PFLAU Alert Zone alarm (FTD-012 spec example): AlarmType=0x41
+  // (skydiver drop zone), hex-encoded per spec
+  ok1(parser.ParseLine("$PFLAU,2,1,2,1,1,0,41,0,0,A25703*38",
+                       nmea_info));
+  ok1(nmea_info.flarm.status.alarm_level ==
+      FlarmTraffic::AlarmType::LOW);
+  ok1(nmea_info.flarm.status.has_extended);
+  ok1(nmea_info.flarm.status.relative_bearing == 0);
+  ok1(nmea_info.flarm.status.alarm_type == 0x41);
+  ok1(nmea_info.flarm.status.relative_vertical == 0);
+  ok1(nmea_info.flarm.status.relative_distance == 0);
+  ok1(nmea_info.flarm.status.target_id == FlarmId::Parse("A25703", NULL));
+
+  // PFLAU with empty bearing fields (no alarm target)
+  ok1(parser.ParseLine("$PFLAU,3,1,2,1,0,,0,,*63",
+                       nmea_info));
+  ok1(nmea_info.flarm.status.alarm_level == FlarmTraffic::AlarmType::NONE);
+  ok1(!nmea_info.flarm.status.has_extended);
 
   ok1(parser.ParseLine("$PFLAA,0,100,-150,10,2,DDA85C,123,13,24,1.4,2*7f",
                                       nmea_info));
@@ -188,8 +359,12 @@ TestFLARM()
     ok1(traffic->climb_rate_received);
     ok1(traffic->type == FlarmTraffic::AircraftType::TOW_PLANE);
     ok1(!traffic->stealth);
+    ok1(traffic->id_type == FlarmTraffic::IdType::FLARM);
+    ok1(traffic->source == FlarmTraffic::SourceType::FLARM);
+    ok1(!traffic->rssi_available);
+    ok1(!traffic->no_track);
   } else {
-    skip(16, 0, "traffic == NULL");
+    skip(19, 0, "traffic == NULL");
   }
 
   ok1(parser.ParseLine("$PFLAA,2,20,10,24,2,DEADFF,,,,,1*46",
@@ -238,6 +413,192 @@ TestFLARM()
   } else {
     skip(15, 0, "traffic == NULL");
   }
+
+  // PFLAA with IDType=0 (random ID)
+  ok1(parser.ParseLine("$PFLAA,0,300,400,20,0,ABC123,90,,20,,8*30",
+                       nmea_info));
+
+  id = FlarmId::Parse("ABC123", NULL);
+  traffic = nmea_info.flarm.traffic.FindTraffic(id);
+  if (ok1(traffic != NULL)) {
+    ok1(traffic->id_type == FlarmTraffic::IdType::RANDOM);
+  } else {
+    skip(1, 0, "traffic == NULL");
+  }
+
+  // PFLAA with IDType=1 (ICAO address)
+  ok1(parser.ParseLine("$PFLAA,0,300,400,20,1,4CA123,90,,20,,8*47",
+                       nmea_info));
+
+  id = FlarmId::Parse("4CA123", NULL);
+  traffic = nmea_info.flarm.traffic.FindTraffic(id);
+  if (ok1(traffic != NULL)) {
+    ok1(traffic->id_type == FlarmTraffic::IdType::ICAO);
+  } else {
+    skip(1, 0, "traffic == NULL");
+  }
+
+  // PFLAA with empty IDType (Mode-C, unknown)
+  ok1(parser.ParseLine("$PFLAA,0,300,400,20,,MODEC1,90,,20,,8*01",
+                       nmea_info));
+
+  id = FlarmId::Parse("MODEC1", NULL);
+  traffic = nmea_info.flarm.traffic.FindTraffic(id);
+  if (ok1(traffic != NULL)) {
+    ok1(traffic->id_type == FlarmTraffic::IdType::UNKNOWN);
+  } else {
+    skip(1, 0, "traffic == NULL");
+  }
+
+  // PFLAA v8+ with NoTrack=0, Source=ADS-B (1), RSSI=-85
+  ok1(parser.ParseLine("$PFLAA,0,200,-300,15,2,AABB01,180,5,30,0.8,1,0,1,-85*48",
+                       nmea_info));
+
+  id = FlarmId::Parse("AABB01", NULL);
+  traffic = nmea_info.flarm.traffic.FindTraffic(id);
+  if (ok1(traffic != NULL)) {
+    ok1(traffic->id_type == FlarmTraffic::IdType::FLARM);
+    ok1(traffic->source == FlarmTraffic::SourceType::ADSB);
+    ok1(traffic->rssi_available);
+    ok1(traffic->rssi == -85);
+    ok1(!traffic->no_track);
+    ok1(traffic->type == FlarmTraffic::AircraftType::GLIDER);
+    ok1(equals(traffic->track, 180));
+  } else {
+    skip(7, 0, "traffic == NULL");
+  }
+
+  // PFLAA v9+ with Source=Mode-S (6), NoTrack=0, no RSSI
+  ok1(parser.ParseLine("$PFLAA,0,50,80,5,2,AABB02,90,,20,,8,0,6*7B",
+                       nmea_info));
+
+  id = FlarmId::Parse("AABB02", NULL);
+  traffic = nmea_info.flarm.traffic.FindTraffic(id);
+  if (ok1(traffic != NULL)) {
+    ok1(traffic->source == FlarmTraffic::SourceType::MODES);
+    ok1(!traffic->rssi_available);
+    ok1(!traffic->no_track);
+    ok1(traffic->type == FlarmTraffic::AircraftType::POWERED_AIRCRAFT);
+  } else {
+    skip(4, 0, "traffic == NULL");
+  }
+
+  // PFLAA stealth with NoTrack=1 (no Source/RSSI)
+  ok1(parser.ParseLine("$PFLAA,0,50,80,5,2,AABB03,,,,,1,1*63",
+                       nmea_info));
+
+  id = FlarmId::Parse("AABB03", NULL);
+  traffic = nmea_info.flarm.traffic.FindTraffic(id);
+  if (ok1(traffic != NULL)) {
+    ok1(traffic->source == FlarmTraffic::SourceType::FLARM);
+    ok1(traffic->stealth);
+    ok1(traffic->no_track);
+    ok1(!traffic->rssi_available);
+  } else {
+    skip(4, 0, "traffic == NULL");
+  }
+
+  // PFLAA v8+ with NoTrack=0, out-of-range source (9 -> defaults to FLARM)
+  ok1(parser.ParseLine("$PFLAA,0,50,80,5,2,AABB04,90,,20,,8,0,9*72",
+                       nmea_info));
+
+  id = FlarmId::Parse("AABB04", NULL);
+  traffic = nmea_info.flarm.traffic.FindTraffic(id);
+  if (ok1(traffic != NULL)) {
+    ok1(traffic->source == FlarmTraffic::SourceType::FLARM);
+  } else {
+    skip(1, 0, "traffic == NULL");
+  }
+
+  // PFLAE without message (pre-v7 style)
+  ok1(parser.ParseLine("$PFLAE,A,0,0*33", nmea_info));
+  ok1(nmea_info.flarm.error.severity == FlarmError::Severity::NO_ERROR);
+  ok1(nmea_info.flarm.error.code == (FlarmError::Code)0);
+  ok1(nmea_info.flarm.error.message.empty());
+
+  // PFLAE without message, severity > 0
+  ok1(parser.ParseLine("$PFLAE,A,2,81*08", nmea_info));
+  ok1(nmea_info.flarm.error.severity == FlarmError::REDUCED_FUNCTIONALITY);
+  ok1(nmea_info.flarm.error.code == FlarmError::OBSTACLE_DATABASE);
+  ok1(nmea_info.flarm.error.message.empty());
+
+  // PFLAE with device message (v7+)
+  ok1(parser.ParseLine("$PFLAE,A,3,11,Software expiry*2C", nmea_info));
+  ok1(nmea_info.flarm.error.severity == FlarmError::FATAL_PROBLEM);
+  ok1(nmea_info.flarm.error.code == FlarmError::FIRMWARE_TIMEOUT);
+  ok1(nmea_info.flarm.error.message.equals("Software expiry"));
+
+  // PFLAJ: in flight, recording, TIS-B unavailable
+  ok1(parser.ParseLine("$PFLAJ,A,1,1,0*20", nmea_info));
+  ok1(nmea_info.flarm.state.available);
+  ok1(nmea_info.flarm.state.flight == FlarmState::Flight::IN_FLIGHT);
+  ok1(nmea_info.flarm.state.recorder == FlarmState::Recorder::RECORDING);
+
+  // PFLAJ: on ground, recorder off (no TIS-B field)
+  ok1(parser.ParseLine("$PFLAJ,A,0,0*3C", nmea_info));
+  ok1(nmea_info.flarm.state.flight == FlarmState::Flight::ON_GROUND);
+  ok1(nmea_info.flarm.state.recorder == FlarmState::Recorder::OFF);
+
+  // PFLAJ: in flight, baro-only recording
+  ok1(parser.ParseLine("$PFLAJ,A,1,2*3F", nmea_info));
+  ok1(nmea_info.flarm.state.flight == FlarmState::Flight::IN_FLIGHT);
+  ok1(nmea_info.flarm.state.recorder == FlarmState::Recorder::BARO_ONLY);
+
+  // PFLAQ: PowerFLARM with Info field
+  ok1(parser.ParseLine("$PFLAQ,IGC,2A8GJ7K1.IGC,55*43", nmea_info));
+  ok1(nmea_info.flarm.progress.available);
+  ok1(nmea_info.flarm.progress.operation.equals("IGC"));
+  ok1(nmea_info.flarm.progress.info.equals("2A8GJ7K1.IGC"));
+  ok1(nmea_info.flarm.progress.progress == 55);
+
+  // PFLAQ: PowerFLARM with empty Info field
+  ok1(parser.ParseLine("$PFLAQ,OBST,,10*6D", nmea_info));
+  ok1(nmea_info.flarm.progress.operation.equals("OBST"));
+  ok1(nmea_info.flarm.progress.info.empty());
+  ok1(nmea_info.flarm.progress.progress == 10);
+
+  // PFLAQ: Classic FLARM (no Info field at all)
+  ok1(parser.ParseLine("$PFLAQ,IGC,25*00", nmea_info));
+  ok1(nmea_info.flarm.progress.operation.equals("IGC"));
+  ok1(nmea_info.flarm.progress.info.empty());
+  ok1(nmea_info.flarm.progress.progress == 25);
+
+  // PFLAQ: firmware update complete
+  ok1(parser.ParseLine("$PFLAQ,FW,,100*46", nmea_info));
+  ok1(nmea_info.flarm.progress.operation.equals("FW"));
+  ok1(nmea_info.flarm.progress.progress == 100);
+
+  // Ensure a database instance exists before PFLAM messages are parsed
+  if (traffic_databases == nullptr)
+    traffic_databases = new TrafficDatabases();
+
+  ok1(parser.ParseLine("$PFLAM,U,2,DDAED5,AREG,48422D534941*0B", 
+                        nmea_info));
+  ok1(parser.ParseLine("$PFLAM,U,2,DDAED5,ACALL,5A4D*2F", 
+                        nmea_info));
+  ok1(parser.ParseLine("$PFLAM,U,2,DDAED5,PNAME,4F7276696C6C6520577269676874*43", 
+                        nmea_info));
+  ok1(parser.ParseLine("$PFLAM,U,2,DDAED5,ATYPE,436573736E6120313732*44", 
+                        nmea_info));
+  ok1(parser.ParseLine("$PFLAM,U,2,DDAED5,VHF,118.455,121.500,,*17",
+                        nmea_info));
+
+  id = FlarmId::Parse("DDAED5", NULL);
+  auto mr = traffic_databases->flarm_messages.FindRecordById(id);
+  if (ok1(mr.has_value())) {
+    ok1(StringIsEqual(mr->registration.c_str(), "HB-SIA"));
+    ok1(StringIsEqual(mr->callsign.c_str(), "ZM"));
+    ok1(StringIsEqual(mr->pilot.c_str(), "Orville Wright"));
+    ok1(StringIsEqual(mr->plane_type.c_str(), "Cessna 172"));
+    ok1(mr->frequency.IsDefined());
+    ok1(mr->frequency.GetKiloHertz() == 118455);
+  } else {
+    skip(6, 0, "messaging record missing");
+  }
+
+  // Clean up to avoid side effects across tests
+  delete traffic_databases;
+  traffic_databases = nullptr;
 }
 
 static void
@@ -306,12 +667,56 @@ TestBlueFly()
   ok1(device->ParseNMEA("BAT 1068", nmea_info)); //4.2V
   ok1(nmea_info.battery_level_available);
   ok1(equals(nmea_info.battery_level, 100.0));
+  ok1(nmea_info.voltage_available);
+  ok1(equals(nmea_info.voltage, 4.2));
   ok1(device->ParseNMEA("BAT EFE", nmea_info)); //3.84V
   ok1(nmea_info.battery_level_available);
   ok1(equals(nmea_info.battery_level, 50.0));
+  ok1(nmea_info.voltage_available);
+  ok1(equals(nmea_info.voltage, 3.838));
   ok1(device->ParseNMEA("BAT ED8", nmea_info)); //3.80V
   ok1(nmea_info.battery_level_available);
   ok1(equals(nmea_info.battery_level, 37.3333));
+  ok1(nmea_info.voltage_available);
+  ok1(equals(nmea_info.voltage, 3.8));
+
+  ok1(device->ParseNMEA("TMP 231", nmea_info)); //23.1 °C
+  ok1(nmea_info.temperature_available);
+  ok1(equals(nmea_info.temperature.ToCelsius(), 23.1));
+
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+
+  ok1(!device->ParseNMEA("$BFV,101325,123,23.1,85,0*00", nmea_info));
+
+  ok1(device->ParseNMEA("$BFV,101325,123,23.1,85,0*69", nmea_info));
+  ok1(nmea_info.static_pressure_available);
+  ok1(equals(nmea_info.static_pressure.GetPascal(), 101325));
+  ok1(nmea_info.noncomp_vario_available);
+  ok1(equals(nmea_info.noncomp_vario, 1.23));
+  ok1(nmea_info.temperature_available);
+  ok1(equals(nmea_info.temperature.ToCelsius(), 23.1));
+  ok1(nmea_info.battery_level_available);
+  ok1(equals(nmea_info.battery_level, 85.0));
+  ok1(!nmea_info.dyn_pressure_available);
+  ok1(!nmea_info.voltage_available);
+
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+
+  ok1(device->ParseNMEA("$BFX,101325,-50,18.5,40,12,3.84*74", nmea_info));
+  ok1(nmea_info.static_pressure_available);
+  ok1(equals(nmea_info.static_pressure.GetPascal(), 101325));
+  ok1(nmea_info.noncomp_vario_available);
+  ok1(equals(nmea_info.noncomp_vario, -0.5));
+  ok1(nmea_info.temperature_available);
+  ok1(equals(nmea_info.temperature.ToCelsius(), 18.5));
+  ok1(nmea_info.battery_level_available);
+  ok1(equals(nmea_info.battery_level, 40.0));
+  ok1(nmea_info.dyn_pressure_available);
+  ok1(equals(nmea_info.dyn_pressure.GetPascal(), 12));
+  ok1(nmea_info.voltage_available);
+  ok1(equals(nmea_info.voltage, 3.84));
 
   delete device;
 }
@@ -721,6 +1126,46 @@ TestFlytec()
 }
 
 static void
+TestLoEFGREN()
+{
+  NullPort null;
+  Device *device = loe_fgren_driver.CreateOnPort(dummy_config, null);
+  ok1(device != NULL);
+
+  NMEAInfo nmea_info;
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+
+  // Test positive vario (climb)
+  ok1(device->ParseNMEA("$PLOF,250,80,150*32", nmea_info));
+  ok1(nmea_info.total_energy_vario_available);
+  ok1(equals(nmea_info.total_energy_vario, 2.5));
+  ok1(nmea_info.airspeed_available);
+  ok1(equals(nmea_info.indicated_airspeed,
+             Units::ToSysUnit(80, Unit::KILOMETER_PER_HOUR)));
+  ok1(nmea_info.temperature_available);
+  ok1(equals(nmea_info.temperature.ToKelvin(),
+             Temperature::FromCelsius(15).ToKelvin()));
+
+  // Test negative vario (sink) and negative temperature
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{2}};
+  ok1(device->ParseNMEA("$PLOF,-150,60,-50*0E", nmea_info));
+  ok1(equals(nmea_info.total_energy_vario, -1.5));
+  ok1(equals(nmea_info.temperature.ToKelvin(),
+             Temperature::FromCelsius(-5).ToKelvin()));
+
+  // Test invalid sentences
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{3}};
+  ok1(!device->ParseNMEA("$VARIO,999.98,-12*66", nmea_info));
+  ok1(!device->ParseNMEA("$PLOF,250,80,150*FF", nmea_info));
+  ok1(!nmea_info.total_energy_vario_available);
+
+  delete device;
+}
+
+static void
 TestLarus()
 {
   NullPort null;
@@ -978,8 +1423,12 @@ TestLX(const struct DeviceRegister &driver, bool condor=false, bool reciprocal_w
   nmea_info.clock = TimeStamp{FloatDuration{1}};
 
   /* airspeed and vario available */
-  ok1(device->ParseNMEA("$LXWP0,Y,222.3,1665.5,1.71,,,,,,239,174,10.1*47",
-                        nmea_info));
+  if (condor)
+    ok1(device->ParseNMEA("$LXWP0,Y,222.3,1665.5,1.71,,,,,,239,174,10.1*47",
+                          nmea_info));
+  else
+    ok1(device->ParseNMEA("$LXWP0,Y,222.3,1665.5,1.71,1.71,1.71,1.71,1.71,1.71,239,174,10.1*5E",
+                          nmea_info));
   ok1((bool)nmea_info.pressure_altitude_available == !condor);
   ok1((bool)nmea_info.baro_altitude_available == condor);
   ok1(equals(condor ? nmea_info.baro_altitude : nmea_info.pressure_altitude,
@@ -992,6 +1441,32 @@ TestLX(const struct DeviceRegister &driver, bool condor=false, bool reciprocal_w
   ok1(nmea_info.external_wind_available);
   ok1(equals(nmea_info.external_wind.norm, 10.1 / 3.6));
   ok1(equals(nmea_info.external_wind.bearing, reciprocal_wind ? 354 : 174));
+
+  if (!condor) {
+    /* Partial six-slot vario with airspeed: still TE (#2763). */
+    nmea_info.Reset();
+    nmea_info.clock = TimeStamp{FloatDuration{1}};
+    ok1(device->ParseNMEA("$LXWP0,Y,222.3,1665.5,1.71,,,,,,239,174,10.1*47",
+                          nmea_info));
+    ok1(nmea_info.pressure_altitude_available);
+    ok1(equals(nmea_info.pressure_altitude, 1665.5));
+    ok1(nmea_info.airspeed_available);
+    ok1(nmea_info.total_energy_vario_available);
+    ok1(equals(nmea_info.total_energy_vario, 1.71));
+    ok1(nmea_info.external_wind_available);
+
+    /* BlueFly LX mode: no airspeed — uncompensated, not TE. */
+    nmea_info.Reset();
+    nmea_info.clock = TimeStamp{FloatDuration{1}};
+    ok1(device->ParseNMEA("$LXWP0,N,,119.9,0.16,,,,,,259,,*64",
+                          nmea_info));
+    ok1(nmea_info.pressure_altitude_available);
+    ok1(equals(nmea_info.pressure_altitude, 119.9));
+    ok1(!nmea_info.airspeed_available);
+    ok1(!nmea_info.total_energy_vario_available);
+    ok1(nmea_info.noncomp_vario_available);
+    ok1(equals(nmea_info.noncomp_vario, 0.16));
+  }
 
 
   nmea_info.Reset();
@@ -1117,7 +1592,127 @@ TestLX(const struct DeviceRegister &driver, bool condor=false, bool reciprocal_w
     ok1(device->ParseNMEA("$LXWP3,47.76,0,2.0,5.0,15,30,2.5,1.0,0,100,0.1,,0*08", nmea_info));
     ok1(nmea_info.settings.qnh_available);
     ok1(equals(nmea_info.settings.qnh.GetHectoPascal(), 1015));
+    ok1(nmea_info.settings.vario_filter_period_available);
+    ok1(equals(nmea_info.settings.vario_filter_period, 2.0));
   }
+
+  delete device;
+}
+
+static void
+TestCondor3UDP()
+{
+  NullPort null_port;
+  Device *device = condor3_udp_driver.CreateOnPort(dummy_config, null_port);
+  ok1(device != nullptr);
+
+  NMEAInfo info;
+  unsigned step = 0;
+
+  auto next_step = [&]() {
+    info.Reset();
+    ++step;
+    info.clock = TimeStamp{FloatDuration{step}};
+    info.alive.Update(info.clock);
+  };
+
+  next_step();
+
+  ok1(!device->ParseNMEA("", info));
+  ok1(!device->ParseNMEA("noline", info));
+  ok1(!device->ParseNMEA("=-1", info));
+  ok1(!device->ParseNMEA("key=", info));
+  ok1(!device->ParseNMEA("x=1 junk", info));
+
+  next_step();
+  ok1(device->ParseNMEA("airspeed=25.5", info));
+  ok1(info.airspeed_available);
+  ok1(equals(info.true_airspeed, 25.5));
+
+  next_step();
+  ok1(device->ParseNMEA("altitude=1234", info));
+  ok1(info.baro_altitude_available);
+  ok1(equals(info.baro_altitude, 1234));
+
+  next_step();
+  ok1(device->ParseNMEA("vario=3.25", info));
+  ok1(info.noncomp_vario_available);
+  ok1(equals(info.noncomp_vario, 3.25));
+
+  next_step();
+  ok1(device->ParseNMEA("evario=-1.5", info));
+  ok1(info.total_energy_vario_available);
+  ok1(equals(info.total_energy_vario, -1.5));
+
+  next_step();
+  ok1(device->ParseNMEA("nettovario=0.75", info));
+  ok1(info.netto_vario_available);
+  ok1(equals(info.netto_vario, 0.75));
+
+  next_step();
+  ok1(device->ParseNMEA("compass=270", info));
+  ok1(info.attitude.heading_available);
+  ok1(equals(info.attitude.heading.Degrees(), 270));
+  ok1(info.track_available);
+  ok1(equals(info.track.Degrees(), 270));
+
+  next_step();
+  ok1(device->ParseNMEA("compass=90", info));
+  ok1(info.track_available);
+  ok1(equals(info.track.Degrees(), 90));
+  ++step;
+  info.clock = TimeStamp{FloatDuration{step}};
+  info.alive.Update(info.clock);
+  ok1(device->ParseNMEA("vx=30", info));
+  ok1(device->ParseNMEA("vy=40", info));
+  ok1(equals(info.track.Degrees(), 90));
+  ok1(equals(info.ground_speed, 50));
+
+  next_step();
+  ok1(device->ParseNMEA("vx=30", info));
+  ++step;
+  info.clock = TimeStamp{FloatDuration{step}};
+  info.alive.Update(info.clock);
+  ok1(device->ParseNMEA("vy=40", info));
+  ok1(info.ground_speed_available);
+  ok1(equals(info.ground_speed, 50));
+
+  next_step();
+  ok1(device->ParseNMEA("MC=1.75", info));
+  ok1(info.settings.mac_cready_available);
+  ok1(equals(info.settings.mac_cready, 1.75));
+
+  next_step();
+  ok1(device->ParseNMEA("water=42.5", info));
+  ok1(info.settings.ballast_litres_available);
+  ok1(equals(info.settings.ballast_litres, 42.5));
+
+  next_step();
+  ok1(device->ParseNMEA("latitude=50", info));
+  ok1(!info.location_available);
+  ++step;
+  info.clock = TimeStamp{FloatDuration{step}};
+  info.alive.Update(info.clock);
+  ok1(device->ParseNMEA("longitude=7.5", info));
+  ok1(info.location_available);
+  ok1(equals(info.location.latitude.Degrees(), 50));
+  ok1(equals(info.location.longitude.Degrees(), 7.5));
+  ok1(info.gps.fix_quality == FixQuality::SIMULATION);
+
+  next_step();
+  ok1(device->ParseNMEA("gforce=1.5", info));
+  ok1(info.acceleration.available);
+  ok1(equals(info.acceleration.g_load, 1.5));
+
+  next_step();
+  ok1(device->ParseNMEA("radiofrequency=123.5", info));
+  ok1(info.settings.has_active_frequency);
+  ok1(info.settings.active_frequency.GetKiloHertz() == 123500u);
+
+  next_step();
+  ok1(device->ParseNMEA("bank=0.5", info));
+  ok1(info.attitude.bank_angle_available);
+  ok1(equals(info.attitude.bank_angle.Radians(), -0.5));
 
   delete device;
 }
@@ -1253,13 +1848,14 @@ TestLXV7()
   NMEAInfo basic;
   basic.Reset();
   basic.clock = TimeStamp{FloatDuration{1}};
+  basic.alive.Update(basic.clock);
 
   LXDevice &lx_device = *(LXDevice *)device;
   lx_device.ResetDeviceDetection();
 
   ok1(device->ParseNMEA("$PLXVF,,1.00,0.87,-0.12,-0.25,90.2,244.3,*64", basic));
-  ok1(basic.netto_vario_available);
-  ok1(equals(basic.netto_vario, -0.25));
+  ok1(basic.total_energy_vario_available);
+  ok1(equals(basic.total_energy_vario, -0.25));
   ok1(basic.airspeed_available);
   ok1(equals(basic.indicated_airspeed, 90.2));
   ok1(basic.pressure_altitude_available);
@@ -1267,6 +1863,19 @@ TestLXV7()
   ok1(basic.acceleration.available);
   ok1(equals(basic.acceleration.g_load, 1.331));
 
+  /* After $PLXVF, $LXWP0 must not overwrite pressure altitude or TE vario
+     (ALTOFF-adjusted LXWP0 altitude vs raw PLXVF PressAlt, #2754). */
+  basic.clock = TimeStamp{FloatDuration{2}};
+  ok1(device->ParseNMEA("$LXWP0,Y,222.3,1665.5,1.71,1.71,1.71,1.71,1.71,1.71,239,174,10.1*5E",
+                        basic));
+  ok1(basic.pressure_altitude_available);
+  ok1(equals(basic.pressure_altitude, 244.3));
+  ok1(basic.total_energy_vario_available);
+  ok1(equals(basic.total_energy_vario, -0.25));
+  ok1(basic.airspeed_available);
+  ok1(basic.external_wind_available);
+
+  basic.clock = TimeStamp{FloatDuration{3}};
   ok1(device->ParseNMEA("$PLXVS,23.1,0,12.3,*71", basic));
   ok1(basic.temperature_available);
   ok1(equals(basic.temperature.ToKelvin(), 296.25));
@@ -1275,6 +1884,383 @@ TestLXV7()
   ok1(equals(basic.voltage, 12.3));
 
   delete device;
+}
+
+static void
+TestLXV7POLAR()
+{
+  NullPort null;
+  Device *device = lx_driver.CreateOnPort(dummy_config, null);
+  ok1(device != NULL);
+
+  NMEAInfo basic;
+  basic.Reset();
+  basic.clock = TimeStamp{FloatDuration{1}};
+
+  LXDevice &lx_device = *(LXDevice *)device;
+  lx_device.ResetDeviceDetection();
+
+  /* Test POLAR sentence parsing with all fields */
+  ok1(device->ParseNMEA("$PLXV0,POLAR,W,1.780,-3.030,1.930,30.0,292,600,265,90,LS 7,0*21", basic));
+
+  /* LX_V = 100 km/h = 27.778 m/s; a_si = a_lx / LX_V^2, b_si = b_lx / LX_V */
+  constexpr double LX_V = 100.0 / 3.6;
+  ok1(basic.settings.polar_coefficients_available);
+  ok1(equals(basic.settings.polar_a, 1.780 / (LX_V * LX_V)));
+  ok1(equals(basic.settings.polar_b, -3.030 / LX_V));
+  ok1(equals(basic.settings.polar_c, 1.930));
+
+  ok1(basic.settings.polar_load_available);
+  ok1(equals(basic.settings.polar_load, 30.0));
+
+  ok1(basic.settings.polar_reference_mass_available);
+  ok1(equals(basic.settings.polar_reference_mass, 292.0));
+
+  ok1(basic.settings.polar_maximum_mass_available);
+  ok1(equals(basic.settings.polar_maximum_mass, 600.0));
+
+  ok1(basic.settings.polar_empty_weight_available);
+  ok1(equals(basic.settings.polar_empty_weight, 265.0));
+
+  ok1(basic.settings.polar_pilot_weight_available);
+  ok1(equals(basic.settings.polar_pilot_weight, 90.0));
+
+  /* Test POL variant */
+  basic.Reset();
+  basic.clock = TimeStamp{FloatDuration{2}};
+  ok1(device->ParseNMEA("$PLXV0,POL,W,1.240,-1.960,1.280,36.0,400,600,325,70,LS 8,0*3A", basic));
+
+  ok1(basic.settings.polar_coefficients_available);
+  ok1(equals(basic.settings.polar_a, 1.240 / (LX_V * LX_V)));
+  ok1(equals(basic.settings.polar_b, -1.960 / LX_V));
+  ok1(equals(basic.settings.polar_c, 1.280));
+  ok1(equals(basic.settings.polar_load, 36.0));
+  ok1(equals(basic.settings.polar_reference_mass, 400.0));
+  ok1(equals(basic.settings.polar_maximum_mass, 600.0));
+  ok1(equals(basic.settings.polar_empty_weight, 325.0));
+  ok1(equals(basic.settings.polar_pilot_weight, 70.0));
+
+  /* Test with zero pilot weight */
+  basic.Reset();
+  basic.clock = TimeStamp{FloatDuration{3}};
+  ok1(device->ParseNMEA("$PLXV0,POLAR,W,1.780,-3.030,1.930,30.0,292,600,265,0,LS 7,0*18", basic));
+
+  ok1(basic.settings.polar_coefficients_available);
+  ok1(basic.settings.polar_pilot_weight_available);
+  ok1(equals(basic.settings.polar_pilot_weight, 0.0));
+
+  delete device;
+}
+
+static void
+TestLXRadioTransponder()
+{
+  NullPort null;
+  Device *device = lx_driver.CreateOnPort(dummy_config, null);
+  ok1(device != NULL);
+
+  NMEAInfo basic;
+  basic.Reset();
+  basic.clock = TimeStamp{FloatDuration{1}};
+
+  /* Active frequency with station name */
+  ok1(device->ParseNMEA("$PLXVC,RADIO,A,COMM,128800,CELJE*27", basic));
+  ok1(basic.settings.has_active_frequency.IsValid());
+  ok1(equals(basic.settings.active_frequency.GetKiloHertz(), 128800));
+  ok1(basic.settings.active_freq_name.equals("CELJE"));
+
+  /* Standby frequency without station name */
+  ok1(device->ParseNMEA("$PLXVC,RADIO,A,SBY,121500*0E", basic));
+  ok1(basic.settings.has_standby_frequency.IsValid());
+  ok1(equals(basic.settings.standby_frequency.GetKiloHertz(), 121500));
+
+  /* Active frequency without station name */
+  basic.Reset();
+  basic.clock = TimeStamp{FloatDuration{2}};
+  ok1(device->ParseNMEA("$PLXVC,RADIO,A,COMM,118000*45", basic));
+  ok1(basic.settings.has_active_frequency.IsValid());
+  ok1(equals(basic.settings.active_frequency.GetKiloHertz(), 118000));
+
+  /* Transponder squawk code (2000 display = 02000 octal = 1024 decimal) */
+  basic.Reset();
+  basic.clock = TimeStamp{FloatDuration{3}};
+  ok1(device->ParseNMEA("$PLXVC,XPDR,A,SQUAWK,2000*06", basic));
+  ok1(basic.settings.has_transponder_code.IsValid());
+  ok1(equals(basic.settings.transponder_code.GetCode(),
+             TransponderCode{02000}.GetCode()));
+
+  /* Transponder mode ALT */
+  ok1(device->ParseNMEA("$PLXVC,XPDR,A,MODE,ALT*54", basic));
+  ok1(basic.settings.has_transponder_mode.IsValid());
+  ok1(equals(basic.settings.transponder_mode.mode,
+             TransponderMode::Mode::ALT));
+
+  /* Emergency squawk (7700 display = 07700 octal = 4032 decimal) */
+  ok1(device->ParseNMEA("$PLXVC,XPDR,A,SQUAWK,7700*04", basic));
+  ok1(basic.settings.has_transponder_code.IsValid());
+  ok1(equals(basic.settings.transponder_code.GetCode(),
+             TransponderCode{07700}.GetCode()));
+
+  /* Transponder mode SBY */
+  ok1(device->ParseNMEA("$PLXVC,XPDR,A,MODE,SBY*45", basic));
+  ok1(basic.settings.has_transponder_mode.IsValid());
+  ok1(equals(basic.settings.transponder_mode.mode,
+             TransponderMode::Mode::SBY));
+
+  delete device;
+}
+
+static void
+TestLXNavDeclare()
+{
+  /* Test coordinate formatting */
+
+  /* Lat: 48 deg 46.667' N */
+  {
+    GeoPoint gp(Angle::Degrees(10.264717),
+                Angle::Degrees(48.77778));
+    const auto lat = LXNavDeclare::FormatLat(gp);
+    ok1(lat.starts_with("4846."));
+    ok1(lat.back() == 'N');
+
+    const auto lon = LXNavDeclare::FormatLon(gp);
+    ok1(lon.starts_with("01015."));
+    ok1(lon.back() == 'E');
+  }
+
+  /* Southern / Western hemisphere */
+  {
+    GeoPoint gp(Angle::Degrees(-43.5), Angle::Degrees(-22.9));
+    const auto lat = LXNavDeclare::FormatLat(gp);
+    ok1(lat.back() == 'S');
+    ok1(lat.starts_with("22"));
+
+    const auto lon = LXNavDeclare::FormatLon(gp);
+    ok1(lon.back() == 'W');
+    ok1(lon.starts_with("043"));
+  }
+
+  /* Test OZ style mapping */
+  ok1(LXNavDeclare::GetOZStyle(true, false) == 2);
+  ok1(LXNavDeclare::GetOZStyle(false, false) == 1);
+  ok1(LXNavDeclare::GetOZStyle(false, true) == 3);
+
+  /* Test A12 bearing computation */
+  {
+    const GeoPoint start(Angle::Degrees(10.0), Angle::Degrees(48.0));
+    const GeoPoint tp1(Angle::Degrees(10.0), Angle::Degrees(47.0));
+    const GeoPoint tp2(Angle::Degrees(11.0), Angle::Degrees(47.0));
+    const GeoPoint finish(Angle::Degrees(11.0), Angle::Degrees(48.0));
+
+    /* Start -> next should be roughly 180 degrees (due south) */
+    const Angle a12_start = LXNavDeclare::ComputeA12(
+      start, start, tp1, true, false);
+    ok1(a12_start.AsBearing().Degrees() > 170.0);
+    ok1(a12_start.AsBearing().Degrees() < 190.0);
+
+    /* Finish: bearing from finish toward prev */
+    const Angle a12_finish = LXNavDeclare::ComputeA12(
+      tp2, finish, finish, false, true);
+    ok1(a12_finish.AsBearing().Degrees() > 170.0);
+    ok1(a12_finish.AsBearing().Degrees() < 200.0);
+
+    /* Intermediate: bisector of incoming and outgoing legs */
+    const Angle a12_mid = LXNavDeclare::ComputeA12(
+      start, tp1, tp2, false, false);
+    ok1(a12_mid.AsBearing().Degrees() > 20.0);
+    ok1(a12_mid.AsBearing().Degrees() < 70.0);
+  }
+
+  /* Test FormatOZLine with a cylinder start */
+  {
+    LoggerSettings logger_settings;
+    logger_settings.pilot_name = "Test Pilot";
+    Plane plane;
+    plane.registration = "D-1234";
+    plane.competition_id = "AB";
+    plane.type = "ASW-27";
+
+    Declaration decl(logger_settings, plane, nullptr);
+
+    Waypoint wp_start(GeoPoint(Angle::Degrees(10.265),
+                                Angle::Degrees(48.778)));
+    wp_start.name = "START";
+    wp_start.elevation = 585;
+    wp_start.has_elevation = true;
+
+    Waypoint wp_tp1(GeoPoint(Angle::Degrees(9.702),
+                              Angle::Degrees(47.192)));
+    wp_tp1.name = "TP1";
+    wp_tp1.elevation = 572;
+    wp_tp1.has_elevation = true;
+
+    Waypoint wp_finish(GeoPoint(Angle::Degrees(11.552),
+                                 Angle::Degrees(47.735)));
+    wp_finish.name = "FINISH";
+    wp_finish.elevation = 420;
+    wp_finish.has_elevation = true;
+
+    decl.Append(wp_start);
+    decl.Append(wp_tp1);
+    decl.Append(wp_finish);
+
+    ok1(decl.Size() == 3);
+
+    /* Start OZ: index=-1, Style=2 (ozNext), cylinder */
+    const auto oz0 = LXNavDeclare::FormatOZLine(decl, 0);
+    ok1(oz0.starts_with("LLXVOZ=-1,"));
+    ok1(oz0.find("Style=2") != std::string::npos);
+    ok1(oz0.find("R1=1500m") != std::string::npos);
+    ok1(oz0.find("A1=180.0") != std::string::npos);
+    ok1(oz0.find("Near=0") != std::string::npos);
+    ok1(oz0.find("Line=1") == std::string::npos);
+    ok1(oz0.find("AAT=1") == std::string::npos);
+
+    /* Intermediate OZ: index=0, Style=1 (ozSymmetric), cylinder */
+    const auto oz1 = LXNavDeclare::FormatOZLine(decl, 1);
+    ok1(oz1.starts_with("LLXVOZ=0,"));
+    ok1(oz1.find("Style=1") != std::string::npos);
+    ok1(oz1.find("R1=1500m") != std::string::npos);
+
+    /* Finish OZ: index=1, Style=3 (ozPrev), Near=1 */
+    const auto oz2 = LXNavDeclare::FormatOZLine(decl, 2);
+    ok1(oz2.starts_with("LLXVOZ=1,"));
+    ok1(oz2.find("Style=3") != std::string::npos);
+    ok1(oz2.find("Near=1") != std::string::npos);
+
+    ok1(oz0.find("Lat=") != std::string::npos);
+    ok1(oz0.find("Lon=") != std::string::npos);
+    ok1(oz1.find("Lat=") != std::string::npos);
+    ok1(oz2.find("Lon=") != std::string::npos);
+  }
+
+  /* Test FormatOZLine with a LINE shape */
+  {
+    Declaration decl_line({}, Plane{}, nullptr);
+
+    Waypoint wp1(GeoPoint(Angle::Degrees(10.0), Angle::Degrees(48.0)));
+    wp1.name = "S";
+
+    Waypoint wp2(GeoPoint(Angle::Degrees(11.0), Angle::Degrees(47.0)));
+    wp2.name = "F";
+
+    Declaration::TurnPoint tp1(wp1);
+    tp1.shape = Declaration::TurnPoint::LINE;
+    tp1.radius = 3000;
+    tp1.sector_angle = Angle::QuarterCircle();
+    decl_line.turnpoints.push_back(tp1);
+
+    Declaration::TurnPoint tp2(wp2);
+    tp2.shape = Declaration::TurnPoint::CYLINDER;
+    tp2.radius = 500;
+    decl_line.turnpoints.push_back(tp2);
+
+    const auto oz_line = LXNavDeclare::FormatOZLine(decl_line, 0);
+    ok1(oz_line.find("Line=1") != std::string::npos);
+    ok1(oz_line.find("R1=3000m") != std::string::npos);
+    ok1(oz_line.find("A1=45.0") != std::string::npos);
+    ok1(oz_line.find("A2=0.0") != std::string::npos);
+
+    const auto oz_cyl = LXNavDeclare::FormatOZLine(decl_line, 1);
+    ok1(oz_cyl.find("Line=1") == std::string::npos);
+    ok1(oz_cyl.find("R1=500m") != std::string::npos);
+  }
+
+  /* Test FormatOZLine with AAT point */
+  {
+    Declaration decl_aat({}, Plane{}, nullptr);
+    decl_aat.is_aat_task = true;
+
+    Waypoint wp1(GeoPoint(Angle::Degrees(10.0), Angle::Degrees(48.0)));
+    wp1.name = "S";
+
+    Waypoint wp2(GeoPoint(Angle::Degrees(11.0), Angle::Degrees(47.5)));
+    wp2.name = "AAT1";
+
+    Waypoint wp3(GeoPoint(Angle::Degrees(10.5), Angle::Degrees(48.0)));
+    wp3.name = "F";
+
+    Declaration::TurnPoint tp_s(wp1);
+    decl_aat.turnpoints.push_back(tp_s);
+
+    Declaration::TurnPoint tp_aat(wp2);
+    tp_aat.shape = Declaration::TurnPoint::CYLINDER;
+    tp_aat.radius = 5100;
+    tp_aat.is_aat = true;
+    decl_aat.turnpoints.push_back(tp_aat);
+
+    Declaration::TurnPoint tp_f(wp3);
+    tp_f.radius = 500;
+    decl_aat.turnpoints.push_back(tp_f);
+
+    const auto oz_aat = LXNavDeclare::FormatOZLine(decl_aat, 1);
+    ok1(oz_aat.find("AAT=1") != std::string::npos);
+    ok1(oz_aat.find("R1=5100m") != std::string::npos);
+    ok1(oz_aat.starts_with("LLXVOZ=0,"));
+
+    const auto oz_s = LXNavDeclare::FormatOZLine(decl_aat, 0);
+    ok1(oz_s.find("AAT=1") == std::string::npos);
+
+    const auto oz_f = LXNavDeclare::FormatOZLine(decl_aat, 2);
+    ok1(oz_f.find("AAT=1") == std::string::npos);
+  }
+
+  /* Test FormatOZLine with keyhole (inner radius) */
+  {
+    Declaration decl_kh({}, Plane{}, nullptr);
+
+    Waypoint wp1(GeoPoint(Angle::Degrees(10.0), Angle::Degrees(48.0)));
+    wp1.name = "S";
+    Waypoint wp2(GeoPoint(Angle::Degrees(11.0), Angle::Degrees(47.0)));
+    wp2.name = "KH";
+    Waypoint wp3(GeoPoint(Angle::Degrees(10.5), Angle::Degrees(48.0)));
+    wp3.name = "F";
+
+    decl_kh.turnpoints.push_back(Declaration::TurnPoint(wp1));
+
+    Declaration::TurnPoint tp_kh(wp2);
+    tp_kh.shape = Declaration::TurnPoint::DAEC_KEYHOLE;
+    tp_kh.radius = 10000;
+    tp_kh.sector_angle = Angle::QuarterCircle();
+    tp_kh.inner_radius = 500;
+    decl_kh.turnpoints.push_back(tp_kh);
+
+    decl_kh.turnpoints.push_back(Declaration::TurnPoint(wp3));
+
+    const auto oz_kh = LXNavDeclare::FormatOZLine(decl_kh, 1);
+    ok1(oz_kh.find("R1=10000m") != std::string::npos);
+    ok1(oz_kh.find("R2=500m") != std::string::npos);
+    ok1(oz_kh.find("A2=180.0") != std::string::npos);
+    ok1(oz_kh.find("A1=45.0") != std::string::npos);
+  }
+
+  /* Test C-record with elevation */
+  {
+    Waypoint wp(GeoPoint(Angle::Degrees(13.776),
+                          Angle::Degrees(47.811)));
+    wp.name = "EBENSEE";
+    wp.elevation = 420;
+    wp.has_elevation = true;
+
+    Declaration::TurnPoint tp(wp);
+    const auto c_record = LXNavDeclare::FormatTurnPointCRecord(tp);
+
+    ok1(c_record.starts_with("C"));
+    ok1(c_record.find("EBENSEE") != std::string::npos);
+    ok1(c_record.find("::420.00000") != std::string::npos);
+  }
+
+  /* Test C-record without elevation (defaults to 0) */
+  {
+    Waypoint wp(GeoPoint(Angle::Degrees(10.0),
+                          Angle::Degrees(48.0)));
+    wp.name = "NOELEVATION";
+
+    Declaration::TurnPoint tp(wp);
+    const auto c_record = LXNavDeclare::FormatTurnPointCRecord(tp);
+
+    ok1(c_record.find("::0.00000") != std::string::npos);
+  }
 }
 
 static void
@@ -1326,6 +2312,8 @@ TestVega()
   ok1(parser.ParseLine("$PGRMZ,2447,F,2*0F", nmea_info));
   ok1(nmea_info.pressure_altitude_available);
   ok1(equals(nmea_info.pressure_altitude, 745.845));
+  ok1(nmea_info.igc_pressure_altitude_available);
+  ok1(equals(nmea_info.igc_pressure_altitude, nmea_info.pressure_altitude));
 
   ok1(device->ParseNMEA("$PDSWC,0,1002000,100,115*54", nmea_info));
   ok1(nmea_info.settings.mac_cready_available);
@@ -1343,11 +2331,13 @@ TestVega()
   ok1(!nmea_info.baro_altitude_available);
   ok1(nmea_info.pressure_altitude_available);
   ok1(equals(nmea_info.pressure_altitude, 762));
+  ok1(!nmea_info.igc_pressure_altitude_available);
 
   /* parse $PGRMZ again, it should be ignored */
   ok1(parser.ParseLine("$PGRMZ,2447,F,2*0F", nmea_info));
   ok1(nmea_info.pressure_altitude_available);
   ok1(equals(nmea_info.pressure_altitude, 762));
+  ok1(!nmea_info.igc_pressure_altitude_available);
 
   delete device;
 }
@@ -1707,7 +2697,7 @@ TestACD()
   ok1(equals(nmea_info.settings.transponder_code.GetCode(),
              TransponderCode{07000}.GetCode()));
   ok1(StringIsEqual(nmea_info.settings.transponder_mode.GetModeString(),
-                    _T("ALT")));
+                    "ALT"));
   ok1(equals(nmea_info.settings.transponder_mode.mode, TransponderMode::Mode::ALT));
 
   ok1(device->ParseNMEA("$PAAVS,XPDR,7260,1,0,1762,1,0*66",nmea_info));
@@ -1757,17 +2747,17 @@ TestDeclare(const struct DeviceRegister &driver)
   ok1(device != NULL);
 
   LoggerSettings logger_settings;
-  logger_settings.pilot_name = _T("Foo Bar");
+  logger_settings.pilot_name = "Foo Bar";
   Plane plane;
-  plane.registration = _T("D-3003");
-  plane.competition_id = _T("33");
-  plane.type = _T("Cirrus");
+  plane.registration = "D-3003";
+  plane.competition_id = "33";
+  plane.type = "Cirrus";
 
   Declaration declaration(logger_settings, plane, NULL);
   const GeoPoint gp(Angle::Degrees(7.7061111111111114),
                     Angle::Degrees(51.051944444444445));
   Waypoint wp(gp);
-  wp.name = _T("Foo");
+  wp.name = "Foo";
   wp.elevation = 123;
   wp.has_elevation = true;
   declaration.Append(wp);
@@ -1834,11 +2824,556 @@ TestFlightList(const struct DeviceRegister &driver)
   delete device;
 }
 
+/**
+ * Test that NMEAParser::ReadTime() preserves sub-second precision
+ * from the NMEA time field (HHMMSS.SS).
+ *
+ * Before the fix, ReadTime() routed through BrokenTime which only
+ * stores integer seconds, losing the fractional part.
+ * See: https://github.com/XCSoar/XCSoar/issues/2207
+ */
+static void
+TestSubSecondPrecision()
+{
+  NMEAParser parser;
+
+  NMEAInfo nmea_info;
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+  nmea_info.alive.Update(nmea_info.clock);
+
+  /* parse a GPRMC sentence with .50 fractional seconds */
+  ok1(parser.ParseLine("$GPRMC,082310.50,A,5103.5403,N,00741.5742,E,055.3,022.4,230610,000.3,W*46",
+                        nmea_info));
+
+  /* the integer part must be correct */
+  ok1(nmea_info.date_time_utc.hour == 8);
+  ok1(nmea_info.date_time_utc.minute == 23);
+  ok1(nmea_info.date_time_utc.second == 10);
+
+  /* the sub-second part must be preserved in info.time */
+  ok1(equals(nmea_info.time, TimeStamp{FloatDuration{8 * 3600 + 23 * 60 + 10.50}}));
+  const auto time_50 = nmea_info.time;
+
+  /* parse a second fix at .00 of the next second */
+  nmea_info.clock = TimeStamp{FloatDuration{2}};
+  ok1(parser.ParseLine("$GPRMC,082311.00,A,5103.5403,N,00741.5742,E,055.3,022.4,230610,000.3,W*42",
+                        nmea_info));
+
+  ok1(equals(nmea_info.time, TimeStamp{FloatDuration{8 * 3600 + 23 * 60 + 11.00}}));
+
+  /* the difference between the two fixes must be exactly 0.50 seconds,
+     not 1.0 seconds (which would indicate truncation to integer seconds) */
+  const double delta = (nmea_info.time - time_50).count();
+  ok1(fabs(delta - 0.50) < 0.01);
+}
+
+/**
+ * Test that the MWV parser checks the status field (field 5).
+ * Status 'V' means data invalid and should be rejected.
+ */
+static void
+TestMWVStatus()
+{
+  NMEAParser parser;
+
+  NMEAInfo nmea_info;
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+  nmea_info.alive.Update(nmea_info.clock);
+
+  /* MWV with status A (valid) — must be accepted */
+  ok1(parser.ParseLine("$WIMWV,12.1,T,10.1,M,A*24", nmea_info));
+  ok1(nmea_info.external_wind_available);
+
+  /* clear the wind so we can test the invalid case */
+  nmea_info.external_wind_available.Clear();
+
+  /* MWV with status V (invalid) — must be rejected */
+  ok1(parser.ParseLine("$WIMWV,12.1,T,10.1,M,V*33", nmea_info));
+  ok1(!nmea_info.external_wind_available);
+}
+
+/**
+ * Test that the MWV parser distinguishes between Relative (R) and
+ * True (T) wind reference.  Relative wind (referenced to vessel heading)
+ * should not be stored as true wind bearing.
+ */
+static void
+TestMWVRelativeTrue()
+{
+  NMEAParser parser;
+
+  NMEAInfo nmea_info;
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+  nmea_info.alive.Update(nmea_info.clock);
+
+  /* MWV with True reference — must be accepted */
+  ok1(parser.ParseLine("$WIMWV,45.0,T,10.1,M,A*27", nmea_info));
+  ok1(nmea_info.external_wind_available);
+  ok1(equals(nmea_info.external_wind.bearing, 45.0));
+
+  /* clear the wind */
+  nmea_info.external_wind_available.Clear();
+
+  /* MWV with Relative reference — must be rejected (or handled differently)
+     since XCSoar's external_wind expects a true bearing */
+  ok1(parser.ParseLine("$WIMWV,45.0,R,10.1,M,A*21", nmea_info));
+  ok1(!nmea_info.external_wind_available);
+}
+
+/**
+ * Test that NMEAInfo::Complement() correctly copies stall_ratio AND
+ * updates stall_ratio_available.
+ */
+static void
+TestStallRatioComplement()
+{
+  NMEAInfo a, b;
+  a.Reset();
+  b.Reset();
+
+  a.clock = TimeStamp{FloatDuration{1}};
+  b.clock = TimeStamp{FloatDuration{1}};
+
+  /* 'a' has no stall ratio */
+  ok1(!a.stall_ratio_available);
+
+  /* 'b' provides a stall ratio */
+  b.stall_ratio = 0.75;
+  b.stall_ratio_available.Update(b.clock);
+  b.alive.Update(b.clock);
+  ok1(b.stall_ratio_available);
+
+  /* Complement 'a' with 'b' — both value and flag must be copied */
+  a.Complement(b);
+  ok1(a.stall_ratio_available);
+  ok1(equals(a.stall_ratio, 0.75));
+}
+
+/**
+ * Test that temperature_available and humidity_available are now
+ * Validity objects that properly expire.
+ */
+static void
+TestTemperatureHumidityValidity()
+{
+  NMEAInfo info;
+  info.Reset();
+  info.clock = TimeStamp{FloatDuration{1}};
+
+  /* initially not valid */
+  ok1(!info.temperature_available);
+  ok1(!info.humidity_available);
+
+  /* after Update(), they become valid */
+  info.temperature = Temperature::FromCelsius(20);
+  info.temperature_available.Update(info.clock);
+  info.humidity = 50;
+  info.humidity_available.Update(info.clock);
+  ok1(info.temperature_available);
+  ok1(info.humidity_available);
+
+  /* advance clock well past the 30s expiry timeout */
+  info.clock = TimeStamp{FloatDuration{60}};
+  info.Expire();
+  ok1(!info.temperature_available);
+  ok1(!info.humidity_available);
+
+  /* Test Complement: temperature/humidity from second source should be
+     adopted when primary has none */
+  NMEAInfo a, b;
+  a.Reset();
+  b.Reset();
+  a.clock = TimeStamp{FloatDuration{1}};
+  b.clock = TimeStamp{FloatDuration{1}};
+
+  b.alive.Update(b.clock);
+  b.temperature = Temperature::FromCelsius(25);
+  b.temperature_available.Update(b.clock);
+  b.humidity = 65;
+  b.humidity_available.Update(b.clock);
+
+  ok1(!a.temperature_available);
+  ok1(!a.humidity_available);
+  a.Complement(b);
+  ok1(a.temperature_available);
+  ok1(equals(a.temperature.ToCelsius(), 25));
+  ok1(a.humidity_available);
+  ok1(equals(a.humidity, 65));
+}
+
+/**
+ * Test that ReadGeoAngle handles NMEA fields without a decimal point
+ * gracefully (no crash or undefined behavior).
+ */
+static void
+TestReadGeoAngleNoDot()
+{
+  NMEAParser parser;
+  NMEAInfo nmea_info;
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+  nmea_info.alive.Update(nmea_info.clock);
+
+  /* A malformed GGA with latitude/longitude missing decimal points
+     should not crash.  GGA does not update location (that's RMC's job),
+     but ReadGeoPoint must handle the missing dots without UB. */
+  ok1(parser.ParseLine("$GPGGA,120000,12345,N,12345,E,1,04,1.0,100.0,M,0.0,M,,*45", nmea_info));
+  ok1(!nmea_info.location_available);
+}
+
+/**
+ * Test the GLL (Geographic Position - Latitude/Longitude) parser.
+ */
+static void
+TestGLL()
+{
+  NMEAParser parser;
+
+  NMEAInfo nmea_info;
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+  nmea_info.alive.Update(nmea_info.clock);
+
+  /* first, advance time with an RMC so TimeHasAdvanced works */
+  ok1(parser.ParseLine("$GPRMC,082309.00,A,5103.5403,N,00741.5742,E,055.3,022.4,230610,000.3,W*4B",
+                        nmea_info));
+
+  /* GLL with valid status — should update location */
+  ok1(parser.ParseLine("$GPGLL,5103.5403,N,00741.5742,E,082311.00,A*0E",
+                        nmea_info));
+  ok1(nmea_info.location_available);
+  ok1(equals(nmea_info.location.latitude, 51.059));
+  ok1(equals(nmea_info.location.longitude, 7.693));
+  ok1(nmea_info.date_time_utc.hour == 8);
+  ok1(nmea_info.date_time_utc.minute == 23);
+  ok1(nmea_info.date_time_utc.second == 11);
+  ok1(nmea_info.gps.real);
+
+  /* GLL with invalid status V — should clear location_available */
+  ok1(parser.ParseLine("$GPGLL,5103.5403,N,00741.5742,E,082314.00,V*1C",
+                        nmea_info));
+  ok1(!nmea_info.location_available);
+
+  /* GLL with valid status again — location restored */
+  ok1(parser.ParseLine("$GPGLL,5103.5403,N,00741.5742,E,082317.00,A*08",
+                        nmea_info));
+  ok1(nmea_info.location_available);
+}
+
+/**
+ * Test the GSA (GPS DOP and Active Satellites) parser.
+ */
+static void
+TestGSA()
+{
+  NMEAParser parser;
+
+  NMEAInfo nmea_info;
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+  nmea_info.alive.Update(nmea_info.clock);
+
+  /* advance time first */
+  ok1(parser.ParseLine("$GPRMC,082318.00,A,5103.5403,N,00741.5742,E,055.3,022.4,230610,000.3,W*4B",
+                        nmea_info));
+
+  /* GSA with 3D fix, 12 satellites, and DOP values */
+  ok1(parser.ParseLine("$GPGSA,A,3,01,02,03,04,05,06,07,08,09,10,11,12,1.2,0.8,0.9*33",
+                        nmea_info));
+  ok1(nmea_info.gps.satellite_ids_available);
+  ok1(nmea_info.gps.satellite_ids[0] == 1);
+  ok1(nmea_info.gps.satellite_ids[5] == 6);
+  ok1(nmea_info.gps.satellite_ids[11] == 12);
+  ok1(equals(nmea_info.gps.pdop, 1.2));
+  ok1(equals(nmea_info.gps.hdop, 0.8));
+  ok1(equals(nmea_info.gps.vdop, 0.9));
+
+  /* GSA with no fix (mode 1) — should clear location_available */
+  nmea_info.location_available.Update(nmea_info.clock);
+  ok1(nmea_info.location_available);
+  ok1(parser.ParseLine("$GPGSA,A,1,,,,,,,,,,,,99.9,99.9,99.9*25",
+                        nmea_info));
+  ok1(!nmea_info.location_available);
+
+  /* GSA with 2D fix and partial satellites */
+  ok1(parser.ParseLine("$GPGSA,M,2,01,02,03,,,,,,,,,,2.5,1.3,2.1*39",
+                        nmea_info));
+  ok1(nmea_info.gps.satellite_ids[0] == 1);
+  ok1(nmea_info.gps.satellite_ids[1] == 2);
+  ok1(nmea_info.gps.satellite_ids[2] == 3);
+  ok1(nmea_info.gps.satellite_ids[3] == 0);
+  ok1(equals(nmea_info.gps.pdop, 2.5));
+  ok1(equals(nmea_info.gps.hdop, 1.3));
+  ok1(equals(nmea_info.gps.vdop, 2.1));
+}
+
+/**
+ * Test parser robustness with malformed, truncated, and edge-case
+ * NMEA sentences.
+ */
+static void
+TestMalformedInput()
+{
+  NMEAParser parser;
+
+  NMEAInfo nmea_info;
+  nmea_info.Reset();
+  nmea_info.clock = TimeStamp{FloatDuration{1}};
+  nmea_info.alive.Update(nmea_info.clock);
+
+  /* sentences that don't start with $ are rejected */
+  ok1(!parser.ParseLine("GPRMC,082310,A,5103.5403,N,00741.5742,E,055.3,022.4,230610,000.3,W*6C",
+                         nmea_info));
+
+  /* empty string */
+  ok1(!parser.ParseLine("", nmea_info));
+
+  /* just a dollar sign */
+  ok1(!parser.ParseLine("$", nmea_info));
+
+  /* too short sentence type (less than 6 chars) */
+  ok1(!parser.ParseLine("$GP*00", nmea_info));
+
+  /* bad checksum — should be rejected */
+  ok1(!parser.ParseLine("$HCHDM,182.7,M*26", nmea_info));
+
+  /* missing checksum entirely — ParseLine should reject */
+  ok1(!parser.ParseLine("$GPRMC,082321.00,A,5103.5403,N", nmea_info));
+
+  /* RMC with all empty fields (except V status) */
+  ok1(parser.ParseLine("$GPRMC,,V,,,,,,,,,*31", nmea_info));
+  ok1(!nmea_info.location_available);
+
+  /* advance time so subsequent sentences can be parsed */
+  ok1(parser.ParseLine("$GPRMC,082322.00,A,5103.5403,N,00741.5742,E,055.3,022.4,230610,000.3,W*42",
+                        nmea_info));
+  ok1(nmea_info.location_available);
+
+  /* GGA with fix quality 0 (no fix) and empty position */
+  ok1(parser.ParseLine("$GPGGA,082323.00,,,,,0,00,,,M,,M,,*40",
+                        nmea_info));
+
+  /* GGA with extreme altitude — should still parse */
+  ok1(parser.ParseLine("$GPGGA,082324.00,5103.5403,N,00741.5742,E,1,04,1.0,99999.0,M,47.0,M,,*6F",
+                        nmea_info));
+  ok1(nmea_info.gps_altitude_available);
+  ok1(equals(nmea_info.gps_altitude, 99999.0));
+
+  /* RMC with extreme ground speed — should parse without crash */
+  ok1(parser.ParseLine("$GPRMC,082325.00,A,5103.5403,N,00741.5742,E,99999.9,022.4,230610,000.3,W*46",
+                        nmea_info));
+  ok1(nmea_info.ground_speed_available);
+
+  /* RMC with V status — location should be cleared */
+  ok1(parser.ParseLine("$GPRMC,082326.00,V,,,,,,,230610,,*14",
+                        nmea_info));
+  ok1(!nmea_info.location_available);
+
+  /* MWV with missing wind speed — should not crash */
+  ok1(!parser.ParseLine("$WIMWV,12.1,T,,M,A*3A", nmea_info));
+
+  /* MWV with missing bearing — should not crash */
+  ok1(!parser.ParseLine("$WIMWV,,T,10.1,M,A*38", nmea_info));
+
+  /* HDM with empty heading — should not crash, clears heading */
+  ok1(parser.ParseLine("$HCHDM,,M*07", nmea_info));
+  ok1(!nmea_info.attitude.heading_available);
+
+  /* GSA with completely empty fields — should not crash */
+  ok1(parser.ParseLine("$GPGSA,,,,,,,,,,,,,,,,,*6E", nmea_info));
+}
+
+static void
+TestFlarmTrafficBuilder()
+{
+  ok1(SkyLinesTracking::FlarmTrafficBuilder::ResolveId(0x80123456u,
+       FlarmId::Undefined()) == FlarmId::FromValue(0x123456u));
+
+  const FlarmId defined = FlarmId::FromValue(0xABCDEFu);
+  ok1(SkyLinesTracking::FlarmTrafficBuilder::ResolveId(0x123u, defined) ==
+      defined);
+
+  ok1(SkyLinesTracking::FlarmTrafficBuilder::SourceForOnline(
+        42u, SkyLinesTracking::TrafficSource::CLOUD) ==
+      FlarmTraffic::SourceType::CLOUD);
+  ok1(SkyLinesTracking::FlarmTrafficBuilder::SourceForOnline(
+        0x80000001u, SkyLinesTracking::TrafficSource::CLOUD) ==
+      FlarmTraffic::SourceType::OGN);
+  ok1(SkyLinesTracking::FlarmTrafficBuilder::SourceForOnline(
+        1u, SkyLinesTracking::TrafficSource::SKYLINES) ==
+      FlarmTraffic::SourceType::SKYLINES);
+
+  NMEAInfo basic;
+  basic.Reset();
+  basic.clock = TimeStamp{FloatDuration{1}};
+  basic.location = GeoPoint(Angle::Degrees(51), Angle::Degrees(7));
+  basic.location_available.Update(basic.clock);
+  basic.gps_altitude = 1000;
+  basic.gps_altitude_available.Update(basic.clock);
+
+  FlarmTraffic traffic = SkyLinesTracking::FlarmTrafficBuilder::Build(
+    0x80000001u, GeoPoint(Angle::Degrees(51.01), Angle::Degrees(7.01)),
+    1200, true, SkyLinesTracking::TrafficSource::CLOUD,
+    90, true, FlarmId::Undefined(), 1, nullptr);
+
+  ok1(traffic.source == FlarmTraffic::SourceType::OGN);
+  ok1(traffic.absolute_location);
+  ok1(traffic.absolute_altitude);
+  ok1(SkyLinesTracking::FlarmTrafficBuilder::FillRelative(traffic, basic));
+  ok1(traffic.relative_east != 0 || traffic.relative_north != 0);
+  ok1(equals(double(traffic.relative_altitude), 200));
+
+  basic.pressure_altitude = 950;
+  basic.pressure_altitude_available.Update(basic.clock);
+  ok1(SkyLinesTracking::FlarmTrafficBuilder::FillRelative(traffic, basic));
+  ok1(equals(double(traffic.relative_altitude), 250));
+
+  FlarmTraffic device_traffic{};
+  device_traffic.source = FlarmTraffic::SourceType::FLARM;
+  device_traffic.valid.Update(basic.clock);
+  const bool device_wins = device_traffic.valid &&
+    !FlarmTraffic::IsInjectedSource(device_traffic.source);
+  ok1(device_wins);
+
+  ok1(StringIsEqual(FlarmTraffic::GetSourceString(
+        FlarmTraffic::SourceType::OGN), "OGN"));
+
+  FlarmTraffic online_traffic{};
+  online_traffic.source = FlarmTraffic::SourceType::OGN;
+  const bool online_wins = !(online_traffic.valid &&
+    !FlarmTraffic::IsInjectedSource(online_traffic.source));
+  ok1(online_wins);
+
+  FlarmTraffic merged{};
+  merged.track_received = true;
+  merged.track = RoughAngle(Angle::Degrees(90));
+  FlarmTraffic partial = merged;
+  partial.track_received = false;
+  merged.UpdateOnline(partial);
+  ok1(merged.track_received);
+
+  const FlarmId radio = FlarmId::FromValue(0xABCDEFu);
+  const FlarmId other = FlarmId::FromValue(0x123456u);
+  const FlarmId own_ids[] = { radio };
+  ok1(SkyLinesTracking::FlarmTrafficBuilder::IsOwnShipId(own_ids, radio));
+  ok1(!SkyLinesTracking::FlarmTrafficBuilder::IsOwnShipId(own_ids, other));
+  ok1(!SkyLinesTracking::FlarmTrafficBuilder::IsOwnShipId(
+         std::span<const FlarmId>{}, radio));
+
+  const FlarmId multi[] = {
+    FlarmId::FromValue(0x111111u),
+    FlarmId::FromValue(0x222222u),
+  };
+  ok1(SkyLinesTracking::FlarmTrafficBuilder::IsOwnShipId(
+        multi, FlarmId::FromValue(0x222222u)));
+  ok1(!SkyLinesTracking::FlarmTrafficBuilder::IsOwnShipId(
+         multi, FlarmId::FromValue(0x333333u)));
+
+  const auto parsed =
+    CloudSettings::ParseOwnFlarmIds("ABCDEF, 111111,ABCDEF,zz,222222");
+  ok1(parsed.size() == 3);
+  ok1(parsed[0] == FlarmId::FromValue(0xABCDEFu));
+  ok1(parsed[1] == FlarmId::FromValue(0x111111u));
+  ok1(parsed[2] == FlarmId::FromValue(0x222222u));
+
+  char formatted[CloudSettings::OWN_FLARM_IDS_TEXT_SIZE];
+  CloudSettings::FormatOwnFlarmIds(parsed, formatted, sizeof(formatted));
+  ok1(StringIsEqual(formatted, "ABCDEF,111111,222222"));
+
+  /* Worst-case 8×8-hex ids must fit the format buffer. */
+  CloudSettings::OwnFlarmIdList full;
+  for (unsigned i = 0; i < CloudSettings::MAX_OWN_FLARM_IDS; ++i)
+    full.append(FlarmId::FromValue(0xF0000000u + i));
+  CloudSettings::FormatOwnFlarmIds(full, formatted, sizeof(formatted));
+  ok1(strlen(formatted) + 1 <= CloudSettings::OWN_FLARM_IDS_TEXT_SIZE);
+  ok1(CloudSettings::ParseOwnFlarmIds(formatted).size() ==
+      CloudSettings::MAX_OWN_FLARM_IDS);
+}
+
+static void
+TestTrafficExtensionsWire()
+{
+  using SkyLinesTracking::TrafficExtensions;
+
+  TrafficExtensions ext{};
+  ext.track_deg = 270;
+  ext.track_valid = true;
+  ext.aircraft_type = 5;
+  ext.altitude_valid = false;
+  ext.flarm_id = FlarmId::FromValue(0x123456);
+
+  const auto wire = ext.ToWire();
+  const auto decoded = TrafficExtensions::FromWire(
+    ToBE16(wire.reserved), ToBE32(wire.reserved2));
+  ok1(decoded.track_valid);
+  ok1(decoded.track_deg == 270u);
+  ok1(decoded.aircraft_type == 5u);
+  ok1(!decoded.altitude_valid);
+  ok1(decoded.flarm_id == ext.flarm_id);
+
+  const auto from_ogn = TrafficExtensions::FromOgn(
+    90, true, 1, 0xABCDEFu, true, true);
+  const auto ogn_wire = from_ogn.ToWire();
+  ok1((ogn_wire.reserved & 0x4000u) != 0);
+  ok1((ogn_wire.reserved2 & SkyLinesTracking::FLARM_EXTENSION_VALID) != 0);
+  ok1((ogn_wire.reserved2 & 0xFFFFFFu) == 0xABCDEFu);
+
+  const auto round_trip = TrafficExtensions::FromWire(
+    ToBE16(ogn_wire.reserved), ToBE32(ogn_wire.reserved2));
+  ok1(round_trip.track_valid);
+  ok1(round_trip.track_deg == 90u);
+  ok1(round_trip.aircraft_type == 1u);
+  ok1(round_trip.altitude_valid);
+  ok1(round_trip.flarm_id == FlarmId::FromValue(0xABCDEFu));
+
+  /* Legacy wire: pre-extension servers sent reserved/reserved2 as zero. */
+  const auto legacy = TrafficExtensions::FromWire(0, 0);
+  ok1(legacy.altitude_valid);
+  ok1(!legacy.track_valid);
+  ok1(legacy.aircraft_type == 0u);
+  ok1(!legacy.flarm_id.IsDefined());
+
+  /* Position-only relay: omit extension bits; decode stays compatible. */
+  const auto basic = TrafficExtensions::FromOgn(
+    0, false, 0, 0, false, true).ToWire();
+  ok1(basic.reserved == 0);
+  ok1(basic.reserved2 == 0);
+  ok1(TrafficExtensions::FromWire(0, 0).altitude_valid);
+
+  /* Golden bytes from the original #TrafficRecordExtensions::FromOgn(). */
+  const auto ogn_no_alt = TrafficExtensions::FromOgn(
+    270, true, 5, 0, false, false).ToWire();
+  ok1(ogn_no_alt.reserved == 0x8B0Eu);
+  ok1(ogn_no_alt.reserved2 == 0u);
+  ok1(!TrafficExtensions::FromWire(
+        ToBE16(ogn_no_alt.reserved), 0).altitude_valid);
+
+  ok1(sizeof(SkyLinesTracking::TrafficResponsePacket::Traffic) == 24);
+}
+
 int main()
 {
-  plan_tests(1006);
+  const auto data_path = MakeTestDriverDataPath();
+  SetSingleDataPath(data_path);
+  CreateDataPath();
+
+  plan_tests(1091 /* drivers */ + 29 /* PFLAU extended */
+             + 37 /* PFLAA v7+ */ + 12 /* PFLAE */ + 10 /* PFLAJ */
+             + 16 /* PFLAQ */
+             + 109 /* LXNav protocol 1.05 */
+             + 8 /* SubSecond */ + 4 /* MWVStatus */
+             + 5 /* MWVRelativeTrue */ + 4 /* StallRatio */
+             + 12 /* TempHumidityValidity */ + 2 /* ReadGeoAngleNoDot */
+             + 13 /* GLL */ + 20 /* GSA */ + 23 /* MalformedInput */
+             + 59 /* Condor3UDP */ + 29 /* FlarmTrafficBuilder */
+             + 24 /* TrafficExtensionsWire */
+             + 42 /* LK8EX1 */);
   TestGeneric();
   TestTasman();
+  TestLK8EX1();
   TestFLARM();
   TestAltairRU();
   TestBlueFly();
@@ -1854,8 +3389,12 @@ int main()
   TestLX(lx_driver);
   TestLX(condor_driver, true, true);
   TestLX(condor3_driver, true, false);
+  TestCondor3UDP();
   TestLXEos();
   TestLXV7();
+  TestLXV7POLAR();
+  TestLXRadioTransponder();
+  TestLXNavDeclare();
   TestILEC();
   TestOpenVario();
   TestVega();
@@ -1866,6 +3405,7 @@ int main()
   TestXCTracer();
   TestACD();
   TestXCVario();
+  TestLoEFGREN();
 
   /* XXX the Triadis drivers have too many dependencies, not enabling
      for now */
@@ -1888,5 +3428,18 @@ int main()
   TestFlightList(lx_eos_driver);
   TestFlightList(imi_driver);
 
+  TestSubSecondPrecision();
+  TestMWVStatus();
+  TestMWVRelativeTrue();
+  TestStallRatioComplement();
+  TestTemperatureHumidityValidity();
+  TestReadGeoAngleNoDot();
+  TestGLL();
+  TestGSA();
+  TestMalformedInput();
+  TestFlarmTrafficBuilder();
+  TestTrafficExtensionsWire();
+
+  DeinitialiseDataPath();
   return exit_status();
 }

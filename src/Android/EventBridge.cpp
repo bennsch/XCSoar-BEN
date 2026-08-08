@@ -8,6 +8,8 @@
 #include "ui/event/Globals.hpp"
 #include "util/Compiler.h"
 
+#include <atomic>
+
 using namespace UI;
 
 /**
@@ -58,10 +60,13 @@ Java_org_xcsoar_EventBridge_onKeyDown([[maybe_unused]] JNIEnv *env, [[maybe_unus
     /* XCSoar not yet initialised */
     return;
 
-  if (!has_cursor_keys && IsCursorKey(key_code))
+  if (IsCursorKey(key_code)) {
+    bool expected = false;
     /* enable this flag as soon as we see the first cursor event; used
        by HasCursorKeys() */
-    has_cursor_keys = true;
+    has_cursor_keys.compare_exchange_strong(expected, true, 
+                                            std::memory_order_relaxed);
+  }
 
   event_queue->Inject(Event(Event::KEY_DOWN, TranslateKeyCode(key_code)));
   ResetUserIdle();
@@ -121,13 +126,48 @@ Java_org_xcsoar_EventBridge_onMouseMove([[maybe_unused]] JNIEnv *env, [[maybe_un
 
 gcc_visibility_default
 void
-Java_org_xcsoar_EventBridge_onPointerDown([[maybe_unused]] JNIEnv *env, [[maybe_unused]] jclass cls)
+Java_org_xcsoar_EventBridge_onMouseCancel([[maybe_unused]] JNIEnv *env, [[maybe_unused]] jclass cls)
 {
   if (event_queue == nullptr)
     /* XCSoar not yet initialised */
     return;
 
-  event_queue->Inject(Event::POINTER_DOWN);
+  event_queue->Inject(Event::MOUSE_CANCEL);
+  ResetUserIdle();
+}
+
+gcc_visibility_default
+void
+Java_org_xcsoar_EventBridge_onPointerDown([[maybe_unused]] JNIEnv *env,
+                                          [[maybe_unused]] jclass cls,
+                                          jint x1, jint y1,
+                                          jint x2, jint y2)
+{
+  if (event_queue == nullptr)
+    /* XCSoar not yet initialised */
+    return;
+
+  event_queue->Inject(Event(Event::POINTER_DOWN,
+                            PixelPoint(x1, y1),
+                            PixelPoint(x2, y2)));
+  ResetUserIdle();
+}
+
+gcc_visibility_default
+void
+Java_org_xcsoar_EventBridge_onPointerMove([[maybe_unused]] JNIEnv *env,
+                                          [[maybe_unused]] jclass cls,
+                                          jint x1, jint y1,
+                                          jint x2, jint y2)
+{
+  if (event_queue == nullptr)
+    /* XCSoar not yet initialised */
+    return;
+
+  event_queue->Purge(Event::POINTER_MOVE);
+  event_queue->Inject(Event(Event::POINTER_MOVE,
+                            PixelPoint(x1, y1),
+                            PixelPoint(x2, y2)));
   ResetUserIdle();
 }
 

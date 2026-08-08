@@ -150,6 +150,12 @@ namespace InfoBoxFactory
     e_SpeedTaskLeg, /* Average cross country speed while on current task leg, not compensated for altitude */
     e_Alternate_1_AltDiff, /* Arrival altitude at the best alternate landing location relative to the safety arrival height */
     e_Alternate_2_AltDiff, /* Arrival altitude at the second-best alternate landing location relative to the safety arrival height */
+    /* 131 */
+    e_Home, /* Combined home waypoint infobox: shows waypoint name, arrival altitude diff, and distance */
+    e_AltitudeIGC, /* Logger or ISA pressure altitude only (no QNH baro / GPS) */
+    e_QNH, /* Current QNH pressure setting; tap to adjust manually */
+    e_ActiveWaypoint, /* Active waypoint infobox: shows the current task's next waypoint name (or Goto waypoint if no task), arrival altitude diff, and distance */
+    e_PreviousWaypoint, /* Previous waypoint infobox: shows the task waypoint before the active leg (start when on the first leg) with arrival altitude diff and distance; selection is informational only and never advances the task or sets a Goto */
     e_NUM_TYPES /* Last item */
   };
 

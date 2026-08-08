@@ -2,6 +2,8 @@
 
 IO_SRC_DIR = $(SRC)/io
 
+SQLITE ?= y
+
 IO_SOURCES = \
 	$(SRC)/lib/zlib/Error.cxx \
 	$(SRC)/lib/zlib/GunzipReader.cxx \
@@ -19,8 +21,10 @@ IO_SOURCES = \
 	$(IO_SRC_DIR)/FileOutputStream.cxx \
 	$(IO_SRC_DIR)/FileTransaction.cpp \
 	$(IO_SRC_DIR)/FileCache.cpp \
+	$(IO_SRC_DIR)/TarArchive.cpp \
 	$(IO_SRC_DIR)/ZipArchive.cpp \
 	$(IO_SRC_DIR)/ZipReader.cpp \
+	$(IO_SRC_DIR)/CupxArchive.cpp \
 	$(IO_SRC_DIR)/StringConverter.cpp \
 	$(IO_SRC_DIR)/FileLineReader.cpp \
 	$(IO_SRC_DIR)/KeyValueFileReader.cpp \
@@ -28,6 +32,15 @@ IO_SOURCES = \
 	$(IO_SRC_DIR)/CSVLine.cpp
 
 IO_DEPENDS = OS ZLIB FMT UTIL FMT
+
+ifeq ($(OPENGL),y)
+ifeq ($(SQLITE),y)
+IO_SOURCES += \
+	$(IO_SRC_DIR)/Sqlite.cpp
+
+IO_DEPENDS += SQLITE
+endif
+endif
 
 $(eval $(call link-library,io,IO))
 

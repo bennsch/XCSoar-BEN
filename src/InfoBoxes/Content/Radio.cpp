@@ -10,11 +10,9 @@
 #include "Formatter/UserUnits.hpp"
 #include "Language/Language.hpp"
 
-#include <tchar.h>
-
 static void
 UpdateInfoBoxFrequency(InfoBoxData &data, const RadioFrequency freq,
-                       const TCHAR *freq_name) noexcept
+                       const char *freq_name) noexcept
 {
   if(freq.IsDefined()) {
     freq.Format(data.value.data(), data.value.capacity());
@@ -38,9 +36,9 @@ UpdateInfoBoxTransponderCode(InfoBoxData &data,
   if(code.IsDefined()) {
     code.Format(data.value.data(), data.value.capacity());
 
-    if (data.value.equals(_T("7500")) ||
-        data.value.equals(_T("7600")) ||
-        data.value.equals(_T("7700"))) {
+    if (data.value.equals("7500") ||
+        data.value.equals("7600") ||
+        data.value.equals("7700")) {
       data.SetValueColor(1);
     } else {
       data.SetValueColor(0);
@@ -73,10 +71,6 @@ static constexpr InfoBoxPanel active_frequency_panels[] = {
 
 static constexpr InfoBoxPanel standby_frequency_panels[] = {
   { N_("Edit"), LoadStandbyRadioFrequencyEditPanel },
-  { nullptr, nullptr }
-};
-
-static constexpr InfoBoxPanel transponder_code_panels[] = {
   { nullptr, nullptr }
 };
 
@@ -118,10 +112,4 @@ InfoBoxContentTransponderCode::Update(InfoBoxData &data) noexcept
   UpdateInfoBoxTransponderCode(data, 
                                settings_transponder.transponder_code,
                                settings_transponder.transponder_mode);
-}
-
-const InfoBoxPanel *
-InfoBoxContentTransponderCode::GetDialogContent() noexcept
-{
-  return transponder_code_panels;
 }

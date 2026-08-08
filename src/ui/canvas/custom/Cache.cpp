@@ -6,7 +6,6 @@
 #include "util/StaticCache.hxx"
 #include "util/StringCompare.hxx"
 #include "util/StringAPI.hxx"
-#include "util/tstring_view.hxx"
 
 #ifdef ENABLE_OPENGL
 #include "ui/canvas/opengl/Texture.hpp"
@@ -15,10 +14,7 @@
 #include "thread/Mutex.hxx"
 #endif
 
-#ifdef UNICODE
-#include "util/ConvertString.hpp"
-#endif
-
+#include <string_view>
 #include <cassert>
 #include <memory>
 
@@ -54,11 +50,17 @@ struct TextCacheKey {
    * Copy the "text" attribute.  This must be called before inserting
    * this key into the #Cache.
    */
-  void Allocate() noexcept {
+  bool Allocate() noexcept {
     assert(allocated == nullptr);
 
-    allocated = strndup(text.data(), text.size());
-    text = {allocated, text.size()};
+    const auto s = text.size();
+    allocated = (char *) malloc(s + 1);
+    if (allocated == nullptr)
+      return false;
+    text.copy(allocated, s);
+    allocated[s] = '\0';
+    text = {allocated, s};
+    return true;
   }
 
   TextCacheKey &operator=(const TextCacheKey &other) = delete;
@@ -169,14 +171,10 @@ TextCache::GetSize(const Font &font, std::string_view text) noexcept
   if (const PixelSize *cached = size_cache.Get(key))
     return *cached;
 
-#ifdef UNICODE
-  PixelSize size = font.TextSize(UTF8ToWideConverter(text));
-#else
   PixelSize size = font.TextSize(text);
-#endif
 
-  key.Allocate();
-  size_cache.Put(std::move(key), size);
+  if (key.Allocate())
+    size_cache.Put(std::move(key), size);
   return size;
 }
 
@@ -202,7 +200,11 @@ TextCache::Result
 TextCache::Get(const Font &font, std::string_view text) noexcept
 {
 #ifdef ENABLE_OPENGL
+#ifdef _WIN32
+  assert(GetCurrentThreadId() == OpenGL::thread);
+#else
   assert(pthread_equal(pthread_self(), OpenGL::thread));
+#endif
 #endif
   assert(font.IsDefined());
 
@@ -223,11 +225,7 @@ TextCache::Get(const Font &font, std::string_view text) noexcept
   /* render the text into a OpenGL texture */
 
 #if defined(USE_FREETYPE) || defined(USE_APPKIT) || defined(USE_UIKIT)
-#ifdef UNICODE
-  UTF8ToWideConverter text2(text);
-#else
   std::string_view text2 = text;
-#endif
   PixelSize size = font.TextSize(text2);
   size_t buffer_size = font.BufferSize(size);
   if (buffer_size == 0)
@@ -255,8 +253,8 @@ TextCache::Get(const Font &font, std::string_view text) noexcept
 
   Result result = rt;
 
-  key.Allocate();
-  text_cache.Put(std::move(key), std::move(rt));
+  if (key.Allocate())
+    text_cache.Put(std::move(key), std::move(rt));
 
   /* done */
 
@@ -267,7 +265,11 @@ void
 TextCache::Flush() noexcept
 {
 #ifdef ENABLE_OPENGL
+#ifdef _WIN32
+  assert(GetCurrentThreadId() == OpenGL::thread);
+#else
   assert(pthread_equal(pthread_self(), OpenGL::thread));
+#endif
 #endif
 
 #ifndef ENABLE_OPENGL

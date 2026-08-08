@@ -10,24 +10,27 @@
 #include "Navigation/Aircraft.hpp"
 
 #include <algorithm>
+#include <cmath>
 
 #include <cassert>
 
-GlidePolar::GlidePolar(const double _mc, const double _bugs,
-                       const double _ballast) noexcept
+GlidePolar::GlidePolar(double _mc, double _bugs,
+                       double _ballast) noexcept
   :mc(_mc),
    bugs(_bugs),
-   ballast(_ballast),
+   ballast_litres(_ballast),
    cruise_efficiency(1),
    VbestLD(0),
    Vmax(75),
    Vmin(0),
    reference_polar(0.00157, -0.0734, 1.48),
+   max_ballast(90),
    ballast_ratio(0.3),
    reference_mass(300),
    empty_mass(reference_mass),
    crew_mass(90.),
-   wing_area(0)
+   wing_area(0),
+   density_ratio(1)
 {
   Update();
 
@@ -41,6 +44,11 @@ GlidePolar::Update() noexcept
   assert(bugs > 0);
 
   if (!reference_polar.IsValid()) {
+    Vmin = Vmax = 0;
+    return;
+  }
+
+  if (reference_mass <= 0 || GetTotalMass() <= 0) {
     Vmin = Vmax = 0;
     return;
   }
@@ -67,7 +75,7 @@ GlidePolar::UpdateSMax() noexcept
 }
 
 void
-GlidePolar::SetBugs(const double clean) noexcept
+GlidePolar::SetBugs(double clean) noexcept
 {
   assert(clean > 0 && clean <= 1);
   bugs = clean;
@@ -75,18 +83,47 @@ GlidePolar::SetBugs(const double clean) noexcept
 }
 
 void
-GlidePolar::SetBallast(const double bal) noexcept
+GlidePolar::SetBallastLitres(double litres) noexcept
 {
-  assert(bal >= 0);
-  SetBallastLitres(bal * ballast_ratio * reference_mass);
+  assert(litres >= 0);
+  ballast_litres = litres;
+  Update();
 }
 
 void
-GlidePolar::SetBallastLitres(const double litres) noexcept
+GlidePolar::SetBallastFraction(double fraction) noexcept
 {
-  assert(litres >= 0);
-  ballast = litres;
+  assert(fraction >= 0 && fraction <= 1);
+  ballast_litres = fraction * max_ballast;
   Update();
+}
+
+void
+GlidePolar::SetBallastOverload(double overload) noexcept
+{
+  assert(overload > 0);
+  const double total_mass = overload * GetReferenceMass();
+  ballast_litres = total_mass - GetDryMass();
+  if (ballast_litres < 0)
+    ballast_litres = 0;
+  Update();
+}
+
+double
+GlidePolar::GetBallastFraction() const noexcept
+{
+  if (max_ballast <= 0)
+    return 0;
+  return std::min(GetBallastLitres() / max_ballast, 1.0);
+}
+
+double
+GlidePolar::GetBallastOverload() const noexcept
+{
+  const auto ref = GetReferenceMass();
+  if (ref <= 0)
+    return 1.0;
+  return GetTotalMass() / ref;
 }
 
 void
@@ -103,6 +140,17 @@ GlidePolar::SetMC(const double _mc) noexcept
     UpdateBestLD();
 }
 
+void
+GlidePolar::SetDensityRatio(const double dr) noexcept
+{
+  const double safe_dr = (dr > 0.0 && std::isfinite(dr)) ? dr : 1.0;
+  if (safe_dr == density_ratio)
+    return;
+
+  density_ratio = safe_dr;
+  Update();
+}
+
 double
 GlidePolar::MSinkRate(const double V) const noexcept
 {
@@ -114,7 +162,8 @@ GlidePolar::SinkRate(const double V) const noexcept
 {
   assert(polar.IsValid());
 
-  return V * (V * polar.a + polar.b) + polar.c;
+  const double v_ias = V / density_ratio;
+  return density_ratio * (v_ias * (v_ias * polar.a + polar.b) + polar.c);
 }
 
 double
@@ -175,7 +224,8 @@ GlidePolar::UpdateBestLD() noexcept
   assert(polar.IsValid());
   assert(mc >= 0);
 
-  VbestLD = std::clamp(sqrt((polar.c + mc) / polar.a), Vmin, Vmax);
+  const double vbld_ias = sqrt((polar.c + mc) / polar.a);
+  VbestLD = std::clamp(vbld_ias * density_ratio, Vmin, Vmax);
   SbestLD = SinkRate(VbestLD);
   bestLD = VbestLD / SbestLD;
 #endif
@@ -221,7 +271,7 @@ GlidePolar::UpdateSMin() noexcept
 #else
   assert(polar.IsValid());
 
-  Vmin = std::min(Vmax, -0.5 * polar.b / polar.a);
+  Vmin = std::min(Vmax, -0.5 * polar.b / polar.a * density_ratio);
   Smin = SinkRate(Vmin);
 #endif
 
@@ -385,8 +435,11 @@ GlidePolar::GetBestGlideRatioSpeed(double head_wind) const noexcept
 {
   assert(polar.IsValid());
 
+  // altitude-corrected ground-speed polar: a'=a/DR, b'=b, c'=c*DR
+  const auto a_alt = polar.a / density_ratio;
+  const auto c_alt = polar.c * density_ratio;
   auto s = head_wind * head_wind +
-    (mc + polar.c + polar.b * head_wind) / polar.a;
+    (mc + c_alt + polar.b * head_wind) / a_alt;
   if (s < 0)
     /* should never happen, but just in case */
     return GetVMax();

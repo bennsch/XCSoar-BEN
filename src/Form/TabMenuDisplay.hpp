@@ -14,7 +14,7 @@ class PagerWidget;
 class TabMenuDisplay final : public PaintWindow
 {
   /* excludes "Main Menu" which is a "super menu" */
-  static constexpr unsigned MAX_MAIN_MENU_ITEMS = 7;
+  static constexpr unsigned MAX_MAIN_MENU_ITEMS = 9;
 
   /**
    * The offset from a page number in the #TabMenuDisplay to a page
@@ -28,7 +28,7 @@ class TabMenuDisplay final : public PaintWindow
   struct SubMenuButton {
     //TODO MainMenuButton *group;
     unsigned main_menu_index;
-    const TCHAR *caption;
+    const char *caption;
 
     PixelRect rc;
 
@@ -45,7 +45,7 @@ class TabMenuDisplay final : public PaintWindow
    * class that holds the main menu button and info
    */
   struct MainMenuButton {
-    const TCHAR *caption;
+    const char *caption;
 
     PixelRect rc;
 
@@ -116,7 +116,7 @@ class TabMenuDisplay final : public PaintWindow
   PagerWidget &pager;
   const DialogLook &look;
 
-  StaticArray<SubMenuButton, 32> buttons;
+  StaticArray<SubMenuButton, 48> buttons;
 
   /* holds info and buttons for the main menu.  not on child menus */
   StaticArray<MainMenuButton, MAX_MAIN_MENU_ITEMS> main_menu_buttons;
@@ -146,7 +146,7 @@ public:
    */
   void InitMenu(const TabMenuGroup groups[], unsigned n_groups) noexcept;
 
-  const TCHAR *GetCaption(TCHAR buffer[], size_t size) const noexcept;
+  const char *GetCaption(char buffer[], size_t size) const noexcept;
 
   /**
    * Call this from PagerWidget's OnPageFlipped callback.  It moves
@@ -176,7 +176,7 @@ private:
     return buttons.size();
   }
 
-  const TCHAR *GetPageParentCaption(unsigned page) const noexcept {
+  const char *GetPageParentCaption(unsigned page) const noexcept {
     assert(page < GetNumPages());
 
     return main_menu_buttons[buttons[page].main_menu_index].caption;

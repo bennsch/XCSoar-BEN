@@ -4,7 +4,11 @@
 #include "TextInBox.hpp"
 #include "LabelBlock.hpp"
 #include "ui/canvas/Canvas.hpp"
+#include "ui/canvas/Pen.hpp"
 #include "Screen/Layout.hpp"
+#include "util/UTF8.hpp"
+
+#include <algorithm>
 
 #ifdef ENABLE_OPENGL
 #include "ui/canvas/opengl/Scope.hpp"
@@ -52,7 +56,7 @@ TextInBoxMoveInView(PixelRect &rc, const PixelRect &map_rc) noexcept
 }
 
 void
-RenderShadowedText(Canvas &canvas, const TCHAR *text,
+RenderShadowedText(Canvas &canvas, const char *text,
                    PixelPoint p,
                    bool inverted) noexcept
 {
@@ -71,11 +75,14 @@ RenderShadowedText(Canvas &canvas, const TCHAR *text,
 
 // returns true if really wrote something
 bool
-TextInBox(Canvas &canvas, const TCHAR *text, PixelPoint p,
+TextInBox(Canvas &canvas, const char *text, PixelPoint p,
           TextInBoxMode mode, const PixelRect &map_rc,
           LabelBlock *label_block) noexcept
 {
   // landable waypoint label inside white box
+
+  if (text == nullptr || text[0] == '\0' || !ValidateUTF8(text))
+    text = "?";
 
   PixelSize tsize = canvas.CalcTextSize(text);
 
@@ -93,8 +100,8 @@ TextInBox(Canvas &canvas, const TCHAR *text, PixelPoint p,
   PixelRect rc;
   rc.left = p.x - padding - 1;
   rc.right = p.x + tsize.width + padding;
-  rc.top = p.y;
-  rc.bottom = p.y + tsize.height + 1;
+  rc.top = p.y - (int)padding;
+  rc.bottom = p.y + tsize.height + padding;
 
   if (mode.move_in_view) {
     auto offset = TextInBoxMoveInView(rc, map_rc);
@@ -107,10 +114,14 @@ TextInBox(Canvas &canvas, const TCHAR *text, PixelPoint p,
 
   if (mode.shape == LabelShape::ROUNDED_BLACK ||
       mode.shape == LabelShape::ROUNDED_WHITE) {
-    if (mode.shape == LabelShape::ROUNDED_BLACK)
-      canvas.SelectBlackPen();
-    else
-      canvas.SelectWhitePen();
+    /* A hairline pen breaks up along the rounded corners: OpenGL draws
+       the outline as a triangle strip whose half width (0.5px) rounds
+       to zero on most of the arc segments, leaving a dotted edge.
+       Scale the width so every segment has area. */
+    const Pen outline_pen{std::max(1u, Layout::ScaleFinePenWidth(1)),
+                          mode.shape == LabelShape::ROUNDED_BLACK
+                          ? COLOR_BLACK : COLOR_WHITE};
+    canvas.Select(outline_pen);
 
     {
 #ifdef ENABLE_OPENGL
@@ -120,7 +131,13 @@ TextInBox(Canvas &canvas, const TCHAR *text, PixelPoint p,
       canvas.SelectWhiteBrush();
 #endif
 
-      canvas.DrawRoundRectangle(rc, PixelSize{Layout::VptScale(8)});
+      /* DrawRoundRectangle takes an ellipse diameter (radius =
+         diameter/2). Cap it so short labels stay rounded rectangles
+         instead of pills. */
+      const unsigned ellipse =
+        std::min(Layout::VptScale(8),
+                 std::max(2u, (unsigned)rc.GetHeight() / 2));
+      canvas.DrawRoundRectangle(rc, PixelSize{ellipse});
     }
 
     canvas.SetBackgroundTransparent();
@@ -144,7 +161,7 @@ TextInBox(Canvas &canvas, const TCHAR *text, PixelPoint p,
 }
 
 bool
-TextInBox(Canvas &canvas, const TCHAR *text, PixelPoint p,
+TextInBox(Canvas &canvas, const char *text, PixelPoint p,
           TextInBoxMode mode,
           PixelSize screen_size,
           LabelBlock *label_block) noexcept

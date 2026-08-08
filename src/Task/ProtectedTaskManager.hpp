@@ -48,10 +48,12 @@ public:
   // common accessors for ui and calc clients
   void SetGlidePolar(const GlidePolar &glide_polar) noexcept;
 
+  void SetDensityRatio(double dr) noexcept;
+
   [[gnu::pure]]
   const OrderedTaskSettings GetOrderedTaskSettings() const noexcept;
 
-  void SetStartTimeSpan(const TimeSpan &open_time_span) noexcept;
+  void SetPevStartTimeSpan(const TimeSpan &open_time_span) noexcept;
 
   [[gnu::pure]]
   WaypointPtr GetActiveWaypoint() const noexcept;

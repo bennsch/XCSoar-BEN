@@ -30,12 +30,17 @@ ProtectedTaskManager::SetGlidePolar(const GlidePolar &glide_polar) noexcept
 }
 
 void
-ProtectedTaskManager::SetStartTimeSpan(const TimeSpan &open_time_span) noexcept
+ProtectedTaskManager::SetDensityRatio(const double dr) noexcept
 {
   ExclusiveLease lease(*this);
-  OrderedTaskSettings otb = lease->GetOrderedTask().GetOrderedTaskSettings();
-  otb.start_constraints.open_time_span = open_time_span;
-  lease->SetOrderedTaskSettings(otb);
+  lease->SetDensityRatio(dr);
+}
+
+void
+ProtectedTaskManager::SetPevStartTimeSpan(const TimeSpan &open_time_span) noexcept
+{
+  ExclusiveLease lease(*this);
+  lease->SetPevStartTimeSpan(open_time_span);
 }
 
 const OrderedTaskSettings

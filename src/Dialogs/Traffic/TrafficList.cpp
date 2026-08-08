@@ -11,7 +11,6 @@
 #include "Screen/Layout.hpp"
 #include "Form/DataField/Prefix.hpp"
 #include "Form/DataField/Listener.hpp"
-#include "FLARM/FlarmNetRecord.hpp"
 #include "FLARM/Details.hpp"
 #include "FLARM/Id.hpp"
 #include "FLARM/Global.hpp"
@@ -25,13 +24,16 @@
 #include "Formatter/UserUnits.hpp"
 #include "Formatter/AngleFormatter.hpp"
 #include "Blackboard/BlackboardListener.hpp"
-#include "Tracking/SkyLines/Data.hpp"
-#include "Tracking/TrackingGlue.hpp"
+#include "FLARM/Traffic.hpp"
 #include "Engine/Waypoint/Waypoints.hpp"
+#include "Pan.hpp"
+
+#ifdef HAVE_SKYLINES_TRACKING
 #include "Components.hpp"
 #include "NetComponents.hpp"
-#include "DataComponents.hpp"
-#include "Pan.hpp"
+#include "Tracking/TrackingGlue.hpp"
+#include "Tracking/SkyLines/TrafficDisplay.hpp"
+#endif
 
 using namespace std::chrono;
 
@@ -55,15 +57,6 @@ class TrafficListWidget : public ListWidget, public DataFieldListener,
      */
     FlarmId id;
 
-#ifdef HAVE_SKYLINES_TRACKING
-    /**
-     * The SkyLines account id.
-     */
-    uint32_t skylines_id = 0;
-
-    SkyLinesTracking::Data::Time time_of_day;
-#endif
-
     /**
      * The color that was assigned by the user to this FLARM peer.  It
      * is FlarmColor::COUNT if the color has not yet been determined.
@@ -77,8 +70,10 @@ class TrafficListWidget : public ListWidget, public DataFieldListener,
      */
     bool loaded = false;
 
-    const FlarmNetRecord *record;
-    const TCHAR *callsign;
+    /** 
+     * Resolved human-readable FLARM fields plus metadata about their origin. 
+     */
+    ResolvedInfo info;
 
     /**
      * This object's location.  Check GeoPoint::IsValid().
@@ -94,76 +89,24 @@ class TrafficListWidget : public ListWidget, public DataFieldListener,
     /**
      * The display name of the SkyLines account.
      */
-    tstring name;
-
-#ifdef HAVE_SKYLINES_TRACKING
-    StaticString<20> near_name;
-    double near_distance;
-
-    int altitude;
-#endif
+    std::string name;
 
     explicit Item(FlarmId _id)
       :id(_id) {
       assert(id.IsDefined());
-      assert(IsFlarm());
-
-#ifdef HAVE_SKYLINES_TRACKING
-      near_name.clear();
-#endif
     }
 
-#ifdef HAVE_SKYLINES_TRACKING
-    explicit Item(uint32_t _id, SkyLinesTracking::Data::Time _time_of_day,
-                  const GeoPoint &_location, int _altitude,
-                  tstring &&_name)
-      :id(FlarmId::Undefined()), skylines_id(_id),
-       time_of_day(_time_of_day),
-       color(FlarmColor::COUNT),
-       loaded(false),
-       location(_location),
-       vector(GeoVector::Invalid()), name(std::move(_name)),
-       altitude(_altitude) {
-      assert(IsSkyLines());
-
-      near_name.clear();
-    }
-#endif
-
-    /**
-     * Does this object describe a FLARM?
-     */
     bool IsFlarm() const {
       return id.IsDefined();
     }
 
-#ifdef HAVE_SKYLINES_TRACKING
-    /**
-     * Does this object describe data from SkyLines live tracking?
-     */
-    bool IsSkyLines() const {
-      return skylines_id != 0;
-    }
-#endif
-
     void Load() {
-      if (IsFlarm()) {
-        record = traffic_databases->flarm_net.FindRecordById(id);
-        callsign = traffic_databases->FindNameById(id);
-#ifdef HAVE_SKYLINES_TRACKING
-      } else if (IsSkyLines()) {
-        record = nullptr;
-        callsign = nullptr;
-#endif
-      } else {
-        gcc_unreachable();
-      }
-
+      info = FlarmDetails::ResolveInfo(id);
       loaded = true;
     }
 
     void AutoLoad() {
-      if (IsFlarm() && color == FlarmColor::COUNT)
+      if (color == FlarmColor::COUNT)
         color = traffic_databases->GetColor(id);
 
       if (!loaded)
@@ -323,7 +266,7 @@ public:
 
   void Prepare([[maybe_unused]] ContainerWindow &parent,
                [[maybe_unused]] const PixelRect &rc) noexcept override {
-    PrefixDataField *callsign_df = new PrefixDataField(_T(""), listener);
+    PrefixDataField *callsign_df = new PrefixDataField("", listener);
     Add(_("Competition ID"), nullptr, callsign_df);
   }
 };
@@ -356,7 +299,7 @@ TrafficListWidget::UpdateList()
   items.clear();
   last_update.Clear();
 
-  const TCHAR *callsign = filter_widget->GetValueString(CALLSIGN);
+  const char *callsign = filter_widget->GetValueString(CALLSIGN);
   if (!StringIsEmpty(callsign)) {
     FlarmId ids[30];
     unsigned count = FlarmDetails::FindIdsByCallSign(callsign, ids, 30);
@@ -382,40 +325,6 @@ TrafficListWidget::UpdateList()
     for (const auto &i : traffic_databases->flarm_names) {
       AddItem(i.id);
     }
-
-#ifdef HAVE_SKYLINES_TRACKING
-    /* show SkyLines traffic unless this is a FLARM traffic picker
-       dialog (from dlgTeamCode) */
-    if (buttons != nullptr && net_components != nullptr &&
-        net_components->tracking) {
-      const auto &data = net_components->tracking->GetSkyLinesData();
-      const std::lock_guard lock{data.mutex};
-      for (const auto &i : data.traffic) {
-        const auto name_i = data.user_names.find(i.first);
-        tstring name = name_i != data.user_names.end()
-          ? name_i->second
-          : tstring();
-
-        items.emplace_back(i.first, i.second.time_of_day,
-                           i.second.location, i.second.altitude,
-                           std::move(name));
-        Item &item = items.back();
-
-        if (i.second.location.IsValid()) {
-          if (CommonInterface::Basic().location_available)
-            item.vector = GeoVector(CommonInterface::Basic().location,
-                                    i.second.location);
-
-          const auto wp = data_components->waypoints->GetNearestLandable(i.second.location,
-                                                                         20000);
-          if (wp != nullptr) {
-            item.near_name = wp->name.c_str();
-            item.near_distance = wp->location.DistanceS(i.second.location);
-          }
-        }
-      }
-    }
-#endif
   }
 
   GetList().SetLength(items.size());
@@ -437,57 +346,23 @@ TrafficListWidget::UpdateVolatile()
   max_time.Clear();
 
   for (auto &i : items) {
-    if (i.IsFlarm()) {
-      const FlarmTraffic *live = live_list.FindTraffic(i.id);
+    const FlarmTraffic *live = live_list.FindTraffic(i.id);
 
-      if (live != nullptr) {
-        if (live->valid.Modified(last_update))
-          /* if this #FlarmTraffic is newer than #last_update, then we
-             need to redraw the list */
-          modified = true;
+    if (live != nullptr) {
+      if (live->valid.Modified(last_update))
+        modified = true;
 
-        if (live->valid.Modified(max_time))
-          /* update max_time (and last_update) for the next
-             UpdateVolatile() call */
-          max_time = live->valid;
+      if (live->valid.Modified(max_time))
+        max_time = live->valid;
 
-        i.location = live->location;
-        i.vector = GeoVector(live->distance, live->track);
-      } else {
-        if (i.location.IsValid() || i.vector.IsValid())
-          /* this item has disappeared from our FLARM: redraw the
-             list */
-          modified = true;
+      i.location = live->location;
+      i.vector = GeoVector(live->distance, live->track);
+    } else {
+      if (i.location.IsValid() || i.vector.IsValid())
+        modified = true;
 
-        i.location.SetInvalid();
-        i.vector.SetInvalid();
-      }
-#ifdef HAVE_SKYLINES_TRACKING
-    } else if (i.IsSkyLines() && net_components != nullptr &&
-               net_components->tracking) {
-      const auto &data = net_components->tracking->GetSkyLinesData();
-      const std::lock_guard lock{data.mutex};
-
-      auto live = data.traffic.find(i.skylines_id);
-      if (live != data.traffic.end()) {
-        if (live->second.location != i.location)
-          modified = true;
-
-        i.location = live->second.location;
-
-        if (i.location.IsValid() &&
-            CommonInterface::Basic().location_available)
-          i.vector = GeoVector(CommonInterface::Basic().location,
-                               i.location);
-      } else {
-        if (i.location.IsValid() || i.vector.IsValid())
-          /* this item has disappeared: redraw the list */
-          modified = true;
-
-        i.location.SetInvalid();
-        i.vector.SetInvalid();
-      }
-#endif
+      i.location.SetInvalid();
+      i.vector.SetInvalid();
     }
   }
 
@@ -527,33 +402,6 @@ TrafficListWidget::Prepare(ContainerWindow &parent,
     list.SetLength(items.size());
 }
 
-#ifdef HAVE_SKYLINES_TRACKING
-
-/**
- * Calculate how many minutes have passed since #past_ms.
- */
-[[gnu::const]]
-static constexpr auto
-SinceInMinutes(TimeStamp now,
-               duration<uint32_t, milliseconds::period> past_ms) noexcept
-{
-  using Minutes = duration<unsigned, minutes::period>;
-  constexpr Minutes ONE_DAY = hours{24};
-  auto now_minutes = now.Cast<Minutes>() % ONE_DAY;
-  auto past_minutes = duration_cast<Minutes>(past_ms) % ONE_DAY;
-
-  if (past_minutes >= hours{20} && now_minutes < hours{4})
-    /* midnight rollover */
-    now_minutes += ONE_DAY;
-
-  if (past_minutes > now_minutes)
-    return Minutes{};
-
-  return now_minutes - past_minutes;
-}
-
-#endif
-
 void
 TrafficListWidget::OnPaintItem(Canvas &canvas, PixelRect rc,
                                unsigned index) noexcept
@@ -561,49 +409,58 @@ TrafficListWidget::OnPaintItem(Canvas &canvas, PixelRect rc,
   assert(index < items.size());
   Item &item = items[index];
 
-  assert(item.IsFlarm()
-#ifdef HAVE_SKYLINES_TRACKING
-         || item.IsSkyLines()
-#endif
-         );
+  assert(item.IsFlarm());
 
   item.AutoLoad();
 
-  const FlarmNetRecord *record = item.record;
-  const TCHAR *callsign = item.callsign;
+  const ResolvedInfo &info = item.info;
+  const FlarmTraffic *live =
+    CommonInterface::Basic().flarm.traffic.FindTraffic(item.id);
 
   const DialogLook &look = UIGlobals::GetDialogLook();
   const Font &name_font = *look.list.font_bold;
-  const Font &small_font = look.small_font;
 
   const unsigned text_padding = Layout::GetTextPadding();
   const unsigned frame_padding = text_padding / 2;
 
-  TCHAR tmp_id[10];
+  char tmp_id[10];
   item.id.Format(tmp_id);
 
   canvas.Select(name_font);
 
   StaticString<256> tmp;
 
-  if (item.IsFlarm()) {
-    if (record != nullptr)
-      tmp.Format(_T("%s - %s - %s"),
-                 callsign, record->registration.c_str(), tmp_id);
-    else if (callsign != nullptr)
-      tmp.Format(_T("%s - %s"), callsign, tmp_id);
-    else
-      tmp.Format(_T("%s"), tmp_id);
+  if (live != nullptr &&
+      FlarmTraffic::IsInjectedSource(live->source)) {
 #ifdef HAVE_SKYLINES_TRACKING
-  } else if (item.IsSkyLines()) {
-    if (!item.name.empty())
-      tmp = item.name.c_str();
+    StaticString<64> title;
+    uint32_t pilot_id = 0;
+    StaticString<64> server_name;
+    if (net_components != nullptr && net_components->tracking != nullptr) {
+      pilot_id = net_components->tracking->GetOnlinePilotId(item.id);
+      net_components->tracking->CopyOnlineUserName(pilot_id, server_name);
+    }
+    SkyLinesTracking::FormatTrafficTitle(title, pilot_id, item.id,
+                                         server_name.empty()
+                                         ? nullptr
+                                         : server_name.c_str(),
+                                         live->HasName()
+                                         ? live->name.c_str()
+                                         : nullptr);
+    if (!title.empty())
+      tmp.Format("%s - %s", title.c_str(), tmp_id);
     else
-      tmp.UnsafeFormat(_T("SkyLines %u"), item.skylines_id);
+      tmp = tmp_id;
+#else
+    tmp = tmp_id;
 #endif
-  } else {
-    tmp = _T("?");
-  }
+  } else if (!info.callsign.empty() && !info.registration.empty())
+    tmp.Format("%s - %s - %s",
+               info.callsign.c_str(), info.registration.c_str(), tmp_id);
+  else if (!info.callsign.empty())
+    tmp.Format("%s - %s", info.callsign.c_str(), tmp_id);
+  else
+    tmp.Format("%s", tmp_id);
 
   if (item.color != FlarmColor::NONE) {
     const TrafficLook &traffic_look = UIGlobals::GetLook().traffic;
@@ -635,8 +492,6 @@ TrafficListWidget::OnPaintItem(Canvas &canvas, PixelRect rc,
 
   row_renderer.DrawFirstRow(canvas, rc, tmp);
 
-  canvas.Select(small_font);
-
   /* draw bearing and distance on the right */
   if (item.vector.IsValid()) {
     row_renderer.DrawRightFirstRow(canvas, rc,
@@ -647,46 +502,46 @@ TrafficListWidget::OnPaintItem(Canvas &canvas, PixelRect rc,
                                                FormatBearing(item.vector.bearing).c_str());
   }
 
-  if (record != nullptr) {
+  if (!info.IsEmpty()) {
     tmp.clear();
 
-    if (!record->pilot.empty())
-      tmp = record->pilot.c_str();
+    if (!info.pilot.empty())
+      tmp = info.pilot.c_str();
 
-    if (!record->plane_type.empty()) {
+    if (!info.plane_type.empty()) {
       if (!tmp.empty())
-        tmp.append(_T(" - "));
+        tmp.append(" - ");
 
-      tmp.append(record->plane_type);
+      tmp.append(info.plane_type.c_str());
     }
 
-    if (!record->airfield.empty()) {
+    if (!info.airfield.empty()) {
       if (!tmp.empty())
-        tmp.append(_T(" - "));
+        tmp.append(" - ");
 
-      tmp.append(record->airfield);
+      tmp.append(info.airfield.c_str());
     }
+
+#ifdef HAVE_SKYLINES_TRACKING
+    if (live != nullptr &&
+        FlarmTraffic::IsInjectedSource(live->source)) {
+      if (!tmp.empty())
+        tmp.append(" - ");
+
+      tmp.append(FlarmTraffic::GetSourceString(live->source));
+    }
+#endif
 
     if (!tmp.empty())
       row_renderer.DrawSecondRow(canvas, rc, tmp);
 #ifdef HAVE_SKYLINES_TRACKING
-  } else if (item.IsSkyLines()) {
-    if (CommonInterface::Basic().time_available) {
-      tmp.UnsafeFormat(_("%u minutes ago"),
-                       SinceInMinutes(CommonInterface::Basic().time,
-                                      item.time_of_day));
-    } else
-      tmp.clear();
-
-    if (!item.near_name.empty())
-      tmp.AppendFormat(_T(" near %s (%s)"),
-                       item.near_name.c_str(),
-                       FormatUserDistanceSmart(item.near_distance).c_str());
-
-    if (!tmp.empty())
-      tmp.append(_T("; "));
-    tmp.append(FormatUserAltitude(item.altitude).c_str());
-
+  } else if (live != nullptr &&
+             FlarmTraffic::IsInjectedSource(live->source)) {
+    tmp = FlarmTraffic::GetSourceString(live->source);
+    if (live->altitude_available) {
+      tmp.append("; ");
+      tmp.append(FormatUserAltitude(live->altitude).c_str());
+    }
     if (!tmp.empty())
       row_renderer.DrawSecondRow(canvas, rc, tmp);
 #endif
@@ -702,7 +557,7 @@ TrafficListWidget::OpenDetails(unsigned index)
   Item &item = items[index];
 
   if (item.IsFlarm()) {
-    dlgFlarmTrafficDetailsShowModal(item.id);
+    (void)dlgFlarmTrafficDetailsShowModal(item.id);
     UpdateList();
   }
 }
@@ -764,7 +619,7 @@ TrafficListDialog()
 }
 
 FlarmId
-PickFlarmTraffic(const TCHAR *title, FlarmId array[], unsigned count)
+PickFlarmTraffic(const char *title, FlarmId array[], unsigned count)
 {
   assert(count > 0);
 

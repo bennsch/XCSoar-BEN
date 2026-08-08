@@ -4,9 +4,11 @@
 #include "TabMenuDisplay.hpp"
 #include "TabMenuData.hpp"
 #include "Widget/PagerWidget.hpp"
+#include "Widget/VScrollWidget.hpp"
 #include "Screen/Layout.hpp"
 #include "ui/event/KeyCode.hpp"
 #include "ui/canvas/Canvas.hpp"
+#include "ui/canvas/Features.hpp"
 #include "Look/DialogLook.hpp"
 #include "Language/Language.hpp"
 #include "util/StringFormat.hpp"
@@ -40,20 +42,23 @@ TabMenuDisplay::InitMenu(const TabMenuGroup groups[],
       page_button.main_menu_index = i;
       page_button.caption = gettext(p->menu_caption);
 
-      pager.Add(p->Load());
+      /* Wrap panel in VScrollWidget for automatic scrolling when needed */
+      auto panel = p->Load();
+      auto scroll_panel = std::make_unique<VScrollWidget>(std::move(panel), look);
+      pager.Add(std::move(scroll_panel));
     }
 
     mb.last_page_index = buttons.size() - 1;
   }
 }
 
-const TCHAR *
-TabMenuDisplay::GetCaption(TCHAR buffer[], size_t size) const noexcept
+const char *
+TabMenuDisplay::GetCaption(char buffer[], size_t size) const noexcept
 {
   const unsigned page = pager.GetCurrentIndex();
   if (page >= PAGE_OFFSET) {
     const unsigned i = page - PAGE_OFFSET;
-    StringFormat(buffer, size, _T("%s > %s"),
+    StringFormat(buffer, size, "%s > %s",
                  gettext(GetPageParentCaption(i)),
                  buttons[i].caption);
     return buffer;
@@ -84,8 +89,10 @@ TabMenuDisplay::UpdateLayout() noexcept
 {
   const auto window_size = GetSize();
   const unsigned border_width = GetTabLineHeight();
+  const unsigned n_main_menu_items = std::max(GetNumMainMenuItems(), 1u);
   const unsigned menu_button_height =
-    std::min(Layout::GetMaximumControlHeight(), window_size.height / 7u);
+    std::min(Layout::GetMaximumControlHeight(),
+             window_size.height / n_main_menu_items);
   const unsigned menu_button_width = (window_size.width - 2 * border_width) / 2;
 
   const unsigned offset = Layout::Scale(2);
@@ -218,16 +225,24 @@ TabMenuDisplay::OnResize(PixelSize new_size) noexcept
 bool
 TabMenuDisplay::OnKeyCheck(unsigned key_code) const noexcept
 {
- switch (key_code) {
+  switch (key_code) {
+  case KEY_RETURN:
+  case KEY_LEFT:
+  case KEY_RIGHT:
+    return true;
 
- case KEY_RETURN:
- case KEY_LEFT:
- case KEY_RIGHT:
-   return true;
+  case KEY_DOWN:
+    /* Only claim Down while another menu item follows; at the last
+       item, let the dialog move focus to Close / arrows. */
+    return cursor + 1 < GetNumPages();
 
- default:
-   return false;
- }
+  case KEY_UP:
+    /* Same for Up at the first item. */
+    return cursor > 0;
+
+  default:
+    return false;
+  }
 }
 
 bool
@@ -239,10 +254,12 @@ TabMenuDisplay::OnKeyDown(unsigned key_code) noexcept
     return true;
 
   case KEY_RIGHT:
+  case KEY_DOWN:
     HighlightNext();
     return true;
 
   case KEY_LEFT:
+  case KEY_UP:
     HighlightPrevious();
     return true;
 
@@ -326,7 +343,9 @@ TabMenuDisplay::PaintMainMenuBorder(Canvas &canvas) const noexcept
   rc.bottom = GetMainMenuButtonSize(GetNumMainMenuItems() - 1).bottom;
   rc.Grow(GetTabLineHeight());
 
-  canvas.DrawFilledRectangle(rc, COLOR_BLACK);
+  canvas.DrawFilledRectangle(rc, look.dark_mode
+                             ? DarkColor(look.background_color)
+                             : COLOR_BLACK);
 }
 
 inline void
@@ -359,7 +378,9 @@ TabMenuDisplay::PaintSubMenuBorder(Canvas &canvas,
   rc.bottom = GetSubMenuButtonSize(main_button.last_page_index).bottom;
   rc.Grow(GetTabLineHeight());
 
-  canvas.DrawFilledRectangle(rc, COLOR_BLACK);
+  canvas.DrawFilledRectangle(rc, look.dark_mode
+                             ? DarkColor(look.background_color)
+                             : COLOR_BLACK);
 }
 
 inline void
@@ -395,7 +416,8 @@ TabMenuDisplay::PaintSubMenuItems(Canvas &canvas) const noexcept
 void
 TabMenuDisplay::OnPaint(Canvas &canvas) noexcept
 {
-  canvas.Clear(look.background_color);
+  if (HaveClipping())
+    canvas.Clear(look.background_color);
 
   PaintMainMenuItems(canvas);
   PaintSubMenuItems(canvas);

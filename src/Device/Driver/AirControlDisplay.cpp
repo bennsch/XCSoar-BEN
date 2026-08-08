@@ -20,10 +20,49 @@
 #include "Operation/Operation.hpp"
 #include "time/PeriodClock.hpp"
 
+#include <atomic>
+#include <cassert>
+
 using std::string_view_literals::operator""sv;
 
-static bool
-ParsePAAVS(NMEAInputLine &line, NMEAInfo &info)
+class ACDDevice : public AbstractDevice {
+  friend bool ParsePAAVS(NMEAInputLine &line, NMEAInfo &info,
+                         ACDDevice *dev) noexcept;
+
+  Port &port;
+  PeriodClock status_clock;
+
+  /**
+   * Last COM standby channel (kHz) from the panel or from our own
+   * PutStandbyFrequency.  CHN1 is read-only on the ACD; tuning active uses
+   * CHN2 + swap + restore (see PutActiveFrequency).
+   */
+  std::atomic<unsigned> cached_com_standby_khz{0};
+  std::atomic<bool> com_standby_khz_known{false};
+
+public:
+  ACDDevice(Port &_port):port(_port) {}
+
+  /* virtual methods from class Device */
+  bool ParseNMEA(const char *line, struct NMEAInfo &info) override;
+  bool PutQNH(const AtmosphericPressure &pres,
+              OperationEnvironment &env) override;
+  bool PutVolume(unsigned volume, OperationEnvironment &env) override;
+  bool PutActiveFrequency(RadioFrequency frequency,
+                          const char *name,
+                          OperationEnvironment &env) override;
+  bool PutStandbyFrequency(RadioFrequency frequency,
+                           const char *name,
+                           OperationEnvironment &env) override;
+  bool ExchangeRadioFrequencies(OperationEnvironment &env,
+                                NMEAInfo &info) override;
+  bool PutTransponderCode(TransponderCode code, OperationEnvironment &env) override;
+  void OnCalculatedUpdate(const MoreData &basic,
+                          [[maybe_unused]] const DerivedInfo &calculated) override;
+};
+
+bool
+ParsePAAVS(NMEAInputLine &line, NMEAInfo &info, ACDDevice *dev) noexcept
 {
   double value;
 
@@ -71,6 +110,12 @@ ParsePAAVS(NMEAInputLine &line, NMEAInfo &info)
     if (line.ReadChecked(value)) {
       info.settings.has_standby_frequency.Update(info.clock);
       info.settings.standby_frequency = RadioFrequency::FromKiloHertz(value);
+      if (dev != nullptr) {
+        dev->cached_com_standby_khz.store(uround(value),
+                                          std::memory_order_relaxed);
+        dev->com_standby_khz_known.store(true,
+                                         std::memory_order_release);
+      }
     }
 
     unsigned volume;
@@ -100,7 +145,7 @@ ParsePAAVS(NMEAInputLine &line, NMEAInfo &info)
     unsigned code_value;
     if (line.ReadChecked(code_value)) {
       StaticString<16> buffer;
-      buffer.Format(_T("%04u"), code_value);
+      buffer.Format("%04u", code_value);
       TransponderCode parsed_code = TransponderCode::Parse(buffer);
 
       if (!parsed_code.IsDefined())
@@ -147,25 +192,6 @@ ParsePAAVS(NMEAInputLine &line, NMEAInfo &info)
   return true;
 }
 
-class ACDDevice : public AbstractDevice {
-  Port &port;
-  PeriodClock status_clock;
-
-public:
-  ACDDevice(Port &_port):port(_port) {}
-
-  /* virtual methods from class Device */
-  bool ParseNMEA(const char *line, struct NMEAInfo &info) override;
-  bool PutQNH(const AtmosphericPressure &pres,
-              OperationEnvironment &env) override;
-  bool PutVolume(unsigned volume, OperationEnvironment &env) override;
-  bool PutStandbyFrequency(RadioFrequency frequency,
-                           const TCHAR *name,
-                           OperationEnvironment &env) override;
-  bool PutTransponderCode(TransponderCode code, OperationEnvironment &env) override;
-  void OnSensorUpdate(const MoreData &basic) override;
-};
-
 bool
 ACDDevice::PutQNH(const AtmosphericPressure &pres, OperationEnvironment &env)
 {
@@ -173,6 +199,37 @@ ACDDevice::PutQNH(const AtmosphericPressure &pres, OperationEnvironment &env)
   unsigned qnh = uround(pres.GetPascal());
   sprintf(buffer, "PAAVC,S,ALT,QNH,%u", qnh);
   PortWriteNMEA(port, buffer, env);
+  return true;
+}
+
+bool
+ACDDevice::PutActiveFrequency(RadioFrequency frequency,
+                              [[maybe_unused]] const char *name,
+                              OperationEnvironment &env)
+{
+  assert(frequency.IsDefined());
+
+  /*
+   Primary COM channel (CHN1) is read-only on the ACD.  Same workaround as
+   LK8000 devAirControlDisplay: load standby (CHN2) with the desired active,
+   swap active/standby, then restore the previous standby on CHN2.
+   */
+  if (!com_standby_khz_known.load(std::memory_order_acquire))
+    return false;
+
+  const unsigned old_standby_khz =
+    cached_com_standby_khz.load(std::memory_order_relaxed);
+  const unsigned new_active_khz = frequency.GetKiloHertz();
+
+  char buffer[100];
+  sprintf(buffer, "PAAVC,S,COM,CHN2,%u", new_active_khz);
+  PortWriteNMEA(port, buffer, env);
+
+  PortWriteNMEA(port, "PAAVX,COM,XCHN", env);
+
+  sprintf(buffer, "PAAVC,S,COM,CHN2,%u", old_standby_khz);
+  PortWriteNMEA(port, buffer, env);
+
   return true;
 }
 
@@ -187,13 +244,15 @@ ACDDevice::PutVolume(unsigned volume, OperationEnvironment &env)
 
 bool
 ACDDevice::PutStandbyFrequency(RadioFrequency frequency,
-                                   [[maybe_unused]] const TCHAR *name,
+                                   [[maybe_unused]] const char *name,
                                    OperationEnvironment &env)
 {
   char buffer[100];
   unsigned freq = frequency.GetKiloHertz();
   sprintf(buffer, "PAAVC,S,COM,CHN2,%u", freq);
   PortWriteNMEA(port, buffer, env);
+  cached_com_standby_khz.store(freq, std::memory_order_relaxed);
+  com_standby_khz_known.store(true, std::memory_order_release);
   return true;
 }
 
@@ -207,6 +266,15 @@ ACDDevice::PutTransponderCode(TransponderCode code, OperationEnvironment &env)
 }
 
 bool
+ACDDevice::ExchangeRadioFrequencies(OperationEnvironment &env,
+                                    [[maybe_unused]] NMEAInfo &info)
+{
+  const char *sentence = "PAAVX,COM,XCHN";
+  PortWriteNMEA(port, sentence, env);
+  return true;
+}
+
+bool
 ACDDevice::ParseNMEA(const char *_line, NMEAInfo &info)
 {
   if (!VerifyNMEAChecksum(_line))
@@ -215,13 +283,14 @@ ACDDevice::ParseNMEA(const char *_line, NMEAInfo &info)
   NMEAInputLine line(_line);
 
   if (line.ReadCompare("$PAAVS"))
-    return ParsePAAVS(line, info);
+    return ParsePAAVS(line, info, this);
   else
     return false;
 }
 
 void
-ACDDevice::OnSensorUpdate(const MoreData &basic)
+ACDDevice::OnCalculatedUpdate(const MoreData &basic, 
+                              [[maybe_unused]] const DerivedInfo &calculated)
 {
   NullOperationEnvironment env;
 
@@ -248,8 +317,8 @@ AirControlDisplayCreateOnPort([[maybe_unused]] const DeviceConfig &config, Port 
 }
 
 const struct DeviceRegister acd_driver = {
-  _T("ACD"),
-  _T("Air Control Display"),
+  "ACD",
+  "Air Control Display",
   DeviceRegister::RECEIVE_SETTINGS | DeviceRegister::SEND_SETTINGS,
   AirControlDisplayCreateOnPort,
 };

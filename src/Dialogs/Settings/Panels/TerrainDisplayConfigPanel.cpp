@@ -10,13 +10,19 @@
 #include "Language/Language.hpp"
 #include "MapSettings.hpp"
 #include "Terrain/TerrainRenderer.hpp"
+#include "Topography/TopographyRenderer.hpp"
+#include "Topography/TopographyStore.hpp"
 #include "Projection/MapWindowProjection.hpp"
 #include "Components.hpp"
 #include "DataComponents.hpp"
 #include "Interface.hpp"
+#include "ActionInterface.hpp"
 #include "MapWindow/GlueMapWindow.hpp"
 #include "Widget/RowFormWidget.hpp"
+#include "Look/DialogLook.hpp"
+#include "Look/MapLook.hpp"
 #include "UIGlobals.hpp"
+#include "Message.hpp"
 
 #ifdef ENABLE_OPENGL
 #include "ui/canvas/opengl/Scissor.hpp"
@@ -30,19 +36,42 @@ enum ControlIndex {
   TerrainContrast,
   TerrainBrightness,
   TerrainContours,
+  TerrainSpacer,
   TerrainPreview,
 };
 
 class TerrainPreviewWindow : public PaintWindow {
   TerrainRenderer renderer;
+  std::unique_ptr<TopographyRenderer> topo_renderer;
+  bool topography_enabled;
 
 public:
-  TerrainPreviewWindow(const RasterTerrain &terrain)
-    :renderer(terrain) {}
+  TerrainPreviewWindow(const RasterTerrain &terrain,
+                       const TopographyStore *topo_store,
+                       const TopographyLook &topo_look,
+                       bool _topography_enabled)
+    :renderer(terrain),
+     topography_enabled(_topography_enabled)
+  {
+#ifdef ENABLE_OPENGL
+    /* always render at full resolution in the preview;
+       the default idle-based quantisation would produce a
+       blocky image while the user interacts with the dialog */
+    renderer.SetQuantisationPixels(1);
+#endif
+    if (topo_store != nullptr)
+      topo_renderer =
+        std::make_unique<TopographyRenderer>(*topo_store, topo_look);
+  }
 
   void SetSettings(const TerrainRendererSettings &settings) {
     renderer.SetSettings(settings);
     renderer.Flush();
+    Invalidate();
+  }
+
+  void SetTopographyEnabled(bool enabled) {
+    topography_enabled = enabled;
     Invalidate();
   }
 
@@ -55,7 +84,12 @@ class TerrainDisplayConfigPanel final
   bool have_terrain_preview;
 
 protected:
+  /** Current dialog values (may be previewed live). */
   TerrainRendererSettings terrain_settings;
+
+  /** Values when the panel was opened; used so Save() does not write
+      unchanged defaults into a profile that lacked those keys (#1793). */
+  TerrainRendererSettings initial_terrain_settings;
 
 public:
   TerrainDisplayConfigPanel()
@@ -87,8 +121,10 @@ TerrainDisplayConfigPanel::ShowTerrainControls()
   SetRowVisible(TerrainContrast, show);
   SetRowVisible(TerrainBrightness, show);
   SetRowVisible(TerrainContours, show);
-  if (have_terrain_preview)
+  if (have_terrain_preview) {
+    SetRowVisible(TerrainSpacer, show);
     SetRowVisible(TerrainPreview, show);
+  }
 }
 
 static short
@@ -125,8 +161,25 @@ TerrainDisplayConfigPanel::OnModified(DataField &df) noexcept
 {
   if (IsDataField(EnableTerrain, df)) {
     const DataFieldBoolean &dfb = (const DataFieldBoolean &)df;
-    terrain_settings.enable = dfb.GetValue();
+    const bool terrain_enabled = dfb.GetValue();
+    terrain_settings.enable = terrain_enabled;
+    CommonInterface::SetMapSettings().terrain.enable = terrain_enabled;
+    Message::AddMessage(terrain_enabled
+                        ? _("Terrain shown")
+                        : _("Terrain hidden"));
+    ActionInterface::SendMapSettings(true);
     ShowTerrainControls();
+  } else if (IsDataField(EnableTopography, df)) {
+    const DataFieldBoolean &dfb = (const DataFieldBoolean &)df;
+    const bool topography_enabled = dfb.GetValue();
+    CommonInterface::SetMapSettings().topography_enabled = topography_enabled;
+    Message::AddMessage(topography_enabled
+                        ? _("Topography shown")
+                        : _("Topography hidden"));
+    ActionInterface::SendMapSettings(true);
+    if (have_terrain_preview)
+      ((TerrainPreviewWindow &)GetRow(TerrainPreview))
+        .SetTopographyEnabled(topography_enabled);
   } else {
     UpdateTerrainPreview();
   }
@@ -143,7 +196,7 @@ TerrainPreviewWindow::OnPaint(Canvas &canvas) noexcept
   if (!projection.IsValid()) {
     /* TODO: initialise projection to middle of map instead of bailing
        out */
-    canvas.ClearWhite();
+    canvas.Clear(UIGlobals::GetDialogLook().background_color);
     return;
   }
 
@@ -164,6 +217,9 @@ TerrainPreviewWindow::OnPaint(Canvas &canvas) noexcept
 #endif
 
   renderer.Draw(canvas, projection);
+
+  if (topography_enabled && topo_renderer)
+    topo_renderer->Draw(canvas, projection);
 }
 
 void
@@ -177,7 +233,7 @@ TerrainDisplayConfigPanel::Prepare(ContainerWindow &parent,
   const MapSettings &settings_map = CommonInterface::GetMapSettings();
   const TerrainRendererSettings &terrain = settings_map.terrain;
 
-  AddBoolean(_("Terrain display"),
+  AddBoolean(_("Terrain Display"),
              _("Draw a digital elevation terrain on the map."),
              terrain.enable);
   GetDataField(EnableTerrain).SetListener(this);
@@ -185,6 +241,7 @@ TerrainDisplayConfigPanel::Prepare(ContainerWindow &parent,
   AddBoolean(_("Topography display"),
              _("Draw topographical features (roads, rivers, lakes etc.) on the map."),
              settings_map.topography_enabled);
+  GetDataField(EnableTopography).SetListener(this);
 
   static constexpr StaticEnumChoice terrain_ramp_list[] = {
     { 0, N_("Low lands"), },
@@ -215,52 +272,74 @@ TerrainDisplayConfigPanel::Prepare(ContainerWindow &parent,
 
   static constexpr StaticEnumChoice slope_shading_list[] = {
     { SlopeShading::OFF, N_("Off"), },
-    { SlopeShading::FIXED, N_("Fixed"), },
+    { SlopeShading::FIXED, N_("Fixed (North-West)"), },
     { SlopeShading::SUN, N_("Sun"), },
     { SlopeShading::WIND, N_("Wind"), },
+    { SlopeShading::TOP_LEFT, N_("Fixed (Top Left)"), },
     nullptr
   };
 
   AddEnum(_("Slope shading"),
-          _("The terrain can be shaded among slopes to indicate either wind direction, sun position or a fixed shading from North-West."),
+          _("The terrain can be shaded among slopes to indicate either "
+            "wind direction, sun position, a geographically fixed shading from "
+            "North-West, or a screen-relative fixed shading from top left."),
           slope_shading_list, (unsigned)terrain.slope_shading);
   GetDataField(TerrainSlopeShading).SetListener(this);
   SetExpertRow(TerrainSlopeShading);
 
   AddInteger(_("Terrain contrast"),
              _("Defines the amount of Phong shading in the terrain rendering. Use large values to emphasise terrain slope, smaller values if flying in steep mountains."),
-             _T("%d %%"), _T("%d %%"), 0, 100, 5,
+             "%d %%", "%d %%", 0, 100, 5,
              ByteToPercent(terrain.contrast));
   GetDataField(TerrainContrast).SetListener(this);
   SetExpertRow(TerrainContrast);
 
   AddInteger(_("Terrain brightness"),
              _("Defines the brightness (whiteness) of the terrain rendering. This controls the average illumination of the terrain."),
-             _T("%d %%"), _T("%d %%"), 0, 100, 5,
+             "%d %%", "%d %%", 0, 100, 5,
              ByteToPercent(terrain.brightness));
   GetDataField(TerrainBrightness).SetListener(this);
   SetExpertRow(TerrainBrightness);
 
-  // JMW using enum here instead of bool so can provide more contour rendering
-  // options later
   static constexpr StaticEnumChoice contours_list[] = {
-    { Contours::OFF, N_("Off"), },
-    { Contours::ON, N_("On"), },
+    { Contours::OFF, N_("Off"), N_("No contour lines"), },
+    { Contours::MOUNTAINS, N_("Mountains"),
+      N_("For steep mountain terrain, 256m minimum spacing"), },
+    { Contours::HIGHLANDS, N_("Highlands"),
+      N_("Medium density, with 64m minimum spacing"), },
+    { Contours::LOWLANDS, N_("Lowlands"),
+      N_("More line density for gentler slopes. 16m minimum spacing"), },
+    { Contours::SUPERFINE, N_("Superfine"),
+      N_("Maximum density contour lines down to 8m spacing"), },
+    { Contours::FIXED_256, N_("Fixed 256m"),
+      N_("Fixed 256m spacing, no zoom dependence"), },
+    { Contours::FIXED_128, N_("Fixed 128m"),
+      N_("Fixed 128m spacing, no zoom dependence"), },
+    { Contours::FIXED_64, N_("Fixed 64m"),
+      N_("Fixed 64m spacing, no zoom dependence"), },
     nullptr
   };
 
   AddEnum(_("Contours"),
-          _("If enabled, draws contour lines on the terrain."),
+          _("Draw contour lines on the terrain. Contour mode "
+            "controls density of contour lines."),
           contours_list, (unsigned)terrain.contours);
   GetDataField(TerrainContours).SetListener(this);
   SetExpertRow(TerrainContours);
 
   have_terrain_preview = data_components->terrain != nullptr;
   if (have_terrain_preview) {
+    AddSpacer();
+
     WindowStyle style;
     style.Border();
 
-    auto preview = std::make_unique<TerrainPreviewWindow>(*data_components->terrain);
+    const auto &map_look = UIGlobals::GetMapLook();
+    auto preview = std::make_unique<TerrainPreviewWindow>(
+      *data_components->terrain,
+      data_components->topography.get(),
+      map_look.topography,
+      settings_map.topography_enabled);
     preview->Create((ContainerWindow &)GetWindow(), {0, 0, 100, 100}, style);
     AddRemaining(std::move(preview));
   }
@@ -268,6 +347,9 @@ TerrainDisplayConfigPanel::Prepare(ContainerWindow &parent,
   terrain_settings = terrain;
   ShowTerrainControls();
   UpdateTerrainPreview();
+  /* Capture after UpdateTerrainPreview(): contrast/brightness go through
+     ByteToPercent ↔ PercentToByte, which is lossy for some values. */
+  initial_terrain_settings = terrain_settings;
 }
 
 bool
@@ -276,15 +358,22 @@ TerrainDisplayConfigPanel::Save(bool &_changed) noexcept
   MapSettings &settings_map = CommonInterface::SetMapSettings();
 
   bool changed = false;
-  changed = (settings_map.terrain != terrain_settings);
 
+  /* Always apply in-memory map settings (EnableTerrain may already
+     have updated settings_map live).  Persist only when values differ
+     from the panel-open snapshot so missing profile defaults stay
+     absent (#1793). */
   settings_map.terrain = terrain_settings;
-  Profile::Set(ProfileKeys::DrawTerrain, terrain_settings.enable);
-  Profile::Set(ProfileKeys::TerrainContrast, terrain_settings.contrast);
-  Profile::Set(ProfileKeys::TerrainBrightness, terrain_settings.brightness);
-  Profile::Set(ProfileKeys::TerrainRamp, terrain_settings.ramp);
-  Profile::SetEnum(ProfileKeys::SlopeShadingType, terrain_settings.slope_shading);
-  Profile::SetEnum(ProfileKeys::TerrainContours, terrain_settings.contours);
+  if (terrain_settings != initial_terrain_settings) {
+    Profile::Set(ProfileKeys::DrawTerrain, terrain_settings.enable);
+    Profile::Set(ProfileKeys::TerrainContrast, terrain_settings.contrast);
+    Profile::Set(ProfileKeys::TerrainBrightness, terrain_settings.brightness);
+    Profile::Set(ProfileKeys::TerrainRamp, terrain_settings.ramp);
+    Profile::SetEnum(ProfileKeys::SlopeShadingType,
+                     terrain_settings.slope_shading);
+    Profile::SetEnum(ProfileKeys::TerrainContours, terrain_settings.contours);
+    changed = true;
+  }
 
   changed |= SaveValue(EnableTopography, ProfileKeys::DrawTopography,
                        settings_map.topography_enabled);

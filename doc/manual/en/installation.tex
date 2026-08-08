@@ -208,8 +208,23 @@ can contain arbitrary text, e.g. contact/owner/emergency information.
 
 \subsection*{On a Windows PC}
 
-Download the program file \verb|XCSoar.exe| (target ``PC'') to your
-hard disk.
+Two OpenGL builds are recommended; older GDI builds are deprecated:
+\begin{itemize}
+\item \textbf{64-bit OpenGL} (target ``WIN64OPENGL''): the recommended
+  version. Run the installer, or use the \verb|.zip| file for a manual
+  install. Supports high-DPI displays, GPU acceleration, and matches the
+  Unix and Android versions in features and visuals.
+\item \textbf{32-bit OpenGL} (target ``WIN32OPENGL''): same as the 64-bit
+  OpenGL build for 32-bit Windows; installer or \verb|.zip| available.
+\item \textbf{64-bit legacy GDI} (target ``WIN64''): \emph{deprecated.}
+  Download \verb|XCSoar.exe| and place it on your hard disk; no installer.
+  This single-file build works on very old computers without GPU
+  acceleration, but will be removed in a future release; use
+  ``WIN64OPENGL'' instead.
+\item \textbf{32-bit legacy GDI} (target ``PC''): \emph{deprecated.}
+  Download \verb|XCSoar.exe| and place it on your hard disk; no installer.
+  Will be removed in a future release; use ``WIN32OPENGL'' instead.
+\end{itemize}
 
 \subsection*{On Unix/Linux}
 
@@ -311,6 +326,12 @@ Two modes are available inside the XCSoar application:
 The program can be run by opening the explorer window, finding the directory
 that has the XCSoar.exe executable, and double clicking on that program file.
 
+Command-line options may use either one or two dashes where listed below (e.g.\
+\texttt{-h} and \texttt{--help}).
+\texttt{-h}/\texttt{--help} prints the option list and exits;
+\texttt{-version}/\texttt{--version} prints version and licence text and exits.
+Invalid options print a brief usage reminder on standard error.
+
 The program command line options allows the screen orientation of
 the display to be defined:
 \begin{description}
@@ -330,6 +351,12 @@ In the field ``Target'' add one of the desired options listed above.
 Run \verb|xcsoar| from a command line, or create a shortcut on the
 desktop.  The location of the executable file may be found using
 \verb|which xcsoar|.  Only landscape mode is  supported for now.
+
+Useful options include \verb|-datapath=...| for the data directory,
+\verb|-profile=...| to load a profile file, \verb|-simulator| or \verb|-fly|
+when available to skip the startup mode prompt, and geometry switches such as
+\verb|-portrait|, \verb|-square|, and \verb|-small|.
+On desktop Unix/macOS builds, \verb|-replay=PATH| may load flight replay data.
 
 \subsection*{Loading data files}\label{sec:loaddatafiles}
 The first time that XCSoar is run, it does not automatically load the 

@@ -7,8 +7,8 @@
 #include "Asset.hpp"
 
 bool
-TextEntryDialog(TCHAR *text, size_t width,
-                const TCHAR *caption, AllowedCharacters accb,
+TextEntryDialog(char *text, size_t width,
+                const char *caption, AllowedCharacters accb,
                 bool default_shift_state)
 {
   switch (UIGlobals::GetDialogSettings().text_input_style) {
@@ -16,14 +16,11 @@ TextEntryDialog(TCHAR *text, size_t width,
   case DialogSettings::TextInputStyle::Keyboard:
     if (HasPointer())
       return TouchTextEntry(text, width, caption, accb, default_shift_state);
-    else {
-      KnobTextEntry(text, width, caption);
-      return true;
-    }
+    else
+      return KnobTextEntry(text, width, caption);
 
   case DialogSettings::TextInputStyle::HighScore:
-    KnobTextEntry(text, width, caption);
-    return true;
+    return KnobTextEntry(text, width, caption);
   }
 
   return false;

@@ -95,14 +95,52 @@ struct BrokenDateTime : public BrokenDate, public BrokenTime {
     return BrokenDateTime(*this, BrokenTime::Midnight());
   }
 
-#ifdef HAVE_POSIX
+  /**
+   * Returns a copy with seconds set to zero (minute resolution).
+   */
+  constexpr BrokenDateTime FloorToMinute() const noexcept
+  {
+    if (!IsPlausible())
+      return *this;
+
+    return BrokenDateTime(year, month, day, hour, minute, 0);
+  }
+
+  /**
+   * Returns a copy with minutes and seconds set to zero (hour resolution).
+   */
+  constexpr BrokenDateTime FloorToHour() const noexcept
+  {
+    if (!IsPlausible())
+      return *this;
+
+    return BrokenDateTime(year, month, day, hour, 0, 0);
+  }
+
+  /**
+   * Returns a copy floored to the previous 15-minute boundary (seconds
+   * cleared).  Minutes become 0, 15, 30, or 45.
+   */
+  constexpr BrokenDateTime FloorToQuarterHour() const noexcept
+  {
+    if (!IsPlausible())
+      return *this;
+
+    return BrokenDateTime(year, month, day, hour, (minute / 15) * 15, 0);
+  }
+
+  /**
+   * Convert this UTC timestamp to local time.
+   */
+  [[gnu::pure]]
+  BrokenDateTime ToLocal() const noexcept;
+
   /**
    * Convert a UNIX UTC time stamp (seconds since epoch) to a
    * BrokenDateTime object.
    */
   [[gnu::const]]
-  static BrokenDateTime FromUnixTimeUTC(int64_t t) noexcept;
-#endif
+  static BrokenDateTime FromUnixTime(int64_t t) noexcept;
 
   [[gnu::pure]]
   std::chrono::system_clock::time_point ToTimePoint() const noexcept;

@@ -2,15 +2,33 @@
 // Copyright The XCSoar Project
 
 #include "InfoBoxes/Content/Speed.hpp"
+#include "InfoBoxes/Panel/Panel.hpp"
+#include "InfoBoxes/Panel/SpeedSimulator.hpp"
+#include "Simulator.hpp"
 #include "BackendComponents.hpp"
 #include "Blackboard/DeviceBlackboard.hpp"
 #include "Components.hpp"
+#include "Computer/STF.hpp"
 #include "Formatter/UserUnits.hpp"
 #include "InfoBoxes/Data.hpp"
 #include "Interface.hpp"
 #include "Language/Language.hpp"
 #include "Units/Units.hpp"
 #include <stdlib.h>
+
+static constexpr InfoBoxPanel speed_ground_panels[] = {
+  { N_("Simulator"), LoadSpeedSimulatorPanel },
+  { nullptr, nullptr }
+};
+
+const InfoBoxPanel *
+InfoBoxContentSpeedGround::GetDialogContent() noexcept
+{
+  if (!is_simulator())
+    return nullptr;
+
+  return speed_ground_panels;
+}
 
 void
 InfoBoxContentSpeedGround::Update(InfoBoxData &data) noexcept
@@ -29,7 +47,7 @@ InfoBoxContentSpeedGround::Update(InfoBoxData &data) noexcept
     return;
   }
 
-  TCHAR buffer[16];
+  char buffer[16];
   FormatUserWindSpeed(-info.head_wind, buffer, true, false);
   data.SetComment(buffer);
 }
@@ -37,7 +55,10 @@ InfoBoxContentSpeedGround::Update(InfoBoxData &data) noexcept
 bool
 InfoBoxContentSpeedGround::HandleKey(const InfoBoxKeyCodes keycode) noexcept
 {
-  if (!CommonInterface::Basic().gps.simulator)
+  if (!is_simulator())
+    return false;
+
+  if (!backend_components || !backend_components->device_blackboard)
     return false;
 
   auto &device_blackboard = *backend_components->device_blackboard;
@@ -102,8 +123,14 @@ void
 UpdateInfoBoxSpeedDolphin(InfoBoxData &data) noexcept
 {
   // Set Value
-  const DerivedInfo &calculated = CommonInterface::Calculated();
-  data.SetValueFromSpeed(calculated.V_stf, false);
+  const auto stf = GetSTFSpeed(CommonInterface::Basic(),
+                               CommonInterface::Calculated());
+  if (!stf) {
+    data.SetInvalid();
+    return;
+  }
+
+  data.SetValueFromSpeed(*stf, false);
 
   // Set Comment
   if (CommonInterface::GetComputerSettings().features.block_stf_enabled)

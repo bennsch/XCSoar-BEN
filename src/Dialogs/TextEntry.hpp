@@ -6,20 +6,18 @@
 #include "util/StringBuffer.hxx"
 
 #include <functional>
-#include <tchar.h>
-
-typedef std::function<const TCHAR *(const TCHAR *)> AllowedCharacters;
+typedef std::function<const char *(const char *)> AllowedCharacters;
 
 bool
-TextEntryDialog(TCHAR *text, size_t size,
-                const TCHAR *caption=nullptr,
+TextEntryDialog(char *text, size_t size,
+                const char *caption=nullptr,
                 AllowedCharacters ac=AllowedCharacters(),
                 bool default_shift_state = true);
 
 template<size_t N>
 static inline bool
-TextEntryDialog(BasicStringBuffer<TCHAR, N> &text,
-                const TCHAR *caption=NULL,
+TextEntryDialog(BasicStringBuffer<char, N> &text,
+                const char *caption=NULL,
                 AllowedCharacters accb=AllowedCharacters(),
                 bool default_shift_state = true)
 {
@@ -29,8 +27,8 @@ TextEntryDialog(BasicStringBuffer<TCHAR, N> &text,
 
 template<size_t N>
 static inline bool
-TextEntryDialog(BasicStringBuffer<TCHAR, N> &text,
-                const TCHAR *caption,
+TextEntryDialog(BasicStringBuffer<char, N> &text,
+                const char *caption,
                 bool default_shift_state)
 {
   AllowedCharacters accb=AllowedCharacters();
@@ -38,12 +36,12 @@ TextEntryDialog(BasicStringBuffer<TCHAR, N> &text,
                          caption, accb, default_shift_state);
 }
 
-void
-KnobTextEntry(TCHAR *text, size_t width,
-              const TCHAR *caption);
+bool
+KnobTextEntry(char *text, size_t width,
+              const char *caption);
 
 bool
-TouchTextEntry(TCHAR *text, size_t size,
-               const TCHAR *caption=nullptr,
+TouchTextEntry(char *text, size_t size,
+               const char *caption=nullptr,
                AllowedCharacters ac=AllowedCharacters(),
                bool default_shift_state = true);

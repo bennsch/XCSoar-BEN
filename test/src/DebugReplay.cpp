@@ -28,6 +28,14 @@ DebugReplay::~DebugReplay()
 }
 
 void
+DebugReplay::SetGlidePolar(GlidePolar polar) noexcept
+{
+  glide_polar = polar;
+  flying_computer.Reset();
+  calculated.flight.Reset();
+}
+
+void
 DebugReplay::Compute()
 {
   computed_basic.Reset();
@@ -38,7 +46,8 @@ DebugReplay::Compute()
   features.nav_baro_altitude_enabled = true;
   computer.Fill(computed_basic, qnh, features);
 
-  computer.Compute(computed_basic, last_basic, last_basic, calculated);
+  computer.Compute(computed_basic, last_basic, last_basic, calculated,
+                   ComputerSettings{.polar = {.glide_polar_task = glide_polar}});
   flying_computer.Compute(glide_polar.GetVTakeoff(),
                           computed_basic, calculated,
                           calculated.flight);
@@ -54,7 +63,14 @@ CreateDebugReplay(Args &args)
   } else {
     const auto driver_name = args.ExpectNextT();
     const auto input_file = args.ExpectNextPath();
-    replay = DebugReplayNMEA::Create(input_file, driver_name);
+
+    if (StringEndsWithIgnoreCase(input_file.c_str(), ".igc"))
+      /* The user passed a driver name before an IGC file
+         (e.g. "IGC file.igc"); ignore the driver and use
+         the native IGC replay instead of NMEA parsing */
+      replay = DebugReplayIGC::Create(input_file);
+    else
+      replay = DebugReplayNMEA::Create(input_file, driver_name);
   }
 
   return replay;

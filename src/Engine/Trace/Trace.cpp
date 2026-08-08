@@ -3,10 +3,15 @@
 
 #include "Trace.hpp"
 #include "Vector.hpp"
+#include "Geo/GeoBounds.hpp"
+#include "Geo/Flat/FlatBoundingBox.hpp"
+#include "Geo/Flat/FlatRay.hpp"
 #include "util/GlobalSliceAllocator.hxx"
 
 #include <algorithm>
+#include <cstdint>
 #include <iterator>
+#include <vector>
 
 Trace::Trace(const Time _no_thin_time, const Time max_time,
              const unsigned max_size) noexcept
@@ -414,7 +419,7 @@ Trace::SyncPoints(TracePointerVector &v) const noexcept
 void
 Trace::GetPoints(TracePointVector &v, const Time min_time,
                  const GeoPoint &location,
-                 double min_distance) const noexcept
+                 double min_distance) const
 {
   /* skip the trace points that are before min_time */
   Trace::const_iterator i = begin(), end = this->end();
@@ -441,4 +446,247 @@ Trace::GetPoints(TracePointVector &v, const Time min_time,
     v.push_back(*i);
     i.NextSquareRange(sq_range, end);
   } while (i != end);
+}
+
+/**
+ * True if the flat segment [a,b] hits \a box (endpoint inside or edge cross).
+ */
+[[gnu::pure]]
+static bool
+FlatSegmentHitsBox(const FlatGeoPoint &a, const FlatGeoPoint &b,
+                   const FlatBoundingBox &box) noexcept
+{
+  if (box.IsInside(a) || box.IsInside(b))
+    return true;
+
+  if (a == b)
+    return false;
+
+  return box.Intersects(FlatRay(a, b));
+}
+
+/**
+ * After distance thinning, keep first/last and every \a stride-th point.
+ */
+static void
+ApplyPointStride(TracePointVector &points, unsigned stride) noexcept
+{
+  if (stride <= 1 || points.size() <= 2)
+    return;
+
+  TracePointVector kept;
+  kept.reserve(points.size() / stride + 2);
+  kept.push_back(points.front());
+  for (size_t i = stride; i + 1 < points.size(); i += stride)
+    kept.push_back(points[i]);
+  if (kept.back().GetTime() != points.back().GetTime())
+    kept.push_back(points.back());
+  points.swap(kept);
+}
+
+/**
+ * Raise stride until #points fits in \a max_points (first/last preserved).
+ * Speed-agnostic: PG dense circles and glider cruise share one budget.
+ */
+static unsigned
+StrideForBudget(unsigned point_count, unsigned max_points,
+                unsigned min_stride) noexcept
+{
+  unsigned stride = std::max(1u, min_stride);
+  if (max_points < 2 || point_count <= max_points)
+    return stride;
+
+  /* kept ≈ 1 + ceil((n - 1) / stride), and we always re-add the tip. */
+  const unsigned numer = point_count - 1;
+  const unsigned denom = max_points - 1;
+  const unsigned need = (numer + denom - 1) / denom;
+  return std::max(stride, need);
+}
+
+void
+FilterTraceByBounds(const TracePointVector &in,
+                    TracePointVector &out,
+                    const TrailSpatialFilter &filter) noexcept
+{
+  out.clear();
+
+  if (!filter.valid || in.empty())
+    return;
+
+  TracePointVector candidates;
+  candidates.reserve(std::min(in.size(), size_t(4096)));
+
+  const TracePoint *prev = nullptr;
+  FlatGeoPoint prev_flat{};
+
+  for (const auto &point : in) {
+    const FlatGeoPoint flat = point.GetFlatLocation();
+    bool keep = filter.box.IsInside(flat);
+
+    if (!keep && prev != nullptr &&
+        FlatSegmentHitsBox(prev_flat, flat, filter.box))
+      keep = true;
+
+    if (keep) {
+      if (prev != nullptr &&
+          (candidates.empty() ||
+           candidates.back().GetTime() != prev->GetTime())) {
+        if (!filter.box.IsInside(prev_flat) &&
+            FlatSegmentHitsBox(prev_flat, flat, filter.box))
+          candidates.push_back(*prev);
+      }
+
+      if (candidates.empty() ||
+          candidates.back().GetTime() != point.GetTime())
+        candidates.push_back(point);
+    }
+
+    prev = &point;
+    prev_flat = flat;
+  }
+
+  if (candidates.empty())
+    return;
+
+  out.reserve(candidates.size());
+  out.push_back(candidates.front());
+  size_t last = 0;
+  for (size_t k = 1; k < candidates.size(); ++k) {
+    if (candidates[k].FlatSquareDistanceTo(candidates[last]) >=
+        filter.sq_range) {
+      out.push_back(candidates[k]);
+      last = k;
+    }
+  }
+
+  const unsigned stride =
+    StrideForBudget(unsigned(out.size()), filter.max_points,
+                    filter.point_stride);
+  ApplyPointStride(out, stride);
+}
+
+TrailSpatialFilter
+Trace::MakeSpatialFilter(const GeoBounds &bounds,
+                         const GeoPoint &location,
+                         double min_distance,
+                         unsigned point_stride,
+                         unsigned max_points) const noexcept
+{
+  TrailSpatialFilter filter;
+  if (!bounds.IsValid() || empty() || !task_projection.IsValid())
+    return filter;
+
+  filter.box = task_projection.Project(bounds);
+  const unsigned range = ProjectRange(location, min_distance);
+  filter.sq_range = range * range;
+  filter.point_stride = std::max(1u, point_stride);
+  filter.max_points = max_points;
+  filter.valid = true;
+  return filter;
+}
+
+void
+Trace::GetPointsFrom(Time min_time, TracePointVector &v) const noexcept
+{
+  v.clear();
+
+  Trace::const_iterator i = begin(), end = this->end();
+  while (i != end && i->GetTime() < min_time)
+    ++i;
+
+  if (i == end)
+    return;
+
+  v.reserve(size());
+  for (; i != end; ++i)
+    v.push_back(*i);
+}
+
+void
+Trace::AppendPointsAfter(Time after, TracePointVector &v) const noexcept
+{
+  Trace::const_iterator i = begin(), end = this->end();
+  while (i != end && i->GetTime() <= after)
+    ++i;
+
+  for (; i != end; ++i)
+    v.push_back(*i);
+}
+
+void
+Trace::GetPoints(TracePointVector &v, const Time min_time,
+                 const GeoBounds &bounds,
+                 const GeoPoint &location,
+                 const double min_distance,
+                 const unsigned point_stride,
+                 const unsigned max_points) const
+{
+  v.clear();
+
+  const TrailSpatialFilter filter =
+    MakeSpatialFilter(bounds, location, min_distance, point_stride,
+                      max_points);
+  if (!filter.valid)
+    return;
+
+  /* Skip points before min_time. */
+  Trace::const_iterator i = begin(), end = this->end();
+  while (i != end && i->GetTime() < min_time)
+    ++i;
+
+  if (i == end)
+    return;
+
+  /* Bounds first (flat AABB), then spacing-thin — one chronological pass. */
+  TracePointVector candidates;
+  candidates.reserve(std::min(size_t(size()), size_t(4096)));
+
+  const TracePoint *prev = nullptr;
+  FlatGeoPoint prev_flat{};
+
+  for (; i != end; ++i) {
+    const TracePoint &point = *i;
+    const FlatGeoPoint flat = point.GetFlatLocation();
+    bool keep = filter.box.IsInside(flat);
+
+    if (!keep && prev != nullptr &&
+        FlatSegmentHitsBox(prev_flat, flat, filter.box))
+      keep = true;
+
+    if (keep) {
+      if (prev != nullptr &&
+          (candidates.empty() ||
+           candidates.back().GetTime() != prev->GetTime())) {
+        if (!filter.box.IsInside(prev_flat) &&
+            FlatSegmentHitsBox(prev_flat, flat, filter.box))
+          candidates.push_back(*prev);
+      }
+
+      if (candidates.empty() ||
+          candidates.back().GetTime() != point.GetTime())
+        candidates.push_back(point);
+    }
+
+    prev = &point;
+    prev_flat = flat;
+  }
+
+  if (candidates.empty())
+    return;
+
+  v.reserve(candidates.size());
+  v.push_back(candidates.front());
+  size_t last = 0;
+  for (size_t k = 1; k < candidates.size(); ++k) {
+    if (candidates[k].FlatSquareDistanceTo(candidates[last]) >=
+        filter.sq_range) {
+      v.push_back(candidates[k]);
+      last = k;
+    }
+  }
+
+  const unsigned stride =
+    StrideForBudget(unsigned(v.size()), filter.max_points,
+                    filter.point_stride);
+  ApplyPointStride(v, stride);
 }

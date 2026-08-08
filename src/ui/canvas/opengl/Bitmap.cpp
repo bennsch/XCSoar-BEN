@@ -11,7 +11,8 @@
 Bitmap::Bitmap(Bitmap &&src) noexcept
   :texture(std::exchange(src.texture, nullptr)),
    size(src.size),
-   flipped(src.flipped)
+   flipped(src.flipped),
+   has_colors(src.has_colors)
 {
 }
 
@@ -21,6 +22,7 @@ Bitmap &Bitmap::operator=(Bitmap &&src) noexcept
   texture = std::exchange(src.texture, nullptr);
   size = src.size;
   flipped = src.flipped;
+  has_colors = src.has_colors;
   return *this;
 }
 
@@ -47,6 +49,8 @@ Bitmap::Load(UncompressedImage &&_uncompressed, Type _type)
 
   Reset();
 
+  has_colors = _uncompressed.HasNonGrayscalePixels();
+
   size = { _uncompressed.GetWidth(), _uncompressed.GetHeight() };
   flipped = _uncompressed.IsFlipped();
 
@@ -62,7 +66,11 @@ void
 Bitmap::Reset() noexcept
 {
   assert(!IsDefined() || IsScreenInitialized());
+#ifdef _WIN32
+  assert(!IsDefined() || GetCurrentThreadId() == OpenGL::thread);
+#else
   assert(!IsDefined() || pthread_equal(pthread_self(), OpenGL::thread));
+#endif
 
   delete texture;
   texture = nullptr;

@@ -14,6 +14,7 @@
 #include "LocalPath.hpp"
 #include "Profile/Map.hpp"
 #include "Profile/File.hpp"
+#include "Repository/FileType.hpp"
 #include "UIGlobals.hpp"
 #include "Language/Language.hpp"
 #include "util/StaticString.hxx"
@@ -28,7 +29,7 @@ class ProfileListWidget final
     StaticString<32> name;
     AllocatedPath path;
 
-    ListItem(const TCHAR *_name, Path _path)
+    ListItem(const char *_name, Path _path)
       :name(_name), path(_path) {}
 
     bool operator<(const ListItem &i2) const {
@@ -89,7 +90,7 @@ public:
 
 protected:
   /* virtual methods from TextListWidget */
-  const TCHAR *GetRowText(unsigned i) const noexcept override {
+  const char *GetRowText(unsigned i) const noexcept override {
     return list[i].name;
   }
 
@@ -109,7 +110,7 @@ ProfileListWidget::UpdateList()
   list.clear();
 
   ProfileFileVisitor pfv(list);
-  VisitDataFiles(_T("*.prf"), pfv);
+  VisitDataFiles(GetFileTypePatterns(FileType::PROFILE), pfv);
 
   unsigned len = list.size();
 
@@ -173,9 +174,13 @@ ProfileListWidget::NewClicked()
 
   StaticString<80> filename;
   filename = name;
-  filename += _T(".prf");
+  filename += ".prf";
 
-  const auto path = LocalPath(filename);
+  const auto path = LocalPath(AllocatedPath::Build(
+    GetFileTypeDefaultDir(FileType::PROFILE), filename));
+  if (const auto parent = path.GetParent(); parent != nullptr)
+    Directory::CreateRecursive(parent);
+
   if (!File::CreateExclusive(path)) {
     ShowMessageBox(name, _("File exists already."), MB_OK|MB_ICONEXCLAMATION);
     return;
@@ -240,9 +245,10 @@ ProfileListWidget::CopyClicked()
 
   StaticString<80> new_filename;
   new_filename = new_name;
-  new_filename += _T(".prf");
+  new_filename += ".prf";
 
-  const auto new_path = LocalPath(new_filename);
+  const auto new_path = LocalPath(AllocatedPath::Build(
+    GetFileTypeDefaultDir(FileType::PROFILE), new_filename));
 
   if (File::ExistsAny(new_path)) {
     ShowMessageBox(new_name, _("File exists already."),
@@ -262,7 +268,7 @@ ProfileListWidget::CopyClicked()
 }
 
 static bool
-ConfirmDeleteProfile(const TCHAR *name)
+ConfirmDeleteProfile(const char *name)
 {
   StaticString<256> tmp;
   StaticString<256> tmp_name(name);

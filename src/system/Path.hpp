@@ -8,11 +8,6 @@
 
 #include <string>
 #include <string_view>
-
-#ifdef _UNICODE
-#include <wchar.h>
-#endif
-
 #include <cstddef>
 
 class AllocatedPath;
@@ -26,11 +21,7 @@ class AllocatedPath;
  */
 class Path {
 public:
-#ifdef _UNICODE
-  using char_type = wchar_t;
-#else
   using char_type = char;
-#endif
   using value_type = StringPointer<char_type>;
   using const_pointer = value_type::const_pointer;
   using pointer = value_type::pointer;
@@ -89,6 +80,13 @@ public:
   [[gnu::pure]]
   bool IsBase() const noexcept;
 
+ /**
+   * Is this path a "valid filename"?
+   * Must be not empty and a base name
+   */
+  [[gnu::pure]]
+  bool IsValidFilename() const noexcept;
+
   /**
    * Returns the parent of the specified path, i.e. the part before
    * the last separator.  Returns "." if there is no directory name.
@@ -109,6 +107,13 @@ public:
    */
   [[gnu::pure]]
   Path RelativeTo(Path parent) const noexcept;
+
+  /**
+   * Check whether the path contains ".." segments that could
+   * escape a directory hierarchy (path traversal).
+   */
+  [[gnu::pure]]
+  bool HasPathTraversal() const noexcept;
 
   [[gnu::pure]]
   bool EndsWithIgnoreCase(const_pointer needle) const noexcept;
@@ -257,6 +262,11 @@ public:
   [[gnu::pure]]
   bool IsBase() const noexcept {
     return Path(*this).IsBase();
+  }
+
+  [[gnu::pure]]
+  bool IsValidFilename() const noexcept {
+    return Path(*this).IsValidFilename();
   }
 
   AllocatedPath GetParent() const noexcept {

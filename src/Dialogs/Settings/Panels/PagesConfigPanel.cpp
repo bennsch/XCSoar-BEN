@@ -13,11 +13,21 @@
 #include "Profile/PageProfile.hpp"
 #include "Profile/Current.hpp"
 #include "Interface.hpp"
+#include "DataGlobals.hpp"
+#include "Weather/Features.hpp"
+#include "Weather/Rasp/FieldControls.hpp"
+#include "Weather/Rasp/RaspStore.hpp"
+#ifdef HAVE_EDL
+#include "Formatter/UserUnits.hpp"
+#include "Weather/EDL/Levels.hpp"
+#include "Weather/EDL/StateController.hpp"
+#endif
 #include "Widget/RowFormWidget.hpp"
 #include "Widget/ListWidget.hpp"
 #include "Widget/TwoWidgets.hpp"
 #include "Widget/ButtonPanelWidget.hpp"
 #include "UIGlobals.hpp"
+#include "util/StaticString.hxx"
 
 /* this macro exists in the WIN32 API */
 #ifdef DELETE
@@ -37,6 +47,8 @@ private:
     MAIN,
     INFO_BOX_PANEL,
     BOTTOM,
+    OVERLAY,
+    OVERLAY_DETAIL,
   };
 
   static constexpr unsigned IBP_NONE = 0x7000;
@@ -46,9 +58,14 @@ private:
 
   Listener &listener;
 
+  void UpdateOverlayControls() noexcept;
+  void FillOverlayDetailControl() noexcept;
+  void ApplyValueToForm() noexcept;
+
 public:
   PageLayoutEditWidget(const DialogLook &_look, Listener &_listener)
-    :RowFormWidget(_look), listener(_listener) {}
+    :RowFormWidget(_look), value(PageLayout::Default()),
+     listener(_listener) {}
 
   void SetValue(const PageLayout &_value);
 
@@ -115,7 +132,7 @@ public:
       }
     });
 
-    move_up_button = buttons.AddSymbol(_T("^"), [this](){
+    move_up_button = buttons.AddSymbol("^", [this](){
       const unsigned cursor = GetList().GetCursorIndex();
       if (cursor > 0) {
         std::swap(settings.pages[cursor], settings.pages[cursor - 1]);
@@ -123,7 +140,7 @@ public:
       }
     });
 
-    move_down_button = buttons.AddSymbol(_T("v"), [this](){
+    move_down_button = buttons.AddSymbol("v", [this](){
       const unsigned n = GetList().GetLength();
       const unsigned cursor = GetList().GetCursorIndex();
       if (cursor + 1 < n) {
@@ -165,6 +182,130 @@ public:
 };
 
 void
+PageLayoutEditWidget::FillOverlayDetailControl() noexcept
+{
+  auto &control = GetControl(OVERLAY_DETAIL);
+  auto &df = (DataFieldEnum &)*control.GetDataField();
+
+  df.ClearChoices();
+
+  switch (value.overlay) {
+  case PageLayout::Overlay::RASP: {
+    control.SetCaption(_("RASP Layer"));
+    control.SetHelpText(
+      _("RASP weather layer to display on this map page."));
+
+    const auto rasp = DataGlobals::GetRasp();
+    if (rasp == nullptr || rasp->GetItemCount() == 0) {
+      df.AddChoice(-1, _("No RASP file loaded"));
+      df.SetValue(-1);
+      break;
+    }
+
+    Rasp::FillFieldChoices(df, rasp.get());
+
+    if (value.rasp_field >= 0 &&
+        unsigned(value.rasp_field) < rasp->GetItemCount())
+      df.SetValue(value.rasp_field);
+    else
+      df.SetValue(0U);
+    break;
+  }
+
+#ifdef HAVE_EDL
+  case PageLayout::Overlay::EDL:
+    control.SetCaption(_("EDL Level"));
+    control.SetHelpText(
+      _("EDL pressure level / altitude band for this map page. "
+        "Auto follows aircraft altitude when the page is opened."));
+
+    df.AddChoice(0, _("Auto"),
+                 _("Follow altitude on page enter (auto level)."));
+
+    for (unsigned i = 0; i < EDL::NUM_ISOBARS; ++i) {
+      const unsigned isobar = EDL::ISOBARS[i];
+      char alt[32];
+      FormatUserAltitude(EDL::GetAltitudeForIsobar(isobar), alt);
+
+      StaticString<64> label;
+      if (alt[0] != '\0')
+        label.Format("%u hPa (%s)", isobar / 100, alt);
+      else
+        label.Format("%u hPa", isobar / 100);
+
+      df.AddChoice(int(isobar), label.c_str());
+    }
+
+    if (value.edl_isobar > 0 &&
+        EDL::IsSupportedIsobar(unsigned(value.edl_isobar)))
+      df.SetValue(unsigned(value.edl_isobar));
+    else
+      df.SetValue(0U);
+    break;
+#endif
+
+  case PageLayout::Overlay::NONE:
+  case PageLayout::Overlay::XCTHERM:
+#ifndef HAVE_EDL
+  case PageLayout::Overlay::EDL:
+#endif
+  case PageLayout::Overlay::MAX:
+    control.SetCaption(_("Layer / Level"));
+    control.SetHelpText(
+      _("Select a RASP or EDL map overlay to configure its "
+        "layer or level for this page."));
+    df.AddChoice(-1, _("N/A"));
+    df.SetValue(-1);
+    break;
+  }
+
+  control.RefreshDisplay();
+}
+
+void
+PageLayoutEditWidget::UpdateOverlayControls() noexcept
+{
+  const bool map_page = value.IsMapMain();
+  bool detail_enabled = false;
+
+  if (map_page) {
+    switch (value.overlay) {
+    case PageLayout::Overlay::RASP: {
+      const auto rasp = DataGlobals::GetRasp();
+      detail_enabled = rasp != nullptr && rasp->GetItemCount() > 0;
+      break;
+    }
+#ifdef HAVE_EDL
+    case PageLayout::Overlay::EDL:
+      detail_enabled = true;
+      break;
+#endif
+    case PageLayout::Overlay::NONE:
+    case PageLayout::Overlay::XCTHERM:
+#ifndef HAVE_EDL
+    case PageLayout::Overlay::EDL:
+#endif
+    case PageLayout::Overlay::MAX:
+      break;
+    }
+  }
+
+  SetRowEnabled(OVERLAY, map_page);
+  SetRowEnabled(OVERLAY_DETAIL, detail_enabled);
+}
+
+void
+PageLayoutEditWidget::ApplyValueToForm() noexcept
+{
+  LoadValueEnum(BOTTOM, value.bottom);
+  GetControl(BOTTOM).RefreshDisplay();
+  LoadValueEnum(OVERLAY, value.overlay);
+  GetControl(OVERLAY).RefreshDisplay();
+  FillOverlayDetailControl();
+  UpdateOverlayControls();
+}
+
+void
 PageLayoutEditWidget::Prepare([[maybe_unused]] ContainerWindow &parent, [[maybe_unused]] const PixelRect &rc) noexcept
 {
   const InfoBoxSettings &info_box_settings =
@@ -173,8 +314,8 @@ PageLayoutEditWidget::Prepare([[maybe_unused]] ContainerWindow &parent, [[maybe_
   static constexpr StaticEnumChoice main_list[] = {
     { PageLayout::Main::MAP, N_("Map") },
     { PageLayout::Main::MAP_NORTH_UP, N_("Map (north-up)") },
-    { PageLayout::Main::FLARM_RADAR, N_("FLARM radar") },
-    { PageLayout::Main::THERMAL_ASSISTANT, N_("Thermal assistant") },
+    { PageLayout::Main::FLARM_RADAR, N_("FLARM Radar") },
+    { PageLayout::Main::THERMAL_ASSISTANT, N_("Thermal Assistant") },
     { PageLayout::Main::HORIZON, N_("Horizon") },
     nullptr
   };
@@ -194,11 +335,11 @@ PageLayoutEditWidget::Prepare([[maybe_unused]] ContainerWindow &parent, [[maybe_
                             ib_list, IBP_AUTO, this);
   DataFieldEnum &ib = *(DataFieldEnum *)wp->GetDataField();
   for (unsigned i = 0; i < InfoBoxSettings::MAX_PANELS; ++i) {
-    const TCHAR cruise_help[] = N_("For cruise mode. Displayed when 'Auto' is selected and glider is below final glide altitude.");
-    const TCHAR circling_help[] = N_("For circling mode. Displayed when 'Auto' is selected and glider is circling.");
-    const TCHAR final_glide_help[] = N_("For final glide mode. Displayed when 'Auto' is selected and glider is above final glide altitude.");
-    const TCHAR *display_text = gettext(info_box_settings.panels[i].name);
-    const TCHAR *help_text = N_("A custom InfoBox set");
+    const char cruise_help[] = N_("For cruise mode. Displayed when 'Auto' is selected and glider is below final glide altitude.");
+    const char circling_help[] = N_("For circling mode. Displayed when 'Auto' is selected and glider is circling.");
+    const char final_glide_help[] = N_("For final glide mode. Displayed when 'Auto' is selected and glider is above final glide altitude.");
+    const char *display_text = gettext(info_box_settings.panels[i].name);
+    const char *help_text = N_("A custom InfoBox set");
     switch (i) {
     case 0:
       help_text = circling_help;
@@ -218,21 +359,53 @@ PageLayoutEditWidget::Prepare([[maybe_unused]] ContainerWindow &parent, [[maybe_
   static constexpr StaticEnumChoice bottom_list[] = {
     { PageLayout::Bottom::NOTHING, N_("Nothing") },
     { PageLayout::Bottom::CROSS_SECTION, N_("Cross section") },
+#if defined(HAVE_EDL) || defined(ENABLE_OPENGL)
+    { PageLayout::Bottom::WEATHER_CONTROLS, N_("Weather controls") },
+#endif
     nullptr
   };
   AddEnum(_("Bottom area"),
-          _("Specifies what should be displayed below the main area."),
+          _("Specifies what should be displayed below the main area. "
+            "Weather controls require a RASP, EDL, or XCTherm map "
+            "overlay."),
           bottom_list,
           (unsigned)PageLayout::Bottom::NOTHING, this);
+
+  static constexpr StaticEnumChoice overlay_list[] = {
+    { PageLayout::Overlay::NONE, N_("None") },
+    { PageLayout::Overlay::RASP, N_("RASP") },
+#ifdef HAVE_EDL
+    { PageLayout::Overlay::EDL, N_("EDL") },
+#endif
+#ifdef HAVE_HTTP
+    { PageLayout::Overlay::XCTHERM, N_("XCTherm") },
+#endif
+    nullptr
+  };
+  AddEnum(_("Map overlay"),
+          _("Optional weather overlay on map pages. "
+            "Use with Weather controls in the bottom area for in-flight adjustment."),
+          overlay_list,
+          (unsigned)PageLayout::Overlay::NONE, this);
+
+  AddEnum(_("Layer / Level"),
+          _("Select a RASP or EDL map overlay to configure its "
+            "layer or level for this page."),
+          this);
+  GetControl(OVERLAY_DETAIL).GetDataField()->EnableItemHelp(true);
+  FillOverlayDetailControl();
+  UpdateOverlayControls();
 }
 
 void
 PageLayoutEditWidget::SetValue(const PageLayout &_value)
 {
   value = _value;
+  value.Normalise();
 
   LoadValueEnum(MAIN, value.main);
   LoadValueEnum(BOTTOM, value.bottom);
+  LoadValueEnum(OVERLAY, value.overlay);
 
   unsigned ib = IBP_NONE;
   if (value.infobox_config.enabled) {
@@ -246,6 +419,9 @@ PageLayoutEditWidget::SetValue(const PageLayout &_value)
   }
 
   LoadValueEnum(INFO_BOX_PANEL, ib);
+
+  FillOverlayDetailControl();
+  UpdateOverlayControls();
 }
 
 void
@@ -254,6 +430,8 @@ PageLayoutEditWidget::OnModified(DataField &df) noexcept
   if (&df == &GetDataField(MAIN)) {
     const DataFieldEnum &dfe = (const DataFieldEnum &)df;
     value.main = (PageLayout::Main)dfe.GetValue();
+    if (!value.IsMapMain())
+      value.overlay = PageLayout::Overlay::NONE;
   } else if (&df == &GetDataField(INFO_BOX_PANEL)) {
     const DataFieldEnum &dfe = (const DataFieldEnum &)df;
     const unsigned ibp = dfe.GetValue();
@@ -271,10 +449,37 @@ PageLayoutEditWidget::OnModified(DataField &df) noexcept
   } else if (&df == &GetDataField(BOTTOM)) {
     const DataFieldEnum &dfe = (const DataFieldEnum &)df;
     value.bottom = (PageLayout::Bottom)dfe.GetValue();
+
+    if (value.bottom == PageLayout::Bottom::WEATHER_CONTROLS &&
+        value.IsMapMain() &&
+        !value.UsesWeatherOverlay()) {
+#ifdef HAVE_EDL
+      value.overlay = PageLayout::Overlay::EDL;
+#else
+      const auto rasp = DataGlobals::GetRasp();
+      if (rasp != nullptr && rasp->GetItemCount() > 0)
+        value.overlay = PageLayout::Overlay::RASP;
+      else
+        value.bottom = PageLayout::Bottom::NOTHING;
+#endif
+    }
+  } else if (&df == &GetDataField(OVERLAY)) {
+    const DataFieldEnum &dfe = (const DataFieldEnum &)df;
+    value.overlay = (PageLayout::Overlay)dfe.GetValue();
+  } else if (&df == &GetDataField(OVERLAY_DETAIL)) {
+    const DataFieldEnum &dfe = (const DataFieldEnum &)df;
+    if (value.overlay == PageLayout::Overlay::RASP)
+      value.rasp_field = dfe.GetValue();
+#ifdef HAVE_EDL
+    else if (value.overlay == PageLayout::Overlay::EDL)
+      value.edl_isobar = dfe.GetValue();
+#endif
   } else {
     gcc_unreachable();
   }
 
+  value.Normalise();
+  ApplyValueToForm();
   listener.OnModified(value);
 }
 
@@ -312,6 +517,9 @@ PageListWidget::Save(bool &_changed) noexcept
             settings.pages.end(),
             PageLayout::Undefined());
 
+  for (unsigned i = 0; i < settings.n_pages; ++i)
+    settings.pages[i].Normalise();
+
   PageSettings &_settings = CommonInterface::SetUISettings().pages;
   for (unsigned int i = 0; i < PageSettings::MAX_PAGES; ++i) {
     PageLayout &dest = _settings.pages[i];
@@ -342,57 +550,10 @@ PageListWidget::OnPaintItem(Canvas &canvas, const PixelRect rc,
   const auto &value = settings.pages[idx];
 
   StaticString<64> buffer;
-
-  switch (value.main) {
-  case PageLayout::Main::MAP:
-    buffer = _("Map");
-    break;
-
-  case PageLayout::Main::MAP_NORTH_UP:
-    buffer = _("Map (north-up)");
-    break;
-
-  case PageLayout::Main::FLARM_RADAR:
-    buffer = _("FLARM radar");
-    break;
-
-  case PageLayout::Main::THERMAL_ASSISTANT:
-    buffer = _("Thermal assistant");
-    break;
-
-  case PageLayout::Main::HORIZON:
-    buffer = _("Horizon");
-    break;
-
-  case PageLayout::Main::MAX:
-    gcc_unreachable();
-  }
-
-  if (value.infobox_config.enabled) {
-    buffer.AppendFormat(_T(", %s"), _("InfoBoxes"));
-
-    if (!value.infobox_config.auto_switch &&
-        value.infobox_config.panel < InfoBoxSettings::MAX_PANELS)
-      buffer.AppendFormat(_T(" (%s)"),
-                          gettext(info_box_settings.panels[value.infobox_config.panel].name));
-    else
-      buffer.AppendFormat(_T(" (%s)"), _("Auto"));
-  }
-
-  switch (value.bottom) {
-  case PageLayout::Bottom::NOTHING:
-  case PageLayout::Bottom::CUSTOM:
-    break;
-
-  case PageLayout::Bottom::CROSS_SECTION:
-    buffer.AppendFormat(_T(", %s"), _("Cross section"));
-    break;
-
-  case PageLayout::Bottom::MAX:
-    gcc_unreachable();
-  }
-
-  row_renderer.DrawTextRow(canvas, rc, buffer);
+  row_renderer.DrawTextRow(canvas, rc,
+                           value.MakeTitle(info_box_settings,
+                                           std::span{buffer.data(), buffer.capacity()},
+                                           DataGlobals::GetRasp().get()));
 }
 
 void

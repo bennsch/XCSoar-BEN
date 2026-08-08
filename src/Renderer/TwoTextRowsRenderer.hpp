@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <tchar.h>
-
 struct PixelRect;
 class Font;
 class Canvas;
@@ -16,6 +14,21 @@ class TwoTextRowsRenderer {
   const Font *first_font, *second_font;
 
   int x, first_y, second_y;
+
+  /** Right edge of the last DrawFirstRow() text, or 0 if not yet drawn. */
+  mutable int first_row_right_edge = 0;
+
+  /** Right edge of the last DrawSecondRow() text, or 0 if not yet drawn. */
+  mutable int second_row_right_edge = 0;
+
+  /**
+   * Top of the row the edges above were measured in.  Cleared when a
+   * draw method is called for a different row so right-before-left
+   * callers are not affected by the previous item.
+   */
+  mutable int edge_row_top = 0x7fffffff;
+
+  void PrepareRow(const PixelRect &rc) const noexcept;
 
 public:
   /**
@@ -45,23 +58,25 @@ public:
   }
 
   void DrawFirstRow(Canvas &canvas, const PixelRect &rc,
-                    const TCHAR *text) const noexcept;
+                    const char *text) const noexcept;
 
   void DrawSecondRow(Canvas &canvas, const PixelRect &rc,
-                     const TCHAR *text) const noexcept;
+                     const char *text) const noexcept;
 
   /**
    * Draws a right-aligned column in the first row (but with the
    * second font which is usually smaller) and returns the new "right"
-   * coordinate.
+   * coordinate.  Skips drawing if it would overlap text previously
+   * drawn by DrawFirstRow() in the same row.
    */
   int DrawRightFirstRow(Canvas &canvas, const PixelRect &rc,
-                        const TCHAR *text) const noexcept;
+                        const char *text) const noexcept;
 
   /**
    * Draws a right-aligned column in the second row and returns the
-   * new "right" coordinate.
+   * new "right" coordinate.  Skips drawing if it would overlap text
+   * previously drawn by DrawSecondRow() in the same row.
    */
   int DrawRightSecondRow(Canvas &canvas, const PixelRect &rc,
-                         const TCHAR *text) const noexcept;
+                         const char *text) const noexcept;
 };

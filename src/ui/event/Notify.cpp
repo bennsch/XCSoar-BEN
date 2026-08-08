@@ -11,7 +11,8 @@ Notify::Notify(CallbackFunction _callback) noexcept
   :callback(std::move(_callback))
 {
 #ifdef USE_WINUSER
-  Window::CreateMessageWindow();
+  if (event_queue == nullptr)
+    Window::CreateMessageWindow();
 #endif
 }
 
@@ -21,29 +22,41 @@ Notify::SendNotification() noexcept
   if (pending.exchange(true, std::memory_order_relaxed))
     return;
 
+  if (event_queue != nullptr)
+    event_queue->InjectCall(Callback, this);
 #ifdef USE_WINUSER
-  SendUser(0);
-#else
-  event_queue->InjectCall(Callback, this);
+  else
+    SendUser(0);
 #endif
 }
 
 void
 Notify::ClearNotification() noexcept
 {
-  if (!pending.exchange(false, std::memory_order_relaxed))
-    return;
+  /* Always purge first.  Gating on pending races with SendNotification
+     (pending cleared before InjectCall), which left dangling InjectCall
+     entries on the GDI EventQueue after #2663. */
+  if (event_queue != nullptr)
+    event_queue->Purge(Callback, this);
 
-#ifndef USE_WINUSER
-  event_queue->Purge(Callback, this);
-#endif
+  pending.store(false, std::memory_order_relaxed);
 }
 
 void
 Notify::RunNotification() noexcept
 {
-  if (pending.exchange(false, std::memory_order_relaxed))
+  if (!pending.exchange(false, std::memory_order_relaxed))
+    return;
+
+  if (callback)
     callback();
+}
+
+void
+Notify::Callback(void *ctx) noexcept
+{
+  Notify &notify = *(Notify *)ctx;
+  notify.RunNotification();
 }
 
 #ifdef USE_WINUSER
@@ -53,15 +66,6 @@ Notify::OnUser([[maybe_unused]] unsigned id) noexcept
 {
   RunNotification();
   return true;
-}
-
-#else
-
-void
-Notify::Callback(void *ctx) noexcept
-{
-  Notify &notify = *(Notify *)ctx;
-  notify.RunNotification();
 }
 
 #endif

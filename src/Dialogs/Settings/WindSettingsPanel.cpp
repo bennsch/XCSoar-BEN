@@ -61,11 +61,11 @@ WindSettingsPanel::Prepare(ContainerWindow &parent,
   if (edit_manual_wind) {
     SpeedVector manual_wind = CommonInterface::Calculated().GetWindOrZero();
 
-    AddReadOnly(_("Source"));
+    AddReadOnly(C_("Wind source", "Source"));
 
     WndProperty *wp =
       AddFloat(_("Speed"), _("Manual adjustment of wind speed."),
-               _T("%.0f %s"), _T("%.0f"),
+               "%.0f %s", "%.0f",
                0,
                Units::ToUserWindSpeed(Units::ToSysUnit(200,
                                                        Unit::KILOMETER_PER_HOUR)),
@@ -164,7 +164,7 @@ WindSettingsPanel::UpdateVector() noexcept
   const DerivedInfo &calculated = CommonInterface::Calculated();
   const WindSettings &settings = CommonInterface::SetComputerSettings().wind;
 
-  const TCHAR *source = nullptr;
+  const char *source = nullptr;
   switch (manual_modified
           ? DerivedInfo::WindSource::MANUAL
           : calculated.wind_source) {

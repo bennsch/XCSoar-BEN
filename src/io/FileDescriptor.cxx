@@ -5,6 +5,10 @@
 #include "UniqueFileDescriptor.hxx"
 #include "system/Error.hxx"
 
+#ifdef _WIN32
+#include "system/UTF8Win32.hpp"
+#endif
+
 #include <cassert>
 #include <stdexcept>
 
@@ -69,7 +73,14 @@ FileDescriptor::Open(FileDescriptor dir, const char *pathname,
 bool
 FileDescriptor::Open(const char *pathname, int flags, mode_t mode) noexcept
 {
+#ifdef _WIN32
+	/* Text mode translates CRLF and breaks binary formats (ZIP, etc.). */
+	flags |= O_BINARY;
+	fd = ::_wopen(UTF8ToWide(pathname).c_str(),
+		      flags | O_NOCTTY | O_CLOEXEC, mode);
+#else
 	fd = ::open(pathname, flags | O_NOCTTY | O_CLOEXEC, mode);
+#endif
 	return IsDefined();
 }
 
@@ -78,6 +89,7 @@ FileDescriptor::Open(const char *pathname, int flags, mode_t mode) noexcept
 bool
 FileDescriptor::Open(const wchar_t *pathname, int flags, mode_t mode) noexcept
 {
+	flags |= O_BINARY;
 	fd = ::_wopen(pathname, flags | O_NOCTTY | O_CLOEXEC, mode);
 	return IsDefined();
 }

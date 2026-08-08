@@ -54,14 +54,18 @@ LoggerConfigPanel::Prepare(ContainerWindow &parent,
   const LoggerSettings &logger = settings_computer.logger;
 
   RowFormWidget::Prepare(parent, rc);
-  AddText(_("Pilot name"), nullptr, logger.pilot_name);
+  AddText(_("Pilot name"),
+          _("Name of the pilot in command, recorded in the IGC flight log."),
+          logger.pilot_name);
 
-  AddText(_("CoPilot name"), nullptr, logger.copilot_name);
+  AddText(_("CoPilot name"),
+          _("The co-pilot name recorded in the IGC flight log."),
+          logger.copilot_name);
 
   AddFloat(_("Crew weight default"),
             _("Default for all weight loaded to the glider beyond the empty weight and besides "
                 "the water ballast."),
-            _T("%.0f %s"), _T("%.0f"),
+            "%.0f %s", "%.0f",
             0, Units::ToUserMass(300), 5, false, UnitGroup::MASS,
             logger.crew_mass_template);
 
@@ -81,7 +85,7 @@ LoggerConfigPanel::Prepare(ContainerWindow &parent,
           auto_logger_list, (unsigned)logger.auto_logger);
   SetExpertRow(DisableAutoLogger);
 
-  AddBoolean(_("NMEA logger"),
+  AddBoolean(_("NMEA Logger"),
              _("Enable the NMEA logger on startup? If this option is disabled, "
                  "the NMEA logger can still be started manually."),
              logger.enable_nmea_logger);
@@ -91,7 +95,9 @@ LoggerConfigPanel::Prepare(ContainerWindow &parent,
              logger.enable_flight_logger);
   SetExpertRow(EnableFlightLogger);
 
-  AddText(_("Logger ID"), nullptr, logger.logger_id);
+  AddText(_("Logger ID"),
+          _("The three-letter logger ID used in the IGC filename."),
+          logger.logger_id);
   SetExpertRow(LoggerID);
 }
 

@@ -4,6 +4,7 @@
 #include "TwoTextRowsRenderer.hpp"
 #include "ui/canvas/Canvas.hpp"
 #include "Screen/Layout.hpp"
+#include "ui/dim/Rect.hpp"
 
 #include <algorithm>
 
@@ -32,25 +33,43 @@ TwoTextRowsRenderer::CalculateLayout(const Font &_first_font,
 }
 
 void
-TwoTextRowsRenderer::DrawFirstRow(Canvas &canvas, const PixelRect &rc,
-                                  const TCHAR *text) const noexcept
+TwoTextRowsRenderer::PrepareRow(const PixelRect &rc) const noexcept
 {
+  if (rc.top == edge_row_top)
+    return;
+
+  edge_row_top = rc.top;
+  first_row_right_edge = second_row_right_edge = 0;
+}
+
+void
+TwoTextRowsRenderer::DrawFirstRow(Canvas &canvas, const PixelRect &rc,
+                                  const char *text) const noexcept
+{
+  PrepareRow(rc);
+
   canvas.Select(*first_font);
+  first_row_right_edge = rc.left + x + (int)canvas.CalcTextWidth(text);
   canvas.DrawClippedText({rc.left + x, rc.top + first_y}, rc, text);
 }
 
 void
 TwoTextRowsRenderer::DrawSecondRow(Canvas &canvas, const PixelRect &rc,
-                                   const TCHAR *text) const noexcept
+                                   const char *text) const noexcept
 {
+  PrepareRow(rc);
+
   canvas.Select(*second_font);
+  second_row_right_edge = rc.left + x + (int)canvas.CalcTextWidth(text);
   canvas.DrawClippedText({rc.left + x, rc.top + second_y}, rc, text);
 }
 
 int
 TwoTextRowsRenderer::DrawRightFirstRow(Canvas &canvas, const PixelRect &rc,
-                                       const TCHAR *text) const noexcept
+                                       const char *text) const noexcept
 {
+  PrepareRow(rc);
+
   canvas.Select(*second_font);
   int text_width = canvas.CalcTextWidth(text);
   int text_x = rc.right - x - text_width;
@@ -59,20 +78,30 @@ TwoTextRowsRenderer::DrawRightFirstRow(Canvas &canvas, const PixelRect &rc,
        better we can do?) */
     return rc.right;
 
+  /* skip if it would overlap the left text from DrawFirstRow() */
+  if (first_row_right_edge > 0 && text_x < first_row_right_edge + x)
+    return rc.right;
+
   canvas.DrawText({text_x, rc.top + first_y}, text);
   return text_x - x;
 }
 
 int
 TwoTextRowsRenderer::DrawRightSecondRow(Canvas &canvas, const PixelRect &rc,
-                                        const TCHAR *text) const noexcept
+                                        const char *text) const noexcept
 {
+  PrepareRow(rc);
+
   canvas.Select(*second_font);
   int text_width = canvas.CalcTextWidth(text);
   int text_x = rc.right - x - text_width;
   if (text_x < rc.left)
     /* text is too large: skip it completely (is there something
        better we can do?) */
+    return rc.right;
+
+  /* skip if it would overlap the left text from DrawSecondRow() */
+  if (second_row_right_edge > 0 && text_x < second_row_right_edge + x)
     return rc.right;
 
   canvas.DrawText({text_x, rc.top + second_y}, text);

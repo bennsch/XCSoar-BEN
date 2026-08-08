@@ -36,6 +36,12 @@ ifeq ($(STOP_WATCH),y)
   TARGET_CPPFLAGS += -DSTOP_WATCH
 endif
 
+# show TopWindow present count + Hz overlay (e-ink debug)?
+DRAW_REDRAW_COUNTER ?= n
+ifeq ($(DRAW_REDRAW_COUNTER),y)
+  TARGET_CPPFLAGS += -DDRAW_REDRAW_COUNTER
+endif
+
 # compile without UI?
 HEADLESS ?= n
 
@@ -61,6 +67,22 @@ endif
 # In the stable branch, this should default to "n".
 TESTING = n
 
+# Default Android package flavor:
+# - FOSS is the default for regular Android builds
+# - PLAY/TESTING builds keep their own package IDs without requiring FOSS=n
+ifneq ($(filter ANDROID%,$(TARGET)),)
+  ifeq ($(PLAY),y)
+    FOSS ?= n
+  else ifeq ($(TESTING),y)
+    FOSS ?= n
+  else
+    FOSS ?= y
+  endif
+endif
+
+# Set XCSOAR_TESTING for non-Android builds (Android builds set it based on package name)
 ifeq ($(TESTING),y)
-  TARGET_CPPFLAGS += -DXCSOAR_TESTING
+  ifneq ($(TARGET_IS_ANDROID),y)
+    TARGET_CPPFLAGS += -DXCSOAR_TESTING
+  endif
 endif

@@ -176,7 +176,7 @@ WriteEventAttributes(const BrokenDateTime &time,
     o = boost::json::value_from(location).as_object();
 
   if (time.IsPlausible()) {
-    NarrowString<64> buffer;
+    StaticString<64> buffer;
     FormatISO8601(buffer.buffer(), time);
     o.emplace("time", buffer.c_str());
   }
@@ -285,6 +285,12 @@ WriteDMSt(const ContestStatistics &stats) noexcept
 
   object.emplace("quadrilateral",
                  WriteContest(stats.result[0], stats.solution[0]));
+  object.emplace("triangle",
+                 WriteContest(stats.result[1], stats.solution[1]));
+  object.emplace("out_and_return",
+                 WriteContest(stats.result[2], stats.solution[2]));
+  object.emplace("free",
+                 WriteContest(stats.result[3], stats.solution[3]));
 
   return object;
 }

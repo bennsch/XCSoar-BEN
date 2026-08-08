@@ -14,6 +14,8 @@ WIDGET_SOURCES = \
 	$(SRC)/Widget/TabWidget.cpp \
 	$(SRC)/Widget/TextWidget.cpp \
 	$(SRC)/Widget/LargeTextWidget.cpp \
+	$(SRC)/Widget/ScrollableLargeTextWidget.cpp \
+	$(SRC)/Widget/RichTextWidget.cpp \
 	$(SRC)/Widget/OverlappedWidget.cpp \
 	$(SRC)/Widget/TwoWidgets.cpp \
 	$(SRC)/Widget/RowFormWidget.cpp \
@@ -25,12 +27,19 @@ WIDGET_SOURCES = \
 	$(SRC)/Widget/PagerWidget.cpp \
 	$(SRC)/Widget/ArrowPagerWidget.cpp \
 	$(SRC)/Widget/OffsetButtonsWidget.cpp \
+	$(SRC)/Widget/CursorBarWidget.cpp \
 	$(SRC)/Widget/ButtonPanelWidget.cpp \
 	$(SRC)/Widget/ButtonWidget.cpp \
 	$(SRC)/Widget/DrawWidget.cpp \
 	$(SRC)/Widget/QuestionWidget.cpp \
 	$(SRC)/Widget/KeyboardWidget.cpp \
-	$(SRC)/Widget/ViewImageWidget.cpp
+	$(SRC)/Widget/QuickGuidePageWidget.cpp \
+	$(SRC)/Widget/ViewImageWidget.cpp \
+	$(SRC)/Widget/ImageZoomView.cpp \
+	$(SRC)/Widget/ImageZoomFrame.cpp \
+	$(SRC)/Widget/MultiSelectListWidget.cpp \
+	$(SRC)/Widget/FileMultiSelectWidget.cpp \
+	$(SRC)/Widget/PropertyWidgetContainer.cpp
 
 WIDGET_DEPENDS = SCREEN
 

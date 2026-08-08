@@ -1,0 +1,797 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+// Copyright The XCSoar Project
+
+#include "dlgQuickGuide.hpp"
+#include "dlgGestureHelp.hpp"
+#include "WidgetDialog.hpp"
+#include "UIGlobals.hpp"
+#include "Look/DialogLook.hpp"
+#include "Widget/ArrowPagerWidget.hpp"
+#include "Widget/QuickGuidePageWidget.hpp"
+#include "Widget/VScrollWidget.hpp"
+#include "Widget/RichTextWidget.hpp"
+#include "Profile/Profile.hpp"
+#include "Profile/Keys.hpp"
+#include "system/Path.hpp"
+#include "Language/Language.hpp"
+#include "Version.hpp"
+#include "QuickGuideNEWS.hpp"
+#include "Simulator.hpp"
+#include "Message.hpp"
+#include "Interface.hpp"
+#include "Device/Config.hpp"
+#include "Tracking/SkyLines/Features.hpp"
+#ifdef HAVE_SKYLINES_TRACKING
+#include "Tracking/SkyLines/Key.hpp"
+#endif
+#ifdef ANDROID
+#include "Android/Permissions.hpp"
+#endif
+#include "util/StringCompare.hxx"
+#include "util/StaticString.hxx"
+#include "util/Macros.hpp"
+#include "MapSettings.hpp"
+#include "Computer/Settings.hpp"
+
+#include <cmath>
+#include <vector>
+
+// Page indices for the can-advance guard
+static constexpr unsigned INVALID_PAGE = ~0u;
+
+/** Index within #info_page_titles for the dynamic Getting Started page. */
+static constexpr std::size_t GETTING_STARTED_INFO_PAGE_INDEX = 1;
+
+/**
+ * Track conditional page indices for post-dialog result handling.
+ */
+struct QuickGuideState {
+  unsigned warranty_page_index = INVALID_PAGE;
+  unsigned news_page_index = INVALID_PAGE;
+  unsigned cloud_page_index = INVALID_PAGE;
+  unsigned location_page_index = INVALID_PAGE;
+  unsigned first_info_page_index = INVALID_PAGE;
+  bool warranty_accepted = false;
+  bool hide_guide_checked = false;
+};
+
+/* ---- Welcome / Logo page text ---- */
+
+static const char *
+GetWelcomeText(bool dark_mode)
+{
+  static StaticString<1536> welcome;
+  welcome.Format(
+    "![XCSoar Logo](resource:IDB_LOGO_HD)\n\n"
+    "![XCSoar](resource:%s)\n\n"
+    "**Version %s**\n\n"
+    "%s"
+    "%s\n\n"
+    "%s\n\n"
+    "- [https://xcsoar.org](https://xcsoar.org)\n"
+    "- [%s](https://xcsoar.org/discover/manual.html)\n"
+    "- [%s](https://github.com/XCSoar/XCSoar)\n"
+    "- [%s](https://github.com/XCSoar/XCSoar/discussions)",
+    dark_mode ? "IDB_TITLE_HD_WHITE" : "IDB_TITLE_HD",
+    XCSoar_VersionString,
+    is_simulator()
+      ? _("**Simulator mode:** Drag from the glider to set direction "
+          "and speed. Jump with **Sim: Jump to** on a waypoint or map "
+          "point. Fine-tune height and speed with the **Altitude** and "
+          "**Speed Ground** InfoBoxes.\n\n")
+      : "",
+    _("To get the most out of XCSoar and to learn about its many "
+      "functions in detail, it is highly recommended to read the "
+      "Quick Guide or the complete documentation."),
+    _("Documentation is available in several languages. "
+      "You can always access the latest versions online:"),
+    _("XCSoar Manual & Quick Guide"),
+    _("GitHub - Source Code & Contributions"),
+    _("GitHub Discussions - Questions & Community"));
+
+  return welcome.c_str();
+}
+
+/* ---- Disclaimer / Warranty text ---- */
+
+static constexpr const char *no_warranty_clause_text =
+  "## No Warranty (GPL Section 11)\n\n"
+  "BECAUSE THE PROGRAM IS LICENSED FREE OF CHARGE, THERE IS NO WARRANTY "
+  "FOR THE PROGRAM, TO THE EXTENT PERMITTED BY APPLICABLE LAW. EXCEPT WHEN "
+  "OTHERWISE STATED IN WRITING THE COPYRIGHT HOLDERS AND/OR OTHER PARTIES "
+  "PROVIDE THE PROGRAM \"AS IS\" WITHOUT WARRANTY OF ANY KIND, EITHER "
+  "EXPRESSED OR IMPLIED, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED "
+  "WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. "
+  "THE ENTIRE RISK AS TO THE QUALITY AND PERFORMANCE OF THE PROGRAM "
+  "IS WITH YOU. SHOULD THE PROGRAM PROVE DEFECTIVE, YOU ASSUME THE "
+  "COST OF ALL NECESSARY SERVICING, REPAIR OR CORRECTION.\n\n";
+
+static const char *
+GetDisclaimerText() noexcept
+{
+  static StaticString<8192> text;
+  text.Format(
+    "%s%s%s",
+    _("![](resource:IDB_WARNING_TRIANGLE)\n\n"
+      "!!! warning\n"
+      "# Important Safety Notice\n\n"
+      "By using XCSoar, you acknowledge and accept the following:\n\n"
+      "## Limitations\n\n"
+      "- XCSoar is for **situational awareness only**\n"
+      "- XCSoar is **not** a FLARM display\n"
+      "- XCSoar is **not** aviation certified in any way\n"
+      "- The artificial horizon is **not** fit for any purpose\n"
+      "- Databanks (airspace, waypoints) may contain errors, be "
+      "incomplete, or **not** up to date\n"
+      "- NOTAM display does **not** replace proper pre-flight "
+      "NOTAM briefing\n"
+      "- NOTAM data may be incomplete, delayed, filtered, or "
+      "unavailable\n"
+      "- XCSoar is **not** guaranteed to be error free\n\n"
+      "## Pilot Responsibility\n\n"
+      "The **Pilot in Command** is always responsible for the safe "
+      "operation of the aircraft. Never rely solely on XCSoar for "
+      "navigation or situational awareness.\n\n"),
+    no_warranty_clause_text,
+    _("[Full GPL License](xcsoar://dialog/credits)"));
+  return text.c_str();
+}
+
+/* ---- Configuration help text (dynamic, with checkbox status) ---- */
+
+/**
+ * Check whether at least one device slot is configured
+ * (port type is not DISABLED).
+ */
+static bool
+IsAnyDeviceConfigured() noexcept
+{
+  const auto &devices =
+    CommonInterface::GetSystemSettings().devices;
+  for (const auto &dev : devices) {
+    if (!dev.IsDisabled())
+      return true;
+  }
+  return false;
+}
+
+/**
+ * @return true when safety-related settings have been changed from
+ *         factory defaults (or when we cannot use defaults for comparison).
+ */
+static bool
+SafetyFactorsDifferFromDefaults() noexcept
+{
+  const auto &cs = CommonInterface::GetComputerSettings();
+  const auto &t = cs.task;
+  const auto &p = cs.polar;
+
+  TaskBehaviour d_task;
+  d_task.SetDefaults();
+  PolarSettings d_pol;
+  d_pol.SetDefaults();
+
+  static constexpr double eps = 1e-4;
+  if (std::abs(t.safety_height_arrival - d_task.safety_height_arrival) > eps)
+    return true;
+  if (std::abs(t.route_planner.safety_height_terrain -
+               d_task.route_planner.safety_height_terrain) > eps)
+    return true;
+  if (t.abort_task_mode != d_task.abort_task_mode)
+    return true;
+  if (std::abs(p.degradation_factor - d_pol.degradation_factor) > eps)
+    return true;
+  if (p.auto_bugs != d_pol.auto_bugs)
+    return true;
+  if (std::abs(t.safety_mc - d_task.safety_mc) > eps)
+    return true;
+  if (std::abs(t.risk_gamma - d_task.risk_gamma) > eps)
+    return true;
+  return false;
+}
+
+/**
+ * @return true when terrain or topography display was customized away from
+ *         the default look (ramp, shading, contours, enable flags, …).
+ */
+static bool
+TerrainDisplayDiffersFromDefaults() noexcept
+{
+  MapSettings d;
+  d.SetDefaults();
+  const auto &m = CommonInterface::GetMapSettings();
+  return m.terrain != d.terrain || m.topography_enabled != d.topography_enabled;
+}
+
+static const char *
+GetConfigurationHelpText()
+{
+  const char *map = Profile::Get(ProfileKeys::MapFile);
+  const bool has_map = map != nullptr && !StringIsEmpty(map);
+  const auto plane_path = Profile::GetPath("PlanePath");
+  const bool has_polar = plane_path != nullptr;
+  const char *pilot = Profile::Get(ProfileKeys::PilotName);
+  const bool has_pilot = pilot != nullptr && !StringIsEmpty(pilot);
+  const bool has_device = IsAnyDeviceConfigured();
+
+  bool weglide_enabled = false;
+  Profile::Get(ProfileKeys::WeGlideEnabled, weglide_enabled);
+
+  bool tim_enabled = false;
+  Profile::Get(ProfileKeys::EnableThermalInformationMap, tim_enabled);
+
+  const bool has_safety = SafetyFactorsDifferFromDefaults();
+  const bool has_terrain_display = TerrainDisplayDiffersFromDefaults();
+
+  static StaticString<1536> text;
+  text.Format(
+    _("# Getting Started\n\n"
+    "To use XCSoar effectively, configure the following:\n\n"
+    "- [Restore from backup](xcsoar://dialog/backup) - "
+    "Restore previous XCSoar data from a USB or SD card (optional)\n\n"
+    "- [%s] [Map and data](xcsoar://config/site-files) - "
+    "Download maps, waypoints, and airspace files for your "
+    "region\n\n"
+    "- [%s] [Aircraft polar](xcsoar://config/planes) - "
+    "Set up your aircraft with the correct polar curve\n\n"
+    "- [%s] [Pilot info](xcsoar://config/logger) - "
+    "Enter your name and weight\n\n"
+    "- [%s] [Devices](xcsoar://config/devices) - "
+    "Connect your flight instruments\n\n"
+    "- [%s] [WeGlide](xcsoar://config/weglide) - "
+    "Upload flights automatically to WeGlide\n\n"
+    "- [%s] [Thermal Information Map](xcsoar://config/weather) - "
+    "Show thermal locations from thermalmap.info on the map\n\n"
+    "- [%s] [Safety factors](xcsoar://config/safety) - "
+    "Set arrival height, terrain clearance and polar degradation\n\n"
+    "- [%s] [Terrain Display](xcsoar://config/terrain) - "
+    "Choose terrain colors, shading and contour lines\n\n"
+    "- [ ] [Live tracking](xcsoar://config/tracking) *(optional)* - "
+    "Share your position via SkyLines or LiveTrack24\n\n"
+    "Explore XCSoar easily by restarting in Simulator mode, or by "
+    "[replaying an IGC flight](xcsoar://dialog/replay)."),
+    has_map ? "x" : " ",
+    has_polar ? "x" : " ",
+    has_pilot ? "x" : " ",
+    has_device ? "x" : " ",
+    weglide_enabled ? "x" : " ",
+    tim_enabled ? "x" : " ",
+    has_safety ? "x" : " ",
+    has_terrain_display ? "x" : " ");
+
+  return text.c_str();
+}
+
+/* ---- Preflight text ---- */
+
+static const char *
+GetPreflightText() noexcept
+{
+  return _(
+    "# Preflight Checks\n\n"
+    "Before each flight, verify:\n\n"
+    "1. **Plane & Polar** - Correct aircraft and polar selected. "
+    "[Config > Plane](xcsoar://config/planes)\n\n"
+    "2. **Flight parameters** - Wing loading, bugs, QNH, max "
+    "temperature. [Info > Flight](xcsoar://dialog/flight)\n\n"
+    "3. **Wind** - Set wind manually or enable auto wind. "
+    "[Info > Wind](xcsoar://dialog/wind)\n\n"
+    "4. **Task** - Create a task for navigation guidance. "
+    "[Nav > Task Manager](xcsoar://dialog/task)");
+}
+
+/* ---- Postflight text ---- */
+
+static const char *
+GetPostflightText() noexcept
+{
+  return _(
+    "# After Your Flight\n\n"
+    "1. **Download logs** - Retrieve flight logs from your "
+    "FLARM or logger device. "
+    "[Config > Devices](xcsoar://config/devices)\n\n"
+    "2. **Analysis** - Review your flight statistics. "
+    "[Info > Analysis](xcsoar://dialog/analysis)\n\n"
+    "3. **Status** - Check flight timing and statistics. "
+    "[Info > Status](xcsoar://dialog/status)\n\n"
+    "4. **Upload** - Upload to WeGlide directly from XCSoar. "
+    "Configure your WeGlide User ID in "
+    "[Config > System > WeGlide](xcsoar://config/weglide)");
+}
+
+/* ---- Helpers ---- */
+
+/**
+ * Check if the warranty has already been acknowledged for the
+ * current version.
+ */
+static bool
+IsWarrantyAcknowledged() noexcept
+{
+  const char *acknowledged =
+    Profile::Get(ProfileKeys::DisclaimerAcknowledgedVersion);
+  return acknowledged != nullptr &&
+         StringIsEqual(acknowledged, XCSoar_Version);
+}
+
+/**
+ * Check if the user has already seen the news for this version.
+ */
+static bool
+IsNewsSeen() noexcept
+{
+  const char *last_seen =
+    Profile::Get(ProfileKeys::LastSeenNewsVersion);
+  return last_seen != nullptr &&
+         StringIsEqual(last_seen, XCSoar_Version);
+}
+
+/**
+ * Check if the cloud consent is needed: the user has not yet
+ * explicitly enabled or disabled XCSoar Cloud.
+ */
+[[gnu::pure]]
+static bool
+IsCloudConsentNeeded() noexcept
+{
+#ifdef HAVE_SKYLINES_TRACKING
+  const auto &settings =
+    CommonInterface::GetComputerSettings().tracking.cloud;
+  return settings.enabled == TriState::UNKNOWN;
+#else
+  return false;
+#endif
+}
+
+/* ---- Android permission disclosure texts ---- */
+
+#ifdef ANDROID
+/**
+ * Google Play prominent disclosure for location permissions.
+ * Must include the word "location" and indicate background use
+ * with "when the app is closed or not in use" per Google Play
+ * policy requirements.
+ */
+static const char *
+GetLocationDisclosureText() noexcept
+{
+  return _(
+    "![](resource:IDB_LOCATION_PIN)\n\n"
+    "# Location Access\n\n"
+    "XCSoar collects location data to enable flight navigation, "
+    "thermal mapping, and flight logging even when the app is "
+    "closed or not in use.\n\n"
+    "- **GPS Position** - Real-time navigation and glide computer\n"
+    "- **Background Location** - Continuous flight recording when "
+    "the screen is off or another app is in the foreground\n"
+    "- **Foreground Service** - Keeps GPS active during your "
+    "flight\n\n"
+    "Your location data is stored locally on your device. It is "
+    "not shared unless you explicitly enable tracking in "
+    "[Config > Tracking](xcsoar://config/tracking).\n\n"
+    "[Privacy Policy](https://github.com/XCSoar/XCSoar/blob/master/PRIVACY.md)");
+}
+
+/**
+ * Google Play prominent disclosure for notification permission.
+ */
+static const char *
+GetNotificationDisclosureText() noexcept
+{
+  return _(
+    "![](resource:IDB_NOTIFICATION_BELL)\n\n"
+    "# Notifications\n\n"
+    "XCSoar needs notification permission to maintain a persistent "
+    "notification while recording your flight. This notification "
+    "is required by Android for background operation and provides "
+    "a quick way to return to the app.\n\n"
+    "Without this permission, Android may stop flight recording "
+    "when the app is in the background.");
+}
+#endif
+
+/* ---- Cloud consent text ---- */
+
+static const char *
+GetCloudConsentText() noexcept
+{
+  return _(
+    "# XCSoar Cloud\n\n"
+    "The XCSoar project offers a service that allows sharing "
+    "thermal and wave locations with other pilots in real time.\n\n"
+    "If you participate, your **position**, **thermal/wave "
+    "locations** and other weather data will be transmitted to "
+    "the XCSoar Cloud server.\n\n"
+    "You can change this at any time in "
+    "[Config > Tracking](xcsoar://config/tracking).");
+}
+
+#ifdef HAVE_SKYLINES_TRACKING
+/**
+ * Enable XCSoar Cloud: set the setting, generate a key if
+ * needed, and save to profile.
+ */
+static void
+EnableCloud()
+{
+  auto &settings =
+    CommonInterface::SetComputerSettings().tracking.cloud;
+  settings.enabled = TriState::TRUE;
+  Profile::Set(ProfileKeys::CloudEnabled, true);
+
+  if (settings.key == 0) {
+    settings.key = SkyLinesTracking::GenerateKey();
+
+    char s[64];
+    snprintf(s, sizeof(s), "%llx",
+             (unsigned long long)settings.key);
+    Profile::Set(ProfileKeys::CloudKey, s);
+  }
+
+  Profile::Save();
+}
+
+/**
+ * Disable XCSoar Cloud and save to profile.
+ */
+static void
+DisableCloud()
+{
+  auto &settings =
+    CommonInterface::SetComputerSettings().tracking.cloud;
+  settings.enabled = TriState::FALSE;
+  Profile::Set(ProfileKeys::CloudEnabled, false);
+  Profile::Save();
+}
+#endif
+
+/**
+ * Check if the user has set "don't show again" for informational
+ * pages.
+ */
+static bool
+IsQuickGuideHidden() noexcept
+{
+  bool hidden = false;
+  Profile::Get(ProfileKeys::HideQuickGuideDialogOnStartup, hidden);
+  return hidden;
+}
+
+bool
+dlgQuickGuideShowModal(bool force_info)
+{
+  const bool simulator = is_simulator();
+  const bool warranty_needed =
+    !simulator && !IsWarrantyAcknowledged();
+  const bool news_needed = !IsNewsSeen();
+  const bool cloud_needed =
+    !simulator && IsCloudConsentNeeded();
+#ifdef ANDROID
+  const bool permissions_needed =
+    !simulator && (!AreLocationPermissionsGranted() ||
+                      !IsNotificationPermissionGranted());
+#else
+  const bool permissions_needed = false;
+#endif
+  const bool info_pages_needed = force_info || !IsQuickGuideHidden();
+
+  static constexpr const char *info_page_titles[] = {
+    N_("Gesture Navigation"),
+    N_("Getting Started"),
+    N_("Preflight"),
+    N_("After Your Flight"),
+    N_("Done"),
+  };
+
+  static const char *(*const info_page_texts[])() = {
+    GetGestureHelpText,
+    GetConfigurationHelpText,
+    GetPreflightText,
+    GetPostflightText,
+    []() -> const char * {
+      return _("# That's it!\n\n"
+                "You can revisit the gesture help from the "
+                "**Info** menu at any time.");
+    },
+  };
+
+  static_assert(ARRAY_SIZE(info_page_titles) == ARRAY_SIZE(info_page_texts),
+                "Quick Guide info page tables must match");
+
+  // If everything is already satisfied, skip the dialog entirely
+  if (!warranty_needed && !news_needed &&
+      !cloud_needed && !permissions_needed && !info_pages_needed)
+    return true;
+
+  const DialogLook &look = UIGlobals::GetDialogLook();
+
+  WidgetDialog dialog(WidgetDialog::Full{},
+                      UIGlobals::GetMainWindow(),
+                      look, _("Welcome to XCSoar"));
+
+  QuickGuideState state;
+  state.hide_guide_checked = IsQuickGuideHidden();
+
+  auto pager = std::make_unique<ArrowPagerWidget>(
+    look.button, [&dialog, &state, warranty_needed]() {
+      if (warranty_needed && !state.warranty_accepted) {
+        if (ShowMessageBox(
+              _("The safety disclaimer must be accepted "
+                "to use XCSoar. Quit?"),
+              "XCSoar",
+              MB_YESNO | MB_ICONWARNING) != IDYES)
+          /* User chose not to quit — stay in the dialog */
+          return;
+      }
+      dialog.SetModalResult(mrOK);
+    });
+  ArrowPagerWidget *pager_ptr = pager.get();
+
+  // Track page titles for the caption callback
+  std::vector<const char *> titles;
+
+  /* Helper: wrap content in VScrollWidget (horizontal swipe is wired in
+     ArrowPagerWidget::Prepare). */
+  auto make_scroll_page = [&look](std::unique_ptr<Widget> &&w) {
+    return std::make_unique<VScrollWidget>(std::move(w), look, true);
+  };
+
+  /* ---- Logo / Welcome page (only with informational guide pages) ---- */
+  if (info_pages_needed) {
+    pager->Add(make_scroll_page(
+      std::make_unique<RichTextWidget>(look, GetWelcomeText(look.dark_mode))));
+    titles.push_back(_("Welcome"));
+  }
+
+  /* ---- Warranty page (conditional) ---- */
+  if (warranty_needed) {
+    state.warranty_page_index = pager->GetSize();
+
+    auto page = QuickGuidePageWidget::CreateCheckboxPage(
+      look, GetDisclaimerText(),
+      _("I have read and understand the above disclaimer"),
+      false,
+      [&state, pager_ptr](bool checked) {
+        state.warranty_accepted = checked;
+        pager_ptr->UpdateNextButtonState();
+        pager_ptr->SetCloseButtonCaption(checked
+                                         ? _("Close")
+                                         : _("Quit"));
+      });
+    pager->Add(std::move(page));
+    titles.push_back(_("Safety Disclaimer"));
+  }
+
+  /* ---- What's New page (conditional, shown on version change) ---- */
+  /* Body is Markdown generated at build time from the first block of NEWS.txt
+     (see tools/news_to_quickguide_md.py and QuickGuideNEWS.hpp).  The Credits
+     dialog still loads the full gzipped NEWS history as plain text. */
+  if (news_needed && quick_guide_news_markdown[0] != '\0') {
+    state.news_page_index = pager->GetSize();
+
+    auto page = QuickGuidePageWidget::CreateCheckboxPage(
+      look, quick_guide_news_markdown,
+      _("Don't show these release notes again"),
+      false,
+      [](bool) { /* state is read on dialog close */ });
+
+    pager->Add(std::move(page));
+    titles.push_back(_("What's New"));
+  }
+
+  /* ---- Cloud consent page (conditional, fly mode only) ---- */
+#ifdef HAVE_SKYLINES_TRACKING
+  if (cloud_needed) {
+    state.cloud_page_index = pager->GetSize();
+
+    const bool cloud_currently_enabled =
+      CommonInterface::GetComputerSettings()
+        .tracking.cloud.enabled == TriState::TRUE;
+
+    auto page = QuickGuidePageWidget::CreateCheckboxPage(
+      look, GetCloudConsentText(),
+      _("Enable XCSoar Cloud"),
+      cloud_currently_enabled,
+      [](bool) { /* state is read on dialog close */ });
+
+    pager->Add(std::move(page));
+    titles.push_back(_("XCSoar Cloud"));
+  }
+#endif
+
+  /* ---- Android permission disclosure pages (conditional) ---- */
+#ifdef ANDROID
+  /* Helper: advance to next page, or close dialog if on last page */
+  auto advance_or_close = [pager_ptr, &dialog]() {
+    if (!pager_ptr->Next(false))
+      dialog.SetModalResult(mrOK);
+  };
+
+  /* Helper: skip permission and suppress the lazy permission flow's
+     rationale dialogs so the user is not immediately re-prompted
+     after choosing "Not Now". */
+  auto skip_permissions = [advance_or_close]() {
+    SuppressPermissionDialogs();
+    advance_or_close();
+  };
+
+  if (!simulator && !AreLocationPermissionsGranted()) {
+    state.location_page_index = pager->GetSize();
+
+    auto page = QuickGuidePageWidget::CreateTwoButtonPage(
+      look, GetLocationDisclosureText(),
+      _("Continue"),
+      [advance_or_close]() {
+        /* Fire the permission request; advance only when the
+           system dialog is dismissed and the result arrives */
+        RequestLocationPermissions([advance_or_close](bool) {
+          advance_or_close();
+        });
+      },
+      _("Not Now"),
+      skip_permissions);
+
+    pager->Add(std::move(page));
+    titles.push_back(_("Location Access"));
+  }
+
+  if (!simulator && !IsNotificationPermissionGranted()) {
+    auto page = QuickGuidePageWidget::CreateTwoButtonPage(
+      look, GetNotificationDisclosureText(),
+      _("Continue"),
+      [advance_or_close]() {
+        RequestNotificationPermission([advance_or_close](bool) {
+          advance_or_close();
+        });
+      },
+      _("Not Now"),
+      skip_permissions);
+
+    pager->Add(std::move(page));
+    titles.push_back(_("Notifications"));
+  }
+#endif
+
+  /* ---- Informational pages (conditional) ---- */
+
+  if (info_pages_needed) {
+    state.first_info_page_index = pager->GetSize();
+
+    for (std::size_t i = 0; i < ARRAY_SIZE(info_page_titles); ++i) {
+      auto page = QuickGuidePageWidget::CreateCheckboxPage(
+        look, info_page_texts[i](),
+        _("Don't show this guide again"),
+        state.hide_guide_checked,
+        [&state](bool checked) {
+          state.hide_guide_checked = checked;
+        });
+
+      if (i == GETTING_STARTED_INFO_PAGE_INDEX) {
+        QuickGuidePageWidget *page_ptr = page.get();
+        page->SetLinkReturnCallback([page_ptr]() {
+          page_ptr->SetText(GetConfigurationHelpText());
+        });
+      }
+
+      pager->Add(std::move(page));
+      titles.push_back(gettext(info_page_titles[i]));
+    }
+  }
+
+  // If no pages were added, skip
+  if (pager->GetSize() == 0)
+    return true;
+
+  /* ---- Page advance guard ---- */
+  pager->SetCanAdvanceCallback(
+    [&state](unsigned current_page) -> bool {
+      if (current_page == state.warranty_page_index)
+        return state.warranty_accepted;
+      /* Location disclosure: disable Next arrow/key/swipe so the
+         user must explicitly choose "Continue" or "Not Now".
+         The buttons bypass CanAdvance() via PagerWidget::Next(). */
+      if (current_page == state.location_page_index)
+        return false;
+      return true;
+    });
+
+  /* ---- Caption update on page flip ---- */
+  const unsigned total_pages = pager->GetSize();
+
+  auto update_caption =
+    [&dialog, &titles, pager_ptr, total_pages, &state]() {
+    const unsigned current = pager_ptr->GetCurrentIndex();
+
+    if (state.first_info_page_index != INVALID_PAGE &&
+        current >= state.first_info_page_index &&
+        current < state.first_info_page_index +
+        ARRAY_SIZE(info_page_titles)) {
+      auto &page_widget = pager_ptr->GetWidget(current);
+      if (auto *page = dynamic_cast<QuickGuidePageWidget *>(&page_widget)) {
+        page->SetCheckboxState(state.hide_guide_checked);
+
+        if (current == state.first_info_page_index +
+            GETTING_STARTED_INFO_PAGE_INDEX)
+          page->SetText(GetConfigurationHelpText());
+      }
+    }
+
+    StaticString<128> caption;
+    if (current < titles.size())
+      caption.Format("%s (%u/%u)",
+                     titles[current],
+                     current + 1, total_pages);
+    else
+      caption = _("Welcome to XCSoar");
+    dialog.SetCaption(caption);
+  };
+
+  pager->SetPageFlippedCallback(update_caption);
+  update_caption();
+
+  dialog.FinishPreliminary(std::move(pager));
+
+  /* Show "Quit" instead of "Close" until the disclaimer is accepted */
+  if (warranty_needed)
+    pager_ptr->SetCloseButtonCaption(_("Quit"));
+
+  const int result = dialog.ShowModal();
+
+  /* ---- Handle results ---- */
+
+  /* If warranty page was shown and user closed without accepting,
+     the close callback already confirmed the quit via message box */
+  if (warranty_needed && !state.warranty_accepted)
+    return false;
+
+  // Save warranty acknowledgment
+  if (warranty_needed && state.warranty_accepted) {
+    Profile::Set(ProfileKeys::DisclaimerAcknowledgedVersion,
+                 XCSoar_Version);
+    Profile::Save();
+  }
+
+  /* Mark news as seen only if the user checked the checkbox */
+  if (state.news_page_index != INVALID_PAGE) {
+    auto &news_widget = static_cast<ArrowPagerWidget &>(
+      dialog.GetWidget()).GetWidget(state.news_page_index);
+    auto *news_page =
+      dynamic_cast<QuickGuidePageWidget *>(&news_widget);
+    if (news_page != nullptr && news_page->GetCheckboxState()) {
+      Profile::Set(ProfileKeys::LastSeenNewsVersion, XCSoar_Version);
+      Profile::Save();
+    }
+  }
+
+  /* Save cloud consent based on checkbox state */
+#ifdef HAVE_SKYLINES_TRACKING
+  if (state.cloud_page_index != INVALID_PAGE) {
+    auto &cloud_widget = static_cast<ArrowPagerWidget &>(
+      dialog.GetWidget()).GetWidget(state.cloud_page_index);
+    auto *cloud_page =
+      dynamic_cast<QuickGuidePageWidget *>(&cloud_widget);
+    if (cloud_page != nullptr) {
+      if (cloud_page->GetCheckboxState())
+        EnableCloud();
+      else
+        DisableCloud();
+    }
+  }
+#endif
+
+  /* Only persist when the checkbox changed vs profile (missing key =
+     show guide). Still writes false when unticking from Info. */
+  if (info_pages_needed) {
+    bool previously_hidden = false;
+    Profile::Get(ProfileKeys::HideQuickGuideDialogOnStartup,
+                 previously_hidden);
+    if (state.hide_guide_checked != previously_hidden) {
+      Profile::Set(ProfileKeys::HideQuickGuideDialogOnStartup,
+                   state.hide_guide_checked);
+      Profile::Save();
+    }
+  }
+
+  (void)result;
+  return true;
+}

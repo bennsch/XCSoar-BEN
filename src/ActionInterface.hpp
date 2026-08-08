@@ -4,6 +4,7 @@
 #pragma once
 
 #include "Interface.hpp"
+#include "Atmosphere/Pressure.hpp"
 
 /** 
  * Class to hold data/methods accessible by interface subsystems
@@ -17,10 +18,21 @@ using namespace CommonInterface;
  * Configure a new Ballast setting in #ComputerSettings, and
  * forward it to all XCSoar modules that want it.
  *
+ * @param ballast_litres the new ballast value [litres]
  * @param to_devices send the new settings to all devices?
  */
 void
-SetBallast(double ballast, bool to_devices=true) noexcept;
+SetBallastLitres(double ballast_litres, bool to_devices=true) noexcept;
+
+/**
+ * Configure a new Ballast setting as a fraction in #ComputerSettings,
+ * and forward it to all XCSoar modules that want it.
+ *
+ * @param fraction the new ballast fraction [0..1]
+ * @param to_devices send the new settings to all devices?
+ */
+void
+SetBallastFraction(double fraction, bool to_devices=true) noexcept;
 
 /**
  * Configure a new Bugs setting in #ComputerSettings, and
@@ -39,6 +51,25 @@ SetBugs(double mc, bool to_devices=true) noexcept;
  */
 void
 SetMacCready(double mc, bool to_devices=true) noexcept;
+
+/**
+ * Configure a new Crew Mass setting in #ComputerSettings, and
+ * forward it to all XCSoar modules that want it.
+ *
+ * @param crew_mass the new crew mass value [kg]
+ * @param to_devices send the new settings to all devices?
+ */
+void
+SetCrewMass(double crew_mass, bool to_devices=true) noexcept;
+
+/**
+ * Set the empty mass (empty weight) of the glider.
+ *
+ * @param empty_mass the new empty mass value [kg]
+ * @param to_devices send the new settings to all devices?
+ */
+void
+SetEmptyMass(double empty_mass, bool to_devices=true) noexcept;
 
 /**
  * Configure a new MacCready setting in #ComputerSettings, and
@@ -95,13 +126,19 @@ void
 SendUIState() noexcept;
 
 /**
+ * Like SendUIState(), but runs on the next event-loop iteration.
+ */
+void
+ScheduleSendUIState() noexcept;
+
+/**
  * Update the Active Radio Frequency in #ComputerSettings, and
  * forward it to all XCSoar modules that want it.
  *
  * @param to_devices send the new setting to all devices?
  */
 void
-SetActiveFrequency(RadioFrequency freq, const TCHAR *freq_name,
+SetActiveFrequency(RadioFrequency freq, const char *freq_name,
                    bool to_devices=true) noexcept;
 
 /**
@@ -111,7 +148,7 @@ SetActiveFrequency(RadioFrequency freq, const TCHAR *freq_name,
  * @param to_devices send the new setting to all devices?
  */
 void
-SetStandbyFrequency(RadioFrequency freq, const TCHAR *freq_name,
+SetStandbyFrequency(RadioFrequency freq, const char *freq_name,
                     bool to_devices=true) noexcept;
 
 /**
@@ -143,8 +180,23 @@ ExchangeRadioFrequencies(bool to_devices=true) noexcept;
  */
 void
 SetTransponderCode(TransponderCode code,
-                   TransponderMode mode,
                    bool to_devices=true) noexcept;
+
+/**
+ * Update the Transponder Mode in #ComputerSettings.
+ */
+void
+SetTransponderMode(TransponderMode mode) noexcept;
+
+/**
+ * Configure a new QNH (atmospheric pressure) setting in #ComputerSettings,
+ * and forward it to all XCSoar modules that want it.
+ *
+ * @param qnh the atmospheric pressure (QNH)
+ * @param to_devices send the new setting to all devices?
+ */
+void
+SetQNH(AtmosphericPressure qnh, bool to_devices=true) noexcept;
 
 } // namespace ActionInterface
 

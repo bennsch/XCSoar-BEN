@@ -232,6 +232,27 @@ turn point relative to the safety arrival height.}
 \ibi{Distance home}{Home Dist}{Distance to the home waypoint.}
 \ibi{Home altitude difference}{Home AltD}{Arrival altitude at the home waypoint
 relative to the safety arrival height.}
+\ibi{Home}{Home}{Displays the home waypoint name, arrival altitude difference
+relative to the safety arrival height, and distance to the home waypoint. Tap to
+select or change the home waypoint.}
+\ibi{Active Waypoint}{Active WP}{Displays the active waypoint name, arrival
+altitude difference relative to the safety arrival height, and distance. The
+active waypoint is the next task waypoint when an ordered task is loaded, or
+the Goto waypoint otherwise. Tap to choose a different waypoint: when a task is
+loaded, selecting a task waypoint advances the active task point to that leg;
+without a task, the selection becomes the new Goto. If a task is loaded and
+you select a non-task waypoint from the list, the selection becomes the new
+Goto.}
+\ibi{Previous Waypoint}{Prev WP}{Displays the waypoint name, arrival altitude
+difference relative to the safety arrival height, and distance for the task
+waypoint before the active leg. While on the first leg (no prior point) the
+start waypoint is shown instead. Tap to choose a different waypoint to
+display: with an ordered task loaded the popup is prepopulated with task
+waypoints; without a task the full waypoint list is shown. The selection is
+informational only \textemdash{} it never advances the task and never sets a
+Goto. The override is sticky across leg advances. With a task loaded, tap
+again and choose ``Resume auto tracking'' at the top of the list to return to
+automatic tracking of the task.}
 
 
 %%%%%%%%%%%
@@ -268,11 +289,15 @@ target points remaining in minimum AAT time.}
 distance according to the configured contest rule set.}
 \ibi{Task progress}{Progress}{Clock-like display of distance remaining along 
 task, showing achieved task points.}
-\ibi{Start open/close countdown}{Start open}{Time left until the start point 
-opens or closes.}
-\ibi{Start open/close countdown at reaching}{Start reach}{Time left until the 
-start point opens or closes, compared to the calculated time to reach it.}
-    
+\ibi{Start open/close countdown}{Start open}{Shows the time left until the start point 
+opens or closes. If the \emph{PEV Start Procedure} (\ref{sec:pilotevent}) is in use, 
+time relative to the PEV window is displayed. Else, the task defined \emph{Start 
+open/close time} (\ref{sec:task-type-racing}) are used. }
+\ibi{Start open/close countdown at reaching}{Start reach}{Shows the time left until the 
+start point opens or closes, compared to the calculated time to reach it. 
+If the \emph{PEV Start Procedure} (\ref{sec:pilotevent}) is in use, 
+time relative to the PEV window is displayed. Else, the task defined \emph{Start 
+open/close time} (\ref{sec:task-type-racing}) are used. }
     
 %%%%%%%%%%%
 \section{Waypoint}
@@ -280,7 +305,7 @@ start point opens or closes, compared to the calculated time to reach it.}
 \ibi{Next waypoint}{Next WP}{Name of the currently selected turn point. When
 this InfoBox is active, using the up/down cursor keys selects the next/previous
 waypoint in the task. (Touch-screen/PC only) Pressing the enter cursor key brings
-up the waypoint details.}
+up the airfields or waypoint details.}
 \ibi{Flight Duration}{Flt Duration}{Time elapsed since take-off was detected.}
 \ibi{Time local}{Time loc}{GPS time expressed in local time zone.}
 \ibi{Time UTC}{Time UTC}{GPS time expressed in UTC.}
@@ -326,6 +351,17 @@ reported team code.}
 %%%%%%%%%%%
 \section{Alternates}
 
+Alternate 1 / Alternate 2 and their GR / AltD variants may either display the
+best automatic alternate (AUTO, default) or a manually selected alternate
+chosen from the alternates list during flight. Manual selections are
+runtime-only and remain active until changed again or switched back to AUTO.
+The value is shown in red when the glide computer marks the alternate as not
+achievable at the current MacCready setting.  In AUTO mode, blue indicates
+final glide and grey that further climb is required.  In MANUAL mode, light
+green indicates the chosen alternate is on final glide; red is also used
+when the solution is achievable but still below final glide (further climb
+needed).
+
 \ibi{Alternate 1}{Altn 1}{Name and bearing to the best alternate
 landing location.}
 \ibi{Alternate 2}{Altn 2}{Name and bearing to the second-best alternate
@@ -357,4 +393,3 @@ configured terrain clearance altitude.}
 
 \ibi{Active radio frequency}{Act Freq}{Currently active radio frequency.}
 \ibi{Standby radio frequency}{Stby Freq}{Currently standby radio frequency.}
-

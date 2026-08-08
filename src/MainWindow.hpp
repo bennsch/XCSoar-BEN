@@ -6,12 +6,15 @@
 #include "ui/window/SingleWindow.hpp"
 #include "ui/event/PeriodicTimer.hpp"
 #include "ui/event/Notify.hpp"
+#include "ui/event/Timer.hpp"
 #include "BatteryTimer.hpp"
 #include "Widget/ManagedWidget.hpp"
 #include "UIUtil/GestureManager.hpp"
+#include "ProductName.hpp"
 
 #include <cstdint>
 #include <cassert>
+#include <memory>
 
 #include "Menu/ShowButton.hpp"
 
@@ -28,21 +31,42 @@ class TopographyStore;
 class MapWindowProjection;
 class PopupMessage;
 class PluggableOperationEnvironment;
+class StorageEventListener;
+struct StorageEventInfo;
+
 namespace InfoBoxLayout { struct Layout; }
 
 /**
  * The XCSoar main window.
  */
 class MainWindow : public UI::SingleWindow {
-  static constexpr const TCHAR *title = _T("XCSoar-BEN");
+  static constexpr const char *title = PRODUCT_NAME;
 
   Look *look = nullptr;
 
   MenuBar *menu_bar = nullptr;
 
   ShowMenuButton *show_menu_button = nullptr;
-  ShowZoomOutButton *show_zoom_out_button = nullptr;
-  ShowZoomInButton *show_zoom_in_button = nullptr;
+  ShowQuickMenuButton *show_quickmenu_button = nullptr;
+  ShowZoomButton *show_zoom_out_button = nullptr;
+  ShowZoomButton *show_zoom_in_button = nullptr;
+
+#ifdef ANDROID
+  ShowRotateButton *show_rotate_button = nullptr;
+
+  /**
+   * Called from the Java OrientationEventListener thread when the
+   * physical device orientation changes.
+   */
+  UI::Notify rotation_suggestion_notify{
+    [this]{ OnRotationSuggestion(); }};
+
+  /**
+   * One-shot timer to auto-hide the rotate button after a timeout.
+   */
+  UI::Timer rotate_button_timer{
+    [this]{ OnRotateButtonTimeout(); }};
+#endif
 
   GlueMapWindow *map = nullptr;
 
@@ -77,6 +101,14 @@ public:
   PopupMessage *popup = nullptr;
 
 private:
+  std::unique_ptr<StorageEventListener> storage_event_adapter_;
+
+  /**
+   * Called by #StorageManager from a background thread when the
+   * device list may have changed.  Marshals to the UI thread.
+   */
+  UI::Notify storage_notify_{[this]{ OnStorageNotify(); }};
+
   UI::Notify terrain_loader_notify{[this]{ OnTerrainLoaded(); }};
 
   std::unique_ptr<PluggableOperationEnvironment> terrain_loader_env;
@@ -97,12 +129,32 @@ private:
    */
   UI::Notify restore_page_notify{[this]{ OnRestorePageNotify(); }};
 
+  UI::Notify refresh_info_boxes_notify{[this]{ OnRefreshInfoBoxesNotify(); }};
+  UI::Notify page_actions_update_notify{[this]{ OnPageActionsUpdateNotify(); }};
+
   UI::PeriodicTimer timer{[this]{ RunTimer(); }};
 
   BatteryTimer battery_timer;
 
   PixelRect map_rect;
   bool FullScreen = false;
+
+  /**
+   * Nesting count for #BeginCoalesceMapLayout() /
+   * #EndCoalesceMapLayout().  While non-zero, #LayoutMapArea() only
+   * sets #map_layout_pending.
+   */
+  unsigned coalesce_map_layout = 0;
+
+  /** A #LayoutMapArea() was requested while coalescing was active. */
+  bool map_layout_pending = false;
+
+  /**
+   * True when #BeginCoalesceMapLayout() also started map full-redraw
+   * coalescing.  End must use this rather than re-testing #map, which
+   * may appear or disappear between the pair of calls.
+   */
+  bool coalesce_map_redraw = false;
 
 #ifndef ENABLE_OPENGL
   /**
@@ -113,6 +165,9 @@ private:
 #endif
 
   bool restore_page_pending = false;
+  bool refresh_info_boxes_pending = false;
+  bool page_actions_update_pending = false;
+  bool vario_bar_redraw_pending = false;
 
   /**
    * Has "late" initialization been done already?  Those are things
@@ -122,7 +177,7 @@ private:
   bool late_initialised = false;
 
 public:
-  using SingleWindow::SingleWindow;
+  explicit MainWindow(UI::Display &display) noexcept;
   ~MainWindow() noexcept override;
 
 protected:
@@ -168,12 +223,36 @@ protected:
   void KillBottomWidget() noexcept;
 
 public:
+  Widget *GetBottomWidget() const noexcept {
+    return bottom_widget;
+  }
   void Create(PixelSize size, UI::TopWindowStyle style={});
 
   void Destroy() noexcept;
 
   void Initialise();
   void InitialiseConfigured();
+
+  /**
+   * Wire up the StorageEventDispatcher to the StorageManager
+   * owned by BackendComponents.  Must be called after
+   * BackendComponents is initialised.
+   */
+  void InitialiseStorage() noexcept;
+
+  /**
+   * Tear down storage event wiring.
+   * Must be called before BackendComponents is destroyed.
+   */
+  void DeinitialiseStorage() noexcept;
+
+  /**
+   * Send a storage change notification to the UI thread.
+   * Safe to call from any thread.
+   */
+  void SendStorageNotification() noexcept {
+    storage_notify_.SendNotification();
+  }
 
   /**
    * Destroy the components of the main view (map, info boxes,
@@ -193,6 +272,22 @@ private:
   }
 
   /**
+   * The visible #GlueMapWindow area.  After layout, this is
+   * #GlueMapWindow::GetPosition(); otherwise it is computed from
+   * #GetMainRect() and top/bottom widgets.
+   */
+  [[gnu::pure]]
+  PixelRect GetMapAreaRect() const noexcept;
+
+  /**
+   * Move top/bottom widgets and the map into the area returned by
+   * #GetMapAreaRect().
+   */
+  void LayoutMapArea() noexcept;
+
+  void UpdateMapOverlayButtonLayout() noexcept;
+
+  /**
    * Adjust the flarm radar position
    */
   void ReinitialiseLayout_flarm(PixelRect rc,
@@ -207,6 +302,12 @@ private:
                             const InfoBoxLayout::Layout &layout) noexcept;
 
 public:
+  /**
+   * Create or destroy map overlay buttons to match the current
+   * UISettings, then update their positions.
+   */
+  void ReinitialiseMapOverlayButtons() noexcept;
+
   /**
    * Called by XCSoarInterface::Startup() after startup has been
    * completed.
@@ -264,13 +365,28 @@ public:
 
   void SetFullScreen(bool _full_screen) noexcept;
 
-  void SendGPSUpdate() noexcept {
-    gps_notify.SendNotification();
-  }
+  /**
+   * Coalesce map area layout (and map #FullRedraw) while a page layout
+   * is applied in several steps (InfoBoxes, bottom widget, …).
+   */
+  void BeginCoalesceMapLayout() noexcept;
+  void EndCoalesceMapLayout() noexcept;
+
+  void SendGPSUpdate(bool vario_bar_redraw=false) noexcept;
 
   void SendCalculatedUpdate() noexcept {
     calculated_notify.SendNotification();
   }
+
+#ifdef ANDROID
+  /**
+   * Called from any thread to show the rotate suggestion button.
+   * Thread-safe: uses UI::Notify to defer to the UI thread.
+   */
+  void SendRotationSuggestion() noexcept {
+    rotation_suggestion_notify.SendNotification();
+  }
+#endif
 
   void SetTerrain(RasterTerrain *terrain) noexcept;
   void SetTopography(TopographyStore *topography) noexcept;
@@ -327,6 +443,17 @@ public:
   void DeferredRestorePage() noexcept;
 
   /**
+   * Defer InfoBox refresh to the next event-loop iteration (avoids
+   * reentrant layout while InfoBox content is updating).
+   */
+  void ScheduleRefreshInfoBoxes() noexcept;
+
+  /**
+   * Defer PageActions::Update() to the next event-loop iteration.
+   */
+  void SchedulePageActionsUpdate() noexcept;
+
+  /**
    * Show this #Widget above the map.  This replaces (deletes) the
    * previous top widget, if any.  To disable this feature, call this
    * method with widget==nullptr.
@@ -354,7 +481,7 @@ public:
    * @see InputEvents::IsFlavour(), InputEvents::SetFlavour()
    */
   [[gnu::pure]]
-  Widget *GetFlavourWidget(const TCHAR *flavour) noexcept;
+  Widget *GetFlavourWidget(const char *flavour) noexcept;
 
   void ShowMenu(const Menu &menu, const Menu *overlay=nullptr,
                 bool full=true) noexcept;
@@ -383,8 +510,18 @@ private:
   void OnGpsNotify() noexcept;
   void OnCalculatedNotify() noexcept;
   void OnRestorePageNotify() noexcept;
+  void OnRefreshInfoBoxesNotify() noexcept;
+  void OnPageActionsUpdateNotify() noexcept;
 
   void OnTerrainLoaded() noexcept;
+
+  void OnStorageNotify() noexcept;
+  void OnStorageEvent(const StorageEventInfo &info) noexcept;
+
+#ifdef ANDROID
+  void OnRotationSuggestion() noexcept;
+  void OnRotateButtonTimeout() noexcept;
+#endif
 
 protected:
   /* virtual methods from class Window */
@@ -392,6 +529,11 @@ protected:
   void OnResize(PixelSize new_size) noexcept override;
   void OnSetFocus() noexcept override;
   void OnCancelMode() noexcept override;
+
+#ifdef USE_WINUSER
+  LRESULT OnMessage(HWND hWnd, UINT message,
+                    WPARAM wParam, LPARAM lParam) noexcept override;
+#endif
   bool OnMouseDown(PixelPoint p) noexcept override;
   bool OnMouseUp(PixelPoint p) noexcept override;
   bool OnMouseMove(PixelPoint p, unsigned keys) noexcept override;
@@ -399,8 +541,13 @@ protected:
   bool OnKeyDown(unsigned key_code) noexcept override;
   void OnPaint(Canvas &canvas) noexcept override;
   PixelRect GetShowMenuButtonRect(const PixelRect rc) noexcept;
-  PixelRect GetShowZoomOutButtonRect(const PixelRect rc) noexcept;
-  PixelRect GetShowZoomInButtonRect(const PixelRect rc) noexcept;
+  PixelRect GetShowQuickMenuButtonRect(const PixelRect rc) noexcept;
+  PixelRect GetShowZoomButtonRect(const PixelRect rc,
+                                  ShowZoomButton::Sign sign) noexcept;
+
+#ifdef ANDROID
+  static PixelRect GetShowRotateButtonRect(const PixelRect rc) noexcept;
+#endif
 
   /* virtual methods from class TopWindow */
   bool OnClose() noexcept override;

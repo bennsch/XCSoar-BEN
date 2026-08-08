@@ -10,6 +10,7 @@
 #include "Operation/Operation.hpp"
 #include "Profile/Keys.hpp"
 #include "Profile/Profile.hpp"
+#include "Repository/FileType.hpp"
 #include "io/BufferedReader.hxx"
 #include "io/FileReader.hxx"
 #include "io/MapFile.hpp"
@@ -72,13 +73,14 @@ ReadAirspace(Airspaces &airspaces,
              AtmosphericPressure press,
              OperationEnvironment &operation)
 {
-  LogString("ReadAirspace");
+  LogFormat("Loading airspaces");
   operation.SetText(_("Loading Airspace File..."));
 
   bool airspace_ok = false;
 
   // Read the airspace filenames from the registry
-  const auto paths = Profile::GetMultiplePaths(ProfileKeys::AirspaceFileList);
+  const auto paths = Profile::GetMultiplePaths(ProfileKeys::AirspaceFileList,
+                                               GetFileTypePatterns(FileType::AIRSPACE));
   for (const auto& path : paths) {
   airspace_ok |= ParseAirspaceFile(airspaces, path, operation);
   }

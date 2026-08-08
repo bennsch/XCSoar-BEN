@@ -29,9 +29,16 @@
 #include "util/PrintException.hxx"
 
 #ifdef ENABLE_SDL
+#ifdef SDL_MAIN_HANDLED
+/* When SDL_MAIN_HANDLED is defined, we must call SDL_SetMainReady()
+   before using SDL to avoid SDL's -Dmain=SDL_main
+   macro which conflicts with "main" in the XCSoar code */
+#include <SDL.h>
+#else
 /* this is necessary on macOS, to let libSDL bootstrap Quartz
    before entering our main() */
 #include <SDL_main.h>
+#endif
 #endif
 
 #ifdef __APPLE__
@@ -42,32 +49,6 @@
 #endif
 
 #include <cassert>
-
-static const char *const Usage = "\n"
-  "  -datapath=      path to XCSoar data can be defined\n"
-#ifdef SIMULATOR_AVAILABLE
-  "  -simulator      bypass startup-screen, use simulator mode directly\n"
-  "  -fly            bypass startup-screen, use fly mode directly\n"
-#endif
-  "  -profile=fname  load profile from file fname\n"
-  "  -WIDTHxHEIGHT   use screen resolution WIDTH x HEIGHT\n"
-  "  -portrait       use a 480x640 screen resolution\n"
-  "  -square         use a 480x480 screen resolution\n"
-  "  -small          use a 320x240 screen resolution\n"
-#if !defined(ANDROID)
-  "  -dpi=DPI        force usage of DPI for pixel density\n"
-  "  -dpi=XDPIxYDPI  force usage of XDPI and YDPI for pixel density\n"
-#endif
-#ifdef HAVE_CMDLINE_FULLSCREEN
-  "  -fullscreen     full-screen mode\n"
-#endif
-#ifdef HAVE_CMDLINE_RESIZABLE
-  "  -resizable      resizable window\n"
-#endif
-#ifdef _WIN32
-  "  -console        open debug output console\n"
-#endif
-  ;
 
 static int
 Main()
@@ -117,29 +98,34 @@ Main()
 int main(int argc, char **argv)
 #else
 int WINAPI
-WinMain(HINSTANCE hInstance, [[maybe_unused]] HINSTANCE hPrevInstance,
+WinMain([[maybe_unused]] HINSTANCE hInstance, [[maybe_unused]] HINSTANCE hPrevInstance,
         [[maybe_unused]] LPSTR lpCmdLine2,
         [[maybe_unused]] int nCmdShow)
 #endif
 try {
+#if defined(ENABLE_SDL) && defined(SDL_MAIN_HANDLED)
+  SDL_SetMainReady();
+#endif
+
 #ifdef USE_WIN32_RESOURCES
   ResourceLoader::Init(hInstance);
 #endif
 
-  InitialiseDataPath();
-
-  // Write startup note + version to logfile
-  LogFormat(_T("Starting %s"), XCSoar_ProductToken);
-
   // Read options from the command line
   {
 #ifdef _WIN32
-    Args args(GetCommandLine(), Usage);
+    Args args(GetCommandLine(), CommandLine::OptionSummary());
 #else
-    Args args(argc, argv, Usage);
+    Args args(argc, argv, CommandLine::OptionSummary());
 #endif
     CommandLine::Parse(args);
   }
+
+  InitialiseDataPath();
+  CommandLine::ApplyPendingProfile();
+
+  // Write startup note + version to logfile
+  LogFormat("Starting %s", XCSoar_ProductToken);
 
   int ret = Main();
 
