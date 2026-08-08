@@ -441,7 +441,12 @@ GlueMapWindow::DrawFlightInfo(Canvas &canvas) const noexcept
 
   const ComputerSettings &computer = GetComputerSettings();
 
-  const char* plane_registration = computer.plane.registration;
+  const char* plane_registration;
+  if (computer.plane.registration.length() == 0) {
+    plane_registration = "N/A";
+  } else {
+    plane_registration = computer.plane.registration;
+  }
   // const TCHAR* plane_type = computer.plane.type;
 
   int crew_mass = Units::ToUserUnit(
