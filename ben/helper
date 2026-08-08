@@ -52,7 +52,7 @@ case "$1" in
             "UNIX")
                 if [[ "$3" == "DEBUG" ]]; then
                     DBG="y"
-                elif [[ "$4" == "RELEASE" ]]; then
+                elif [[ "$3" == "RELEASE" ]]; then
                     DBG="n"
                 else
                     echo "Invalid target \"$3\""
