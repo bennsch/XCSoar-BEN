@@ -22,6 +22,8 @@ RELEASE_KEYSTORE="signing-key.jks"
 RELEASE_KEYSTORE_PATH=$(dirname $REPO_DIR)
 # Needs to match the alias provided in signing-key.jks
 RELEASE_KEY_ALIAS="xcsoarben" 
+# Needs to match the "PRODUCT_NAME_LC" macro
+PROD_NAME_LC="xcsoarben"
 
 error() {
     echo -e "\nERROR: $1"
@@ -124,7 +126,7 @@ case "$1" in
                 --mount type=bind,source="$REPO_DIR",target=/opt/xcsoar \
                 -v /tmp/.X11-unix:/tmp/.X11-unix \
                 --volume="$HOME/.Xauthority:/root/.Xauthority:rw" \
-                -v $HOME/.xcsoar/:/root/.xcsoar \
+                -v $HOME/.$PROD_NAME_LC/:/root/.$PROD_NAME_LC \
                 --env="DISPLAY" --net=host \
                 -it $DOCKER_CONTAINER /opt/xcsoar/output/UNIX/bin/xcsoar --portrait --simulator 
             ;;
