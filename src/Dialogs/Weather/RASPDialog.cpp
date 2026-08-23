@@ -481,12 +481,12 @@ RASPSettingsPanel::Prepare([[maybe_unused]] ContainerWindow &parent,
     }
   });
 
-  AddReadOnly(_("Modified"),
+  AddReadOnly(C_("Status", "Modified"),
               _("Local date and time of the selected RASP file."));
   UpdateModifiedDisplay();
 
 #ifdef HAVE_DOWNLOAD_MANAGER
-  AddBoolean(_("Auto update"),
+  AddBoolean(C_("Setting", "Auto update"),
              _("Automatically download a newer RASP file when the "
                "configured forecast is missing or out of date."),
              settings.rasp.auto_update);
@@ -510,6 +510,7 @@ RASPSettingsPanel::Prepare([[maybe_unused]] ContainerWindow &parent,
 
   rasp_layer_opacity = CommonInterface::GetMapSettings().rasp_layer_opacity;
   AddInteger(_("Overlay opacity"),
+             /* xgettext:no-c-format */
              _("Sets the opacity of the RASP weather overlay on the map.  "
                "0% is fully transparent, 100% is fully opaque."),
              "%d %%", "%d", 0, 100, 10,
@@ -578,14 +579,14 @@ RASPSettingsPanel::Prepare([[maybe_unused]] ContainerWindow &parent,
     Add(std::move(header_frame));
   }
 
-  auto *layer = AddEnum(_("Layer"),
+  auto *layer = AddEnum(C_("Weather control", "Layer"),
                         _("RASP weather layer for the current map page. "
                           "Use Apply to page to commit changes."));
   layer->GetDataField()->SetOnModified([this]{
     OnLayerModified();
   });
 
-  auto *time = AddEnum(_("Time"),
+  auto *time = AddEnum(C_("Weather control", "Time"),
                        _("Forecast time for the current map page. "
                          "Opens the same picker as the weather controls "
                          "(Auto, Now, or a fixed quarter-hour slot)."));
@@ -605,16 +606,16 @@ RASPSettingsPanel::Prepare([[maybe_unused]] ContainerWindow &parent,
 
   UpdateColorbar();
 
-  apply_to_page_button = AddButton(_("Apply to page"), [this]{
+  apply_to_page_button = AddButton(C_("Button", "Apply to page"), [this]{
     ApplyToPageClicked();
   });
-  add_page_button = AddButton(_("Add page"), [this]{
+  add_page_button = AddButton(C_("Button", "Add page"), [this]{
     AddPageClicked();
   });
   RefreshPageSection();
   AddSpacer();
 
-  AddButton(_("Pages setup"), [this]{
+  AddButton(C_("Button", "Pages setup"), [this]{
     WeatherOverlayDraft::OpenPagesConfig();
     RefreshPageSection();
   });

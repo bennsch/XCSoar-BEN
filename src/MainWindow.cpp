@@ -58,13 +58,6 @@
 static constexpr unsigned separator_height = 2;
 
 [[gnu::pure]]
-static bool
-ShowMapOverlayZoomButtons(const UISettings &settings) noexcept
-{
-  return settings.show_zoom_button || settings.show_menu_button;
-}
-
-[[gnu::pure]]
 static PixelRect
 GetMapOverlayButtonRect(const PixelRect rc, int top) noexcept
 {
@@ -105,8 +98,7 @@ MainWindow::GetShowMenuButtonRect(const PixelRect rc) noexcept
 
 /**
  * The width of the overlay button column in the top right corner, or 0
- * if there is none.  The zoom buttons alone are placed in the bottom
- * left corner and do not occupy this column.
+ * if there is none.
  */
 [[gnu::pure]]
 static unsigned
@@ -114,7 +106,8 @@ GetMapOverlayTopRightWidth(const PixelRect rc) noexcept
 {
   const UISettings &settings = CommonInterface::GetUISettings();
 
-  if (!settings.show_menu_button && !settings.show_quickmenu_button)
+  if (!settings.show_menu_button && !settings.show_quickmenu_button &&
+      !settings.show_zoom_button)
     return 0;
 
   const PixelRect button_rc = GetMapOverlayButtonRect(rc, rc.top);
@@ -142,46 +135,20 @@ MainWindow::GetShowZoomButtonRect(const PixelRect rc,
 {
   const UISettings &settings = CommonInterface::GetUISettings();
   const unsigned padding = Layout::GetTextPadding();
-  const unsigned size = Layout::GetMaximumControlHeight();
 
-  const bool stack_top_right =
-    (settings.show_menu_button || settings.show_quickmenu_button) &&
-    ShowMapOverlayZoomButtons(settings);
+  int top = rc.top + int(padding);
+  if (settings.show_quickmenu_button)
+    top = GetShowQuickMenuButtonRect(rc).bottom + int(padding);
+  else if (settings.show_menu_button)
+    top = GetShowMenuButtonRect(rc).bottom + int(padding);
 
-  if (stack_top_right) {
-    int top;
-    if (settings.show_quickmenu_button)
-      top = GetShowQuickMenuButtonRect(rc).bottom + int(padding);
-    else
-      top = GetShowMenuButtonRect(rc).bottom + int(padding);
-
-    if (sign == ShowZoomButton::Sign::ZOOM_IN) {
-      const PixelRect zoom_out =
-        GetShowZoomButtonRect(rc, ShowZoomButton::Sign::ZOOM_OUT);
-      top = zoom_out.bottom + int(padding);
-    }
-
-    return GetMapOverlayButtonRect(rc, top);
+  if (sign == ShowZoomButton::Sign::ZOOM_OUT) {
+    const PixelRect zoom_in =
+      GetShowZoomButtonRect(rc, ShowZoomButton::Sign::ZOOM_IN);
+    top = zoom_in.bottom + int(padding);
   }
 
-  const int scale_h =
-    int(GetLook().map.overlay.map_scale_left_icon.GetSize().height);
-  int bottom = rc.bottom - scale_h -
-    (sign == ShowZoomButton::Sign::ZOOM_IN ? int(size) : 0);
-  int top = bottom - int(size);
-  int left = rc.left + int(padding);
-  int right = left + int(size);
-
-  if (top < rc.top)
-    top = rc.top;
-  if (bottom > rc.bottom)
-    bottom = rc.bottom;
-  if (bottom <= top)
-    bottom = top + int(size);
-  if (right <= left)
-    right = left + int(size);
-
-  return PixelRect(left, top, right, bottom);
+  return GetMapOverlayButtonRect(rc, top);
 }
 
 #ifdef ANDROID
@@ -362,7 +329,7 @@ MainWindow::UpdateMapOverlayButtonLayout() noexcept
 {
   const bool overlay_buttons_active =
     widget == nullptr && map != nullptr &&
-    !CommonInterface::GetUIState().pages.special_page.IsDefined();
+    PageActions::AllowMapOverlayButtons();
 
   if (show_menu_button != nullptr) {
     show_menu_button->SetVisible(overlay_buttons_active);
@@ -439,7 +406,7 @@ MainWindow::ReinitialiseMapOverlayButtons() noexcept
     show_quickmenu_button = nullptr;
   }
 
-  if (ShowMapOverlayZoomButtons(settings)) {
+  if (settings.show_zoom_button) {
     if (show_zoom_out_button == nullptr) {
       show_zoom_out_button = new ShowZoomButton();
       show_zoom_out_button->Create(*this, look->dialog.button,
@@ -1504,13 +1471,18 @@ MainWindow::KillWidget() noexcept
   if (widget == nullptr)
     return;
 
-  widget->Leave();
-  widget->Hide();
-  widget->Unprepare();
-  delete widget;
+  /* Clear the pointer before destroying.  On Windows, DestroyWindow on
+     a focused child (e.g. FLARM radar) can re-enter OnSetFocus(); if
+     #widget still pointed here, WindowWidget::SetFocus() would assert
+     after the native window was already destroyed (#2824). */
+  Widget *const old = widget;
   widget = nullptr;
-
   InputEvents::SetFlavour(nullptr);
+
+  old->Leave();
+  old->Hide();
+  old->Unprepare();
+  delete old;
 }
 
 void
@@ -1519,10 +1491,12 @@ MainWindow::KillTopWidget() noexcept
   if (top_widget == nullptr)
     return;
 
-  top_widget->Hide();
-  top_widget->Unprepare();
-  delete top_widget;
+  Widget *const old = top_widget;
   top_widget = nullptr;
+
+  old->Hide();
+  old->Unprepare();
+  delete old;
 }
 
 void
@@ -1556,14 +1530,16 @@ MainWindow::KillBottomWidget() noexcept
   if (bottom_widget == nullptr)
     return;
 
+  Widget *const old = bottom_widget;
+  bottom_widget = nullptr;
+
   if (widget == nullptr)
     /* the bottom widget is only visible below the map, but not below
        a custom main widget; see HaveBottomWidget() */
-    bottom_widget->Hide();
+    old->Hide();
 
-  bottom_widget->Unprepare();
-  delete bottom_widget;
-  bottom_widget = nullptr;
+  old->Unprepare();
+  delete old;
 }
 
 void
