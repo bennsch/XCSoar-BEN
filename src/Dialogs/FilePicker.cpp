@@ -12,7 +12,6 @@
 
 #ifdef HAVE_DOWNLOAD_MANAGER
 #include "DownloadFilePicker.hpp"
-#include "net/http/DownloadManager.hpp"
 #endif
 
 bool

@@ -59,10 +59,6 @@ $(IOS_GRAPHICS_DIR)/LaunchScreen.storyboardc: $(topdir)/Data/iOS/LaunchScreen.st
 	mkdir -p $(IOS_GRAPHICS_DIR)
 	xcrun -sdk iphoneos ibtool --minimum-deployment-target $(IOS_MIN_SUPPORTED_VERSION) --target-device iphone --target-device ipad $< --compile $@
 
-$(IOS_GRAPHICS_DIR)/LaunchScreen.storyboardc: $(topdir)/Data/iOS/LaunchScreen.storyboard
-	mkdir -p $(IOS_GRAPHICS_DIR)
-	ibtool $< --compile $@
-
 HOST_MACOS_VERSION = $(shell sw_vers -buildVersion)
 TARGET_SDK_NAME = $(shell /usr/libexec/PlistBuddy -c 'print CanonicalName' $(DARWIN_SDK)/SDKSettings.plist)
 TARGET_SDK_VERSION = $(shell /usr/libexec/PlistBuddy -c 'print Version' $(DARWIN_SDK)/SDKSettings.plist)

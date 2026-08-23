@@ -9,9 +9,6 @@
 class SensorListener;
 
 #import <CoreLocation/CoreLocation.h>
-#if TARGET_OS_IPHONE
-#import <UIKit/UIKit.h>
-#endif
 
 #if TARGET_OS_IPHONE
 #import <UIKit/UIKit.h>

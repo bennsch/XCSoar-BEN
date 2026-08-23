@@ -19,10 +19,6 @@
 #include <TargetConditionals.h>
 #endif
 
-#ifdef __APPLE__
-#include <TargetConditionals.h>
-#endif
-
 #if defined(__MACOSX__) && __MACOSX__
 #include <SDL_syswm.h>
 #import <AppKit/AppKit.h>

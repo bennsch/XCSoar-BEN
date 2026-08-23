@@ -74,14 +74,6 @@ struct zxdg_toplevel_decoration_v1;
 #import <UIKit/UIKit.h>
 #endif
 
-#if defined(__APPLE__)
-#include <TargetConditionals.h>
-#endif
-
-#if defined(__APPLE__) && TARGET_OS_IPHONE
-#import <UIKit/UIKit.h>
-#endif
-
 namespace UI {
 
 class Display;
