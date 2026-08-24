@@ -237,7 +237,7 @@ RESOURCE_FILES =
 RESOURCE_FLAGS_STAMP = $(TARGET_OUTPUT_DIR)/.resource_flags.stamp
 $(RESOURCE_FLAGS_STAMP): FORCE | $(TARGET_OUTPUT_DIR)/dirstamp
 	@if [ "$(TARGET_IS_ANDROID)" = "y" ]; then \
-		if [ "$(FOSS)" = "y" ]; then pkg=org.xcsoar.foss; \
+		if [ "$(FOSS)" = "y" ]; then pkg=com.bennsch.xcsoarben; \
 		elif [ "$(PLAY)" = "y" ]; then pkg=org.xcsoar.play; \
 		elif [ "$(TESTING)" = "y" ]; then pkg=org.xcsoar.testing; \
 		else pkg=org.xcsoar; fi; \

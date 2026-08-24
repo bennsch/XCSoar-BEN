@@ -14,12 +14,12 @@
  */
 
 #ifndef PRODUCT_NAME
-#define PRODUCT_NAME "XCSoar"
+#define PRODUCT_NAME "XCSoar-BEN"
 #endif
 
 /* Lowercase version for file paths and Unix conventions */
 #ifndef PRODUCT_NAME_LC
-#define PRODUCT_NAME_LC "xcsoar"
+#define PRODUCT_NAME_LC "xcsoarben"
 #endif
 
 /* ASCII version for help text and logging */
@@ -27,16 +27,16 @@
 
 /* Android package name (reverse domain notation) */
 #ifndef ANDROID_PACKAGE
-#define ANDROID_PACKAGE "org.xcsoar"
+#define ANDROID_PACKAGE "com.bennsch.xcsoarben"
 #endif
 
 /* HTTPS URLs for --help footers, credits, etc.; override when rebranding. */
 #ifndef PRODUCT_WEB_SITE_URL
-#define PRODUCT_WEB_SITE_URL "https://xcsoar.org/"
+#define PRODUCT_WEB_SITE_URL "https://github.com/bennsch/XCSoar-BEN/"
 #endif
 
 #ifndef PRODUCT_BUGS_URL
-#define PRODUCT_BUGS_URL "https://github.com/XCSoar/XCSoar/issues"
+#define PRODUCT_BUGS_URL "ttps://github.com/bennsch/XCSoar-BEN/issues"
 #endif
 
 /* Data directory names by platform:
@@ -47,7 +47,7 @@
  * - System-wide: /etc/xcsoar (global config on Linux/Unix)
  */
 #ifndef PRODUCT_DATA_DIR
-#define PRODUCT_DATA_DIR PRODUCT_NAME "Data"
+#define PRODUCT_DATA_DIR PRODUCT_NAME "_Data"
 #endif
 
 #define PRODUCT_UNIX_SYSCONF_DIR "/etc/" PRODUCT_NAME_LC

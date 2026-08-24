@@ -29,7 +29,7 @@
   #define TARGET "PC"
 #endif
 
-#define VERSION_SUFFIX "_BEN_v1.3"
+#define VERSION_SUFFIX "_BEN_v1.3.1"
 
 #ifdef GIT_COMMIT_ID
 #define GIT_SUFFIX "~git#" GIT_COMMIT_ID
