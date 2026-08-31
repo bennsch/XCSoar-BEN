@@ -445,6 +445,7 @@ msgstr "Avstånd"
 msgid "Rel. Alt."
 msgstr "Rel. Alt."
 
+#, no-c-format
 msgid "Details"
 msgstr "Detaljer"
 
@@ -1787,6 +1788,7 @@ msgstr "Om aktiverad, visar en rad högst upp med ankomsthöjd vid platsen."
 msgid "Select Color"
 msgstr "Välj färg"
 
+#, no-c-format
 msgid "Display"
 msgstr "Visa"
 
@@ -2029,10 +2031,6 @@ msgstr "Vändpunktstyper"
 #, no-c-format
 msgid "Language, Input"
 msgstr "Språk, inmatning"
-
-#, no-c-format
-msgid "Screen Layout"
-msgstr "Skärmupplägg"
 
 #, no-c-format
 msgid "Audio"
@@ -3341,9 +3339,6 @@ msgstr ""
 
 msgid "Text size"
 msgstr "Textstorlek"
-
-msgid "Display Resolution"
-msgstr "Skärmupplösning"
 
 msgid "The display resolution is used to adapt line widths, font size, landable size and more."
 msgstr "Skärmupplösningen används för att anpassa linjebredd, font-storlek, banstorlek med mera."
@@ -8223,12 +8218,6 @@ msgstr ""
 "Storlek på vägpointsymboler på kartan som procent av inbyggd grafik "
 "(listdialoger behåller fast radikonstorlek)."
 
-msgid "Altn mode: MANUAL"
-msgstr "Altn-läge: MANUELL"
-
-msgid "Altn mode: AUTO"
-msgstr "Altn-läge: AUTO"
-
 msgid ""
 "# Gesture Navigation\n"
 "\n"
@@ -11054,4 +11043,115 @@ msgstr "Auto"
 msgctxt "Setting"
 msgid "Manual"
 msgstr "Manuell"
+
+#, no-c-format
+msgid "Layout"
+msgstr ""
+
+#, no-c-format
+msgid "Services"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
+#, no-c-format
+msgid "Auto"
+msgstr ""
+
+msgid "Display resolution"
+msgstr ""
+
+msgid "Screen brightness"
+msgstr ""
+
+msgid "Adjust the screen brightness."
+msgstr ""
+
+msgid "Screen brightness is read-only because writing requires additional permissions."
+msgstr ""
+
+#, no-c-format
+msgid "6 Split"
+msgstr ""
+
+#. Alternate Mode: Auto returns a MANUAL slot to the computed
+#. list. Pinning is Select as Alternate, which is always
+#. available and sets MANUAL.
+#, no-c-format
+msgctxt "Button"
+msgid "Alternate Mode: Auto"
+msgstr ""
+
+msgid "Paste"
+msgstr ""
+
+msgid "No supported services found"
+msgstr ""
+
+msgid "No selected systemd units are installed."
+msgstr ""
+
+msgid "Unavailable"
+msgstr ""
+
+msgid "Starting..."
+msgstr ""
+
+msgid "Stopping..."
+msgstr ""
+
+msgid "Reloading..."
+msgstr ""
+
+msgid "Failed"
+msgstr ""
+
+msgid "Turn on"
+msgstr ""
+
+msgid "Restart"
+msgstr ""
+
+msgid "Turn off"
+msgstr ""
+
+msgid "System service"
+msgstr ""
+
+msgid "SSH server"
+msgstr ""
+
+msgid "Remote terminal access"
+msgstr ""
+
+msgid "Sensors"
+msgstr ""
+
+msgid "OpenVario sensor daemon"
+msgstr ""
+
+msgid "Audio vario"
+msgstr ""
+
+msgid "OpenVario audio vario daemon"
+msgstr ""
+
+#, no-c-format
+msgid "Takeoff altitude difference"
+msgstr ""
+
+#, no-c-format
+msgid "Takeoff AltD"
+msgstr ""
+
+#, no-c-format
+msgid "Arrival altitude at the takeoff waypoint relative to the safety arrival height."
+msgstr ""
+
+msgid "Terrain!"
+msgstr ""
+
+msgid "Glide result not ok"
+msgstr ""
 
