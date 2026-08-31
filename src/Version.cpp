@@ -29,20 +29,16 @@
   #define TARGET "PC"
 #endif
 
-#define VERSION_SUFFIX "_BEN_v1.3.1"
+#define VERSION_SUFFIX ""
 
 #ifdef GIT_COMMIT_ID
 #define GIT_SUFFIX "~git#" GIT_COMMIT_ID
 #else
-#define GIT_SUFFIX ""
+#define GIT_SUFFIX
 #endif
-
-#define XCSOAR_NAME "XCSoar"
 
 const char XCSoar_Version[] = VERSION;
 const char XCSoar_VersionLong[] = VERSION VERSION_SUFFIX;
 const char XCSoar_VersionString[] = VERSION VERSION_SUFFIX "-" TARGET;
 const char XCSoar_VersionStringOld[] = TARGET " " VERSION VERSION_SUFFIX;
-const char XCSoar_VersionFull[] = XCSOAR_NAME " v" VERSION VERSION_SUFFIX "-" TARGET;
-const char XCSoar_ProductToken[] = XCSOAR_NAME " v" VERSION VERSION_SUFFIX "-" TARGET GIT_SUFFIX;
-const char XCSoar_GitSuffix[] = GIT_SUFFIX;
+const char XCSoar_ProductToken[] = PRODUCT_NAME " v" VERSION VERSION_SUFFIX "-" TARGET GIT_SUFFIX;

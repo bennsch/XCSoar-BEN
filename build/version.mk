@@ -2,7 +2,7 @@ VERSION = $(strip $(shell cat $(topdir)/VERSION.txt))
 FULL_VERSION = $(VERSION)
 
 # VERSION.txt is major.minor or major.minor.patch (policy.rst / release.rst).
-VERSION_WORDS := $(subst ., ,$(VERSION))
+VERSION_WORDS := $(subst ., ,$(subst _, ,$(VERSION))) # Substitute `.` and `_` with blank spaces
 VERSION_MAJOR := $(word 1,$(VERSION_WORDS))
 VERSION_MINOR := $(word 2,$(VERSION_WORDS))
 VERSION_PATCH := $(or $(word 3,$(VERSION_WORDS)),0)
