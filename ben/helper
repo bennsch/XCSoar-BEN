@@ -9,10 +9,14 @@ SCRIPT_DIR="$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 # Path of the XCSoar-BEN repo
 REPO_DIR=$(dirname $SCRIPT_DIR)
 
+# To get the SHA of the latest docker container, go to 
+# ghcr.io/xcsoar/xcsoar/xcsoar-build:latest
+
 # Latest docker container (will be downloaded from online repo)
 #DOCKER_CONTAINER=ghcr.io/xcsoar/xcsoar/xcsoar-build:latest
+
 # Docker container specific to this commit
-DOCKER_CONTAINER=ghcr.io/xcsoar/xcsoar/xcsoar-build@sha256:862bb0a4bc5b27a20eb60fe11d3c6c664e1b5b66045d05dd2a329a30ba0fbfd9
+DOCKER_CONTAINER=ghcr.io/xcsoar/xcsoar/xcsoar-build@sha256:9e8bf4804e67f00246807fe0940390cec02505086c39ab5d7cc78f888c1a4833
 
 # Keystores can be created with Android Studio.
 # The script expects "debug.keystore" and "signing-key.jks" to be in the parent directory of XCSoar-BEN 
