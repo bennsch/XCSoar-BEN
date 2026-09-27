@@ -15,8 +15,8 @@
 #include "Interface.hpp"
 #include "Look/GlobalFonts.hpp"
 #include "ui/window/Init.hpp"
+#include "ui/event/Queue.hpp"
 #include "net/http/Init.hpp"
-#include "ResourceLoader.hpp"
 #include "Language/Language.hpp"
 #include "Language/LanguageGlue.hpp"
 #include "Simulator.hpp"
@@ -28,6 +28,10 @@
 #include "io/async/GlobalAsioThread.hpp"
 #include "io/async/AsioThread.hpp"
 #include "util/PrintException.hxx"
+#include "UIActions.hpp"
+#include "Hardware/SystemPower.hpp"
+
+#include <cstdio>
 
 #ifdef ENABLE_SDL
 #ifdef SDL_MAIN_HANDLED
@@ -54,6 +58,10 @@
 static int
 Main()
 {
+  /* must happen before any other thread is created; see
+     UI::BlockSignals() */
+  UI::BlockSignals();
+
   ScreenGlobalInit screen_init;
 
 #ifdef _WIN32
@@ -114,10 +122,6 @@ try {
   SDL_SetMainReady();
 #endif
 
-#ifdef USE_WIN32_RESOURCES
-  ResourceLoader::Init(hInstance);
-#endif
-
   // Read options from the command line
   {
 #ifdef _WIN32
@@ -135,6 +139,24 @@ try {
   LogFormat("Starting %s", XCSoar_ProductToken);
 
   int ret = Main();
+
+  bool power_action_succeeded = true;
+  switch (UIActions::GetExitAction()) {
+  case UIActions::ExitAction::REBOOT:
+    power_action_succeeded = SystemPower::Reboot();
+    break;
+
+  case UIActions::ExitAction::POWER_OFF:
+    power_action_succeeded = SystemPower::PowerOff();
+    break;
+
+  case UIActions::ExitAction::NONE:
+  case UIActions::ExitAction::QUIT:
+    break;
+  }
+
+  if (!power_action_succeeded)
+    std::fprintf(stderr, "Failed to execute system power action\n");
 
 #if defined(__APPLE__) && TARGET_OS_IPHONE
   /* For some reason, the app process does not exit on iOS, but a black

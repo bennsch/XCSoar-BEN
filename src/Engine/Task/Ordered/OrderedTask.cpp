@@ -420,9 +420,15 @@ OrderedTask::ScanDistanceRemaining(const GeoPoint &location) noexcept
 double
 OrderedTask::ScanDistanceTravelled(const GeoPoint &location) noexcept
 {
-  return task_points.empty()
-    ? 0
-    : task_points.front()->ScanDistanceTravelled(location);
+  /* The travelled glide solver only uses start through the active
+     point; future legs do not need a travelled vector. */
+  if (!task_points.empty()) {
+    const unsigned last = std::min(active_task_point, TaskSize() - 1);
+    for (unsigned i = 0; i <= last; ++i)
+      task_points[i]->UpdateVectorTravelled(location);
+  }
+
+  return stats.total.planned.GetDistance() - stats.total.remaining.GetDistance();
 }
 
 double

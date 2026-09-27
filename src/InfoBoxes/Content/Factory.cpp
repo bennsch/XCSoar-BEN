@@ -886,7 +886,7 @@ static constexpr MetaData meta_data[] = {
   {
     N_("Thermal next leg equivalent"),
     N_("T Next Leg"),
-    N_("Thermal climb rate on the next leg that is equivalent to a thermal climb rate equal to the MacCready setting on the current leg."),
+    N_("Main value: thermal climb rate on the next leg that is equivalent to a thermal climb rate equal to the MacCready setting on the current leg. Secondary value: thermal climb rate on the current leg that is equivalent to a thermal climb rate equal to the MacCready setting on the next leg."),
     UpdateInfoBoxNextLegEqThermal,
   },
 
@@ -1218,6 +1218,14 @@ static constexpr MetaData meta_data[] = {
     NC_("Abbreviation", "Prev WP"),
     N_("Previous waypoint: when an ordered task is loaded, automatically tracks the task waypoint before the active leg (the start waypoint when on the first leg). Displays the waypoint name, arrival altitude difference relative to the safety arrival height, and distance. Click to choose a different waypoint to display (task waypoints when a task is loaded, otherwise the full waypoint list); selection is informational only and never advances the task or sets a Goto. With a task loaded, choose \"Resume auto tracking\" at the top of the list to revert to automatic tracking."),
     IBFHelper<InfoBoxContentPreviousWaypoint>::Create,
+  },
+
+  // e_BloodOxygen
+  {
+    N_("Blood Oxygen"),
+    N_("SpO2"),
+    N_("Blood oxygen saturation in percent, from a Bluetooth pulse oximeter."),
+    UpdateInfoBoxBloodOxygen,
   },
 
 };

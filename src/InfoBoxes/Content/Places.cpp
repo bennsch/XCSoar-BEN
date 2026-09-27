@@ -31,6 +31,7 @@
 #include "Protection.hpp"
 #include "Profile/Current.hpp"
 #include "Profile/Profile.hpp"
+#include "ActionInterface.hpp"
 
 static WaypointPtr takeoff_wp = NULL;
 
@@ -153,9 +154,10 @@ InfoBoxContentHome::HandleClick() noexcept
     ScopeSuspendAllThreads suspend;
     settings_computer.poi.SetHome(*waypoint);
     WaypointGlue::SetHome(*data_components->waypoints,
-                          data_components->terrain.get(),
-                          settings_computer.poi, settings_computer.team_code,
-                          backend_components->device_blackboard.get(), false);
+                          settings_computer.poi,
+                          settings_computer.team_code,
+                          false);
+    ActionInterface::SetStartupLocation();
     WaypointGlue::SaveHome(Profile::map,
                            settings_computer.poi, settings_computer.team_code);
   }

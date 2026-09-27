@@ -37,6 +37,53 @@ TaskLeg::GetPlannedVector() const noexcept
 }
 
 inline GeoVector
+TaskLeg::GetTravelledVector(const GeoPoint &ref) const noexcept
+{
+  switch (destination.GetActiveState()) {
+  case OrderedTaskPoint::BEFORE_ACTIVE:
+    if (!GetOrigin())
+      return GeoVector::Zero();
+
+    // this leg totally included
+    return memo_travelled.calc(GetOrigin()->GetLocationScored(),
+                               destination.GetLocationScored());
+
+  case OrderedTaskPoint::CURRENT_ACTIVE:
+    // this leg partially included
+    if (!GetOrigin())
+      return GeoVector(0,
+                       ref.IsValid()
+                       ? ref.Bearing(destination.GetLocationRemaining())
+                       : Angle::Zero());
+
+    if (destination.HasEntered())
+      return memo_travelled.calc(GetOrigin()->GetLocationScored(),
+                                 destination.GetLocationScored());
+    else if (!ref.IsValid())
+      return GeoVector::Zero();
+    else
+      return memo_travelled.calc(GetOrigin()->GetLocationScored(), ref);
+
+  case OrderedTaskPoint::AFTER_ACTIVE:
+    if (!GetOrigin())
+      return GeoVector::Zero();
+
+    // this leg may be partially included
+    if (GetOrigin()->HasEntered())
+      return memo_travelled.calc(GetOrigin()->GetLocationScored(),
+                                 ref.IsValid()
+                                 ? ref
+                                 : destination.GetLocationScored());
+
+    return GeoVector::Zero();
+  }
+
+  gcc_unreachable();
+  assert(false);
+  return GeoVector::Invalid();
+}
+
+inline GeoVector
 TaskLeg::GetRemainingVector(const GeoPoint &ref) const noexcept
 {
   switch (destination.GetActiveState()) {
@@ -59,53 +106,6 @@ TaskLeg::GetRemainingVector(const GeoPoint &ref) const noexcept
 
   case OrderedTaskPoint::BEFORE_ACTIVE:
     // this leg not included
-    return GeoVector::Zero();
-  }
-
-  gcc_unreachable();
-  assert(false);
-  return GeoVector::Invalid();
-}
-
-inline GeoVector
-TaskLeg::GetTravelledVector(const GeoPoint &ref) const noexcept
-{
-  switch (destination.GetActiveState()) {
-  case OrderedTaskPoint::BEFORE_ACTIVE:
-    if (!GetOrigin())
-      return GeoVector::Zero();
-
-    // this leg totally included
-    return memo_travelled.calc(GetOrigin()->GetLocationTravelled(),
-                               destination.GetLocationTravelled());
-
-  case OrderedTaskPoint::CURRENT_ACTIVE:
-    // this leg partially included
-    if (!GetOrigin())
-      return GeoVector(0,
-                       ref.IsValid()
-                       ? ref.Bearing(destination.GetLocationRemaining())
-                       : Angle::Zero());
-
-    if (destination.HasEntered())
-      return memo_travelled.calc(GetOrigin()->GetLocationTravelled(),
-                                 destination.GetLocationTravelled());
-    else if (!ref.IsValid())
-      return GeoVector::Zero();
-    else
-      return memo_travelled.calc(GetOrigin()->GetLocationTravelled(), ref);
-
-  case OrderedTaskPoint::AFTER_ACTIVE:
-    if (!GetOrigin())
-      return GeoVector::Zero();
-
-    // this leg may be partially included
-    if (GetOrigin()->HasEntered())
-      return memo_travelled.calc(GetOrigin()->GetLocationTravelled(),
-                                 ref.IsValid()
-                                 ? ref
-                                 : destination.GetLocationTravelled());
-
     return GeoVector::Zero();
   }
 
@@ -193,19 +193,17 @@ TaskLeg::GetMinimumLegDistance() const noexcept
 }
 
 double
-TaskLeg::ScanDistanceTravelled(const GeoPoint &ref) noexcept
-{
-  vector_travelled = GetTravelledVector(ref);
-  return vector_travelled.distance +
-    (GetNext() ? GetNext()->ScanDistanceTravelled(ref) : 0);
-}
-
-double
 TaskLeg::ScanDistanceRemaining(const GeoPoint &ref) noexcept
 {
   vector_remaining = GetRemainingVector(ref);
   return vector_remaining.distance +
     (GetNext() ? GetNext()->ScanDistanceRemaining(ref) : 0);
+}
+
+void
+TaskLeg::UpdateVectorTravelled(const GeoPoint &ref) noexcept
+{
+  vector_travelled = GetTravelledVector(ref);
 }
 
 double

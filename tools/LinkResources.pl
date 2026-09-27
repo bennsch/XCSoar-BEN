@@ -23,16 +23,13 @@ my $icons_dir = $enable_opengl
 while (<>) {
     next if /^\s*(?:#.*)?$/;
 
-    if (/^bitmap_bitmap\s+([\w_]+)\s+"([^"]+)"\s*$/) {
-        add_to_src("output/data/bitmaps/$2.png", "resource_$1");
-    } elsif (/^bitmap_graphic\s+([\w_]+)\s+"([^"]+)"\s*$/) {
+    if (/^bitmap_graphic\s+([\w_]+)\s+"([^"]+)"\s*$/) {
         add_to_src("output/data/graphics2/$2.png", "resource_$1");
-    } elsif (/^(?:app_icon|hatch_bitmap)\s+([\w_]+)\s+"([^"]+)"\s*$/) {
-        # only used on Windows
     } elsif (/^bitmap_icon_scaled\s+([\w_]+)\s+"([^"]+)"\s*$/) {
-        add_to_src("$icons_dir/$2_96.png", "resource_$1");
-        add_to_src("$icons_dir/$2_160.png", "resource_$1_HD");
-        add_to_src("$icons_dir/$2_300.png", "resource_$1_UHD");
+        add_to_src("$icons_dir/$2_ldpi.png", "resource_$1");
+        add_to_src("$icons_dir/$2_mdpi.png", "resource_$1_MDPI");
+        add_to_src("$icons_dir/$2_xhdpi.png", "resource_$1_XHDPI");
+        add_to_src("$icons_dir/$2_xxhdpi.png", "resource_$1_XXHDPI");
     } elsif (/^sound\s+([\w_]+)\s+"([^"]+)"\s*$/) {
         add_to_src("output/data/sound/$2.raw", "resource_$1") unless $target_is_android;
     } else {

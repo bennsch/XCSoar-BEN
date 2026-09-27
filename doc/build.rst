@@ -200,13 +200,16 @@ Compiling for Android
 
 For Android, you need:
 
-- `Android SDK level 35 <http://developer.android.com/sdk/>`__
+- `Android SDK level 36 <http://developer.android.com/sdk/>`__
 
 - `Android NDK r26d <http://developer.android.com/sdk/ndk/>`__
 
 - `Ogg Vorbis <http://www.vorbis.com/>`__
 
 - Java JDK
+
+- `bundletool <https://developer.android.com/tools/bundletool>`__
+  (``ide/provisioning/install-android-tools.sh`` installs it)
 
 On Debian, install host packages and the SDK/NDK via the provisioning
 scripts::
@@ -217,9 +220,9 @@ scripts::
 
 The required Android SDK components are:
 
-- Android SDK Build-Tools 35.0.0
+- Android SDK Build-Tools 36.0.0
 
-- SDK Platform 35
+- SDK Platform 36
 
 These can be installed from the Android Studio SDK Manager. On Debian/Ubuntu,
 :file:`ide/provisioning/install-android-tools.sh` (run after the ``ANDROID``
@@ -230,7 +233,7 @@ To install the same components manually::
 
   ~/opt/android-sdk-linux/cmdline-tools/bin/sdkmanager \
       --sdk_root=~/opt/android-sdk-linux \
-      "build-tools;35.0.0" "platforms;android-35"
+      "build-tools;36.0.0" "platforms;android-36"
 
 The ``Makefile`` assumes that the Android SDK is installed in
 ``~/opt/android-sdk-linux`` and the NDK is installed in
@@ -244,6 +247,13 @@ Load/update the IOIO source code::
 To compile, run::
 
   make TARGET=ANDROID
+
+That writes ``XCSoar-debug.apk`` and ``XCSoar-debug.aab`` to
+``output/ANDROID/bin/``.  Both single-ABI and ``ANDROIDFAT`` builds use
+the same aapt2/bundletool pipeline: the APK is a universal package
+extracted from the App Bundle.  CI builds ``TARGET=ANDROIDFAT`` once for
+the sideload APK (``org.xcsoar.foss``), then ``PLAY=y`` in the same output
+tree to produce the Play Store AAB (``org.xcsoar.play``).
 
 Use one of the following targets:
 
@@ -284,15 +294,9 @@ A minimal 64-bit OpenGL build::
 Use one of the following targets:
 
 ================ =================================================
-``WIN64OPENGL``  Windows x64 (amd64 / x86-64), OpenGL via ANGLE (recommended)
-``WIN32OPENGL``  Windows 32-bit (i686), OpenGL via ANGLE (recommended)
-``PC``           32-bit Windows (i686), GDI legacy build (**deprecated**)
-``WIN64``        Windows x64 (amd64 / x86-64), GDI legacy build (**deprecated**)
+``WIN64OPENGL``  Windows x64 (amd64 / x86-64), OpenGL via ANGLE
+``WIN32OPENGL``  Windows 32-bit (i686), OpenGL via ANGLE
 ================ =================================================
-
-The GDI targets ``PC`` and ``WIN64`` are deprecated and will be removed in a
-future release. New development and releases focus on the OpenGL targets
-above.
 
 Typical OpenGL build commands::
 
@@ -311,18 +315,19 @@ libraries are fetched automatically on first build by
 Build outputs (64-bit example; 32-bit uses ``WIN32OPENGL`` and ``x86`` ANGLE
 arch instead):
 
-- ``output/WIN64OPENGL/bin/XCSoar.exe`` — main executable
+- ``output/WIN64OPENGL/bin/XCSoar.exe`` — main executable (Windows
+  version resource from :file:`VERSION.txt`, plus an application
+  manifest: asInvoker, Windows 10+ OS context, PerMonitorV2 DPI)
 - ``output/WIN64OPENGL/bin/XCSoar.zip`` — portable package (exe, ANGLE DLLs,
   bundled fonts)
 - ``output/WIN64OPENGL/bin/XCSoar-<version>-WIN64OPENGL-Installer.exe`` —
-  NSIS installer (``installer`` target only)
+  NSIS installer (``installer`` target only; same version resource)
 - ``output/WIN64OPENGL/bin/libEGL.dll``,
   ``output/WIN64OPENGL/bin/libGLESv2.dll`` — ANGLE runtime (also inside zip
   and installer)
 
-Some features are compiled only when ``OPENGL=y`` (all OpenGL Windows targets),
-for example EDL weather and MbTiles map overlays. The deprecated GDI builds do
-not include them.
+Some features are compiled only when ``OPENGL=y`` (all current Windows
+targets), for example EDL weather and MbTiles map overlays.
 
 Compiling for iOS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -385,10 +390,6 @@ To compile for macOS / ARM64, run::
 
   make TARGET=MACOS dmg
 
-To compile for macOS / x86_64, run::
-
-  make TARGET=OSX64 dmg
-
 Debugging for iOS and macOS
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -402,7 +403,8 @@ That script reads optional settings from `darwin/.env` (see
 `darwin/.env.example`); for example ``TESTING=y`` builds the testing
 flavour with the red icon, which on iOS uses the separate bundle
 identifier ``XCSoar-testing`` and can therefore be installed next to the
-stable app.
+stable app. Likewise ``DEBUG_ALL_MAP_OVERLAYS=y`` forces all map overlays
+to be drawn (see :doc:`debugging`).
 For iOS debugging with Visual Studio Code, the `iOS Debug`
 extension (https://github.com/nisargjhaveri/vscode-ios-debug) can be used.
 Note that this also requires an Xcode installation.
@@ -569,45 +571,34 @@ Defaults shown are from the build system (they can be overridden with
  * - ``UNIX``
    - Linux/Unix (native)
    - no
-   - OpenGL
+   - OpenGL ES (EGL)
    - Default on Unix-like hosts; main desktop build.
  * - ``UNIX32``
    - Linux/Unix 32-bit
    - no
-   - OpenGL
+   - OpenGL ES (EGL)
    - ``UNIX`` with ``-m32``.
  * - ``UNIX64``
    - Linux/Unix 64-bit
    - no
-   - OpenGL
+   - OpenGL ES (EGL)
    - ``UNIX`` with ``-m64``.
  * - ``OPT``
    - Linux/Unix optimized
    - no
-   - OpenGL
+   - OpenGL ES (EGL)
    - Alias for ``UNIX`` with ``DEBUG=n`` (set ``TARGET_OUTPUT_DIR`` if
      you want a separate output tree).
  * - ``WAYLAND``
    - Linux/Unix (Wayland)
    - no
-   - OpenGL (EGL)
+   - OpenGL ES (EGL)
    - Experimental Wayland display server build.
  * - ``FUZZER``
    - Linux/Unix (libFuzzer)
    - no
    - Software (VFB)
    - Builds fuzz targets with clang + libFuzzer.
- * - ``PC``
-   - Windows 32-bit (i686)
-   - no
-   - GDI
-   - MinGW-w64 cross-compile target. **Deprecated**; use ``WIN32OPENGL``.
- * - ``WIN64``
-   - Windows 64-bit (x86_64)
-   - no
-   - GDI
-   - Flavor of ``PC`` with 64-bit toolchain. **Deprecated**; use
-     ``WIN64OPENGL``.
  * - ``WIN64OPENGL``
    - Windows 64-bit (x86_64)
    - yes
@@ -651,13 +642,8 @@ Defaults shown are from the build system (they can be overridden with
  * - ``MACOS``
    - macOS ARM64
    - yes
-   - OpenGL (ANGLE)
+   - OpenGL ES (ANGLE)
    - Apple Silicon (min macOS 12.0).
- * - ``OSX64``
-   - macOS x86_64
-   - yes
-   - OpenGL (ANGLE)
-   - Intel (min macOS 12.0).
  * - ``IOS32``
    - iOS armv7
    - yes
@@ -805,8 +791,10 @@ Incremental build::
 
   make -j$(nproc) USE_CCACHE=y
 
-Full build with unit tests (matches what many contributors run locally
-before submitting changes)::
+Before submitting a pull request, compile with ``everything``, not only
+the main binary. Plain ``make`` does not build debug tools
+(``RunMapWindow`` and other ``Run*`` programs); include-order bugs often
+show up only there. ``everything check`` also runs the unit tests::
 
   make -j$(nproc) USE_CCACHE=y everything check
 
@@ -865,8 +853,7 @@ Interactive shell (compile with ``make`` or ``xcsoar-compile``)::
       -it ghcr.io/xcsoar/xcsoar/xcsoar-build:latest /bin/bash
 
 One-shot build via the wrapper script (``ANDROID``, ``DOCS``, ``KOBO``,
-``UNIX``, ``UNIX-SDL``, ``WAYLAND``, ``WIN64OPENGL``, ``WIN32OPENGL``;
-legacy GDI: ``PC``, ``WIN64``)::
+``UNIX``, ``UNIX-SDL``, ``WAYLAND``, ``WIN64OPENGL``, ``WIN32OPENGL``)::
 
   docker run \
       --mount type=bind,source="$(pwd)",target=/opt/xcsoar \
