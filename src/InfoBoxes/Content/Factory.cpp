@@ -1105,6 +1105,7 @@ static constexpr MetaData meta_data[] = {
 
   // e_Takeoff_AltDiff
   {
+    Group::WAYPOINT,
     N_("Takeoff altitude difference"),
     N_("Takeoff AltD"),
     N_("Arrival altitude at the takeoff waypoint relative to the safety arrival height."),

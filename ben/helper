@@ -16,6 +16,7 @@ REPO_DIR=$(dirname $SCRIPT_DIR)
 #DOCKER_CONTAINER=ghcr.io/xcsoar/xcsoar/xcsoar-build:latest
 
 # Docker container specific to this commit
+# (visit "ghcr.io/xcsoar/xcsoar/xcsoar-build:latest" to find the latest SHA)
 DOCKER_CONTAINER=ghcr.io/xcsoar/xcsoar/xcsoar-build@sha256:9e8bf4804e67f00246807fe0940390cec02505086c39ab5d7cc78f888c1a4833
 
 # Keystores can be created with Android Studio.
