@@ -173,9 +173,14 @@ When both provide a valid GPS fix, the first one (i.e. Device A) is chosen by
 XCSoar, and the second GPS fix is ignored.  As soon as the first device fails,
 XCSoar switches to the second one automatically, until the first one recovers.
 
-The same is true for all values (barometric altitude, vario, airspeed,
-traffic, ...): XCSoar prefers the first device, and uses the second
+The same is true for values such as barometric altitude (QNH),
+pressure altitude (QNE), logger altitude (IGC), vario and
+airspeed: XCSoar prefers the first device, and uses the second
 device only for values that are not received from the first one.
+Static pressure and pressure altitude are one ambient pressure:
+XCSoar uses the form sent by the first device and ignores the other
+form from a later device.
+Traffic (FLARM) from every device that reports it is used.
 
 Example: Device A is a CAI 302, and Device B is a FLARM.
 That gives you the best of both: XCSoar has airspeed, vario and
@@ -196,12 +201,22 @@ sometimes, it might be desirable to trigger that manually.
 
 The button ``Flight download'' is only available with supported IGC
 loggers (see Section~\ref{sec:supported-varios} for a list).  Upon clicking,
-XCSoar retrieves a list of flights, and asks you to select one.  The
+XCSoar retrieves a list of flights, and asks you to select one.  Each
+entry shows the date and the start and end time of the flight; the end
+time is left out when the logger did not record it, as an LXNAV S10
+does for most flights.  The
 IGC file will be downloaded to the ``\texttt{logs}'' directory inside
 \texttt{XCSoarData}.  A flight download shows the flight name, the connected device, and the
 driver on separate lines above the progress bar.  Inside the bar it
 shows the percentage complete, the amount received against the total,
 the transfer speed, and an estimate of the time remaining.
+From an LXNAV logger that supports it, such as the Nano~3, XCSoar
+downloads the file in blocks with a checksum each and a checksum over
+the whole file, and requests a damaged block again; other LXNAV
+loggers are read line by line.
+A PowerFLARM Flex or Fusion does not give out its flight log on the
+data connection.  Join the device Wi-Fi (shown on the Hub screen) and
+use Flight download; XCSoar reads the flights from there.
 
 The button ``Manage'' is enabled when a Vega or a CAI 302 is
 connected.  It provides access to special features of these devices,

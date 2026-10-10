@@ -4,11 +4,11 @@
 #include "InfoBoxes/InfoBoxManager.hpp"
 #include "InfoBoxes/InfoBoxWindow.hpp"
 #include "InfoBoxes/InfoBoxLayout.hpp"
+#include "InfoBoxes/Border.hpp"
 #include "InfoBoxes/InfoBoxArrange.hpp"
 #include "InfoBoxes/Content/Factory.hpp"
 #include "Language/Language.hpp"
-#include "Form/DataField/ComboList.hpp"
-#include "Dialogs/ComboPicker.hpp"
+#include "Dialogs/InfoBoxPicker.hpp"
 #include "Profile/InfoBoxConfig.hpp"
 #include "Profile/Current.hpp"
 #include "Interface.hpp"
@@ -220,6 +220,21 @@ InfoBoxManager::Create(ContainerWindow &parent,
          settings.geometry is the configured layout */
       : InfoBoxLayout::GetBorder(layout.geometry, layout.landscape, i);
 
+    if (settings.border_style != InfoBoxSettings::BorderStyle::TAB) {
+      /* an InfoBox at the outer edge of the layout has no border
+         there, because that edge usually is the screen border; give it
+         one when the layout was kept clear of the screen border */
+      if ((layout.outer_border & BORDERTOP) && rc.top == layout.rc.top)
+        Border |= BORDERTOP;
+      if ((layout.outer_border & BORDERBOTTOM) &&
+          rc.bottom == layout.rc.bottom)
+        Border |= BORDERBOTTOM;
+      if ((layout.outer_border & BORDERLEFT) && rc.left == layout.rc.left)
+        Border |= BORDERLEFT;
+      if ((layout.outer_border & BORDERRIGHT) && rc.right == layout.rc.right)
+        Border |= BORDERRIGHT;
+    }
+
     infoboxes[i] = new InfoBoxWindow(parent, rc,
                                      Border, settings, look,
                                      i, style);
@@ -249,31 +264,17 @@ InfoBoxManager::ShowInfoBoxPicker(InfoBoxSettings::Panel &panel,
 {
   const InfoBoxFactory::Type old_type = panel.contents[i];
 
-  ComboList list;
-  for (unsigned j = InfoBoxFactory::MIN_TYPE_VAL; j < InfoBoxFactory::NUM_TYPES; j++) {
-    if (j == InfoBoxFactory::e_Free_RAM)
-      continue;
+  /* name the set this goes into: from the map it is the set of the
+     current flight mode, which is not necessarily the one on the
+     screen a minute later */
+  StaticString<96> caption;
+  caption.Format("%s %u (%s)", _("InfoBox"), i + 1, gettext(panel.name));
 
-    const char *desc = InfoBoxFactory::GetDescription((InfoBoxFactory::Type)j);
-    list.Append(j, gettext(InfoBoxFactory::GetName((InfoBoxFactory::Type)j)),
-                gettext(InfoBoxFactory::GetName((InfoBoxFactory::Type)j)),
-                desc != NULL ? gettext(desc) : NULL);
-  }
-
-  list.Sort();
-  list.current_index = list.LookUp(old_type);
-
-  /* let the user select */
-
-  StaticString<20> caption;
-  caption.Format("%s: %u", _("InfoBox"), i + 1);
-  int result = ComboPicker(caption, list, nullptr, true);
-  if (result < 0)
+  InfoBoxFactory::Type new_type = old_type;
+  if (!InfoBoxPicker(caption, new_type))
     return false;
 
   /* was there a modification? */
-
-  InfoBoxFactory::Type new_type = (InfoBoxFactory::Type)list[result].int_value;
   if (new_type == old_type)
     return false;
 

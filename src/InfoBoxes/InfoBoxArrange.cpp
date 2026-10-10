@@ -20,6 +20,10 @@
 #include "ui/window/ContainerWindow.hpp"
 #include "ui/window/SingleWindow.hpp"
 
+#ifdef ANDROID
+#include "Android/SystemGesture.hpp"
+#endif
+
 #include <memory>
 
 using namespace UI;
@@ -66,6 +70,12 @@ class OverlayWindow final : public ContainerWindow {
   ButtonPanel buttons;
   UI::Timer timeout_timer{[]{ InfoBoxArrange::Save(); }};
 
+  /**
+   * The cards, the description and Help/Close.  On Android they are
+   * laid out below the swipe-down band.  The map keeps its own layout.
+   */
+  InfoBoxLayout::Layout page_layout;
+
   static void HideInfoBoxes() noexcept {
     for (unsigned i = 0; i < InfoBoxManager::layout.count; ++i)
       if (auto *window = InfoBoxManager::GetWindow(i))
@@ -95,7 +105,8 @@ public:
     WindowStyle style;
     style.Hide();
     style.ControlParent();
-    ContainerWindow::Create(parent, parent.GetClientRect(), style);
+    ContainerWindow::Create(parent, parent.ContainerWindow::GetClientRect(),
+                            style);
 
     /* the map below must still be painted */
     SetTransparent();
@@ -105,32 +116,73 @@ public:
     buttons.Add(_("Close"), []{ InfoBoxArrange::Save(); });
   }
 
+  /**
+   * Where the cards, the description and the buttons are laid out.
+   * On Android this starts below the system swipe-down band.  The
+   * overlay itself stays full screen, so the backdrop still covers
+   * that band.
+   */
+  [[nodiscard]]
+  static PixelRect GetContentRect(PixelRect full) noexcept {
+#ifdef ANDROID
+    return Android::ContentRectBelowTopGesture(full);
+#else
+    return full;
+#endif
+  }
+
   void UpdateLayout() noexcept {
+    if (!arrange.IsDefined())
+      return;
+
+    /* the overlay covers the whole window, including the areas outside
+       the client rect (e.g. behind the iOS notch) */
+    const PixelRect window = GetParent() != nullptr
+      ? GetParent()->ContainerWindow::GetClientRect()
+      : GetClientRect();
+    const PixelRect full = GetParent() != nullptr
+      ? GetParent()->GetClientRect()
+      : GetClientRect();
+    const PixelRect here = GetPosition();
+    if (here.left != window.left || here.top != window.top ||
+        here.right != window.right || here.bottom != window.bottom) {
+      /* OnResize runs this again once the overlay covers the screen */
+      Move(window);
+      return;
+    }
+
     arrange.Move(GetClientRect());
 
-    /* Help/Close sit in the map remaining, above a bottom InfoBox
-       row; left vs bottom follows the page, not the hole */
+    const unsigned title_scale =
+      CommonInterface::GetUISettings().info_boxes.scale_title_font;
+    /* the cards lie exactly over the InfoBoxes on the screen, which
+       follow the InfoBox area and not the client rect */
+    const PixelRect page = GetContentRect(InfoBoxManager::layout.rc);
+    page_layout =
+      InfoBoxLayout::Calculate(page, InfoBoxManager::layout.geometry,
+                               title_scale, full.GetSize());
+
+    /* Help/Close sit in the hole between the cards; left vs bottom
+       follows the screen, not the hole */
     const auto origin = GetPosition().GetTopLeft();
-    PixelRect remaining = InfoBoxManager::layout.remaining;
+    PixelRect remaining = page_layout.remaining;
     remaining.Offset(-origin.x, -origin.y);
 
-    const PixelRect full = GetClientRect();
-    PixelRect content = full.GetWidth() > full.GetHeight()
+    const bool landscape = full.GetWidth() > full.GetHeight();
+    PixelRect content = landscape
       ? buttons.LeftLayout(remaining)
       : buttons.BottomLayout(remaining);
     content.Offset(origin.x, origin.y);
 
-    arrange.SetLayout(InfoBoxManager::layout, content);
-    /* the card window fills the overlay; keep Help/Close above it */
+    arrange.SetLayout(page_layout, content);
+    /* the card window fills the page; keep Help/Close above it */
     buttons.Raise();
   }
 
   /** Show the overlay and hide the InfoBox windows behind it. */
   void Enter() noexcept {
     auto &parent = UIGlobals::GetMainWindow();
-    if (IsDefined())
-      Move(parent.GetClientRect());
-    else
+    if (!IsDefined())
       Create(parent);
 
     arrange.SetPanel(InfoBoxManager::GetPanel(saved_panel_index));

@@ -21,6 +21,16 @@ struct Event;
 class SingleWindow : public TopWindow {
   std::forward_list<WndForm *> dialogs;
 
+  /**
+   * The area the open dialogs were laid out for.  A dialog that fills
+   * it grows with it; @see OnResize().
+   */
+  PixelRect dialog_rect{0, 0, 0, 0};
+
+  /** A non-owning pointer to an interactive strip outside modal dialogs. */
+  Window *dialog_overlay = nullptr;
+  unsigned dialog_bottom_margin = 0;
+
 public:
   using TopWindow::TopWindow;
 
@@ -35,10 +45,38 @@ public:
   void AddDialog(WndForm *dialog) noexcept;
   void RemoveDialog(WndForm *dialog) noexcept;
 
+  /** Raise a child above page content while preserving the dialog stack. */
+  void BringToTopBelowDialogs(Window &window) noexcept;
+
+  /** Available dialog area, excluding the optional bottom overlay. */
+  [[gnu::pure]]
+  PixelRect GetDialogRect() const noexcept;
+
+  /** The caller must unregister an overlay before destroying its window. */
+  void SetDialogOverlay(Window *window, unsigned bottom_margin=0) noexcept;
+
+  Window *GetDialogOverlay() const noexcept {
+    return dialog_overlay;
+  }
+
   /**
    * Forcefully cancel the top-most dialog.
    */
   void CancelDialog() noexcept;
+
+  /**
+   * Is any dialog open that fills the whole area available to
+   * dialogs, i.e. the safe area?
+   */
+  [[gnu::pure]]
+  bool HasMaximisedDialog() const noexcept;
+
+  /**
+   * Is any dialog open that covers the whole client area (edge to
+   * edge), not only the safe area?
+   */
+  [[gnu::pure]]
+  bool HasFullScreenDialog() const noexcept;
 
   [[gnu::pure]]
   bool HasDialog() const noexcept {
@@ -60,6 +98,16 @@ public:
 
     return *dialogs.front();
   }
+
+protected:
+  virtual void OnDialogChanged() noexcept {}
+
+  /** Reflow open dialogs after changing the available area. */
+  void ReinitialiseDialogs() noexcept;
+
+private:
+  [[gnu::pure]]
+  PixelRect GetDialogRect(PixelRect rc) const noexcept;
 
 protected:
   [[gnu::pure]]

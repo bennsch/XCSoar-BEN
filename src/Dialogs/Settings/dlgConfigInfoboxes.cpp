@@ -2,18 +2,25 @@
 // Copyright The XCSoar Project
 
 #include "dlgConfigInfoboxes.hpp"
+#include "Dialogs/ComboPicker.hpp"
 #include "Dialogs/WidgetDialog.hpp"
 #include "Dialogs/Message.hpp"
 #include "Dialogs/TextEntry.hpp"
 #include "Form/Button.hpp"
+#include "Form/DataField/Enum.hpp"
 #include "Look/DialogLook.hpp"
 #include "Widget/Widget.hpp"
 #include "InfoBoxes/Content/Factory.hpp"
 #include "InfoBoxes/InfoBoxArrangeWindow.hpp"
+#include "InfoBoxes/InfoBoxGeometryList.hpp"
 #include "InfoBoxes/InfoBoxLayout.hpp"
 #include "InfoBoxes/InfoBoxSettings.hpp"
 #include "Interface.hpp"
 #include "Language/Language.hpp"
+
+#ifdef ANDROID
+#include "Android/SystemGesture.hpp"
+#endif
 
 using namespace UI;
 
@@ -25,7 +32,8 @@ class InfoBoxesConfigWidget final : public NullWidget {
     InfoBoxLayout::Layout info_boxes;
 
     Layout() = default;
-    Layout(PixelRect rc, InfoBoxSettings::Geometry geometry);
+    Layout(PixelRect content, InfoBoxSettings::Geometry geometry,
+           PixelSize orientation_size);
   };
 
   /** the InfoBoxes of this set; it reports every change back */
@@ -51,7 +59,11 @@ class InfoBoxesConfigWidget final : public NullWidget {
   InfoBoxSettings::Panel &data;
   bool changed = false;
 
-  const InfoBoxSettings::Geometry geometry;
+  /** the geometry the cards are laid out with */
+  InfoBoxSettings::Geometry geometry;
+
+  /** the dialog area the cards fill, kept for a geometry change */
+  PixelRect client_rc;
 
   Layout layout;
 
@@ -76,6 +88,7 @@ public:
   }
 
   void OnRename() noexcept;
+  void OnGeometry() noexcept;
   void OnCopy() noexcept;
   void OnPaste() noexcept;
   void ShowHelp() noexcept {
@@ -88,9 +101,42 @@ private:
       paste_button->SetEnabled(clipboard_size > 0);
   }
 
+#ifdef ANDROID
+  /**
+   * Y of @p local_top in the XCSoar view.  @p origin is the window
+   * @p local_top is relative to.
+   */
+  [[nodiscard]]
+  static int TopOnView(const Window &origin, int local_top) noexcept {
+    int y = local_top;
+    for (const Window *window = &origin;
+         window->GetParent() != nullptr;
+         window = window->GetParent())
+      y += window->GetPosition().top;
+    return y;
+  }
+#endif
+
+  /**
+   * Where the cards and the description are laid out.  On Android
+   * this drops only the part of the swipe-down band that still
+   * covers this dialog.  The dialog is already in the safe area, so
+   * a band that ends at the status bar does not move the cards.
+   */
+  [[nodiscard]]
+  PixelRect GetContentRect(PixelRect rc) noexcept {
+#ifdef ANDROID
+    return Android::ContentRectBelowTopGesture(rc,
+      TopOnView(dialog.GetClientAreaWindow(), rc.top));
+#else
+    return rc;
+#endif
+  }
+
   /** Recalculate the layout for @p rc and hand it to #arrange. */
   void UpdateLayout(const PixelRect &rc) noexcept {
-    layout = Layout(rc, geometry);
+    client_rc = rc;
+    layout = Layout(GetContentRect(rc), geometry, rc.GetSize());
     arrange.SetLayout(layout.info_boxes, layout.info_boxes.remaining);
   }
 
@@ -120,12 +166,14 @@ public:
   }
 };
 
-InfoBoxesConfigWidget::Layout::Layout(PixelRect rc,
-                                      InfoBoxSettings::Geometry geometry)
+InfoBoxesConfigWidget::Layout::Layout(PixelRect content,
+                                      InfoBoxSettings::Geometry geometry,
+                                      PixelSize orientation_size)
 {
   const unsigned title_scale =
     CommonInterface::GetUISettings().info_boxes.scale_title_font;
-  info_boxes = InfoBoxLayout::Calculate(rc, geometry, title_scale);
+  info_boxes = InfoBoxLayout::Calculate(content, geometry, title_scale,
+                                        orientation_size);
 }
 
 void
@@ -161,6 +209,46 @@ InfoBoxesConfigWidget::OnRename() noexcept
 }
 
 void
+InfoBoxesConfigWidget::OnGeometry() noexcept
+{
+  DataFieldEnum df;
+  df.AddChoice(InfoBoxSettings::Panel::INHERIT_GEOMETRY,
+               _("Inherit from global settings"));
+  df.AddChoices(info_box_geometry_list);
+
+  const unsigned current =
+    data.geometry == InfoBoxSettings::Panel::INHERIT_GEOMETRY
+      ? unsigned(InfoBoxSettings::Panel::INHERIT_GEOMETRY)
+      : data.geometry;
+  df.SetValue(current);
+
+  if (!ComboPicker(_("InfoBox geometry"), df,
+                   _("A list of possible InfoBox layouts. "
+                     "Do some trials to find the best for your screen size.")))
+    return;
+
+  const unsigned id = df.GetValue();
+  const uint8_t stored = id == InfoBoxSettings::Panel::INHERIT_GEOMETRY
+    ? InfoBoxSettings::Panel::INHERIT_GEOMETRY
+    : static_cast<uint8_t>(id);
+  if (stored == data.geometry)
+    return;
+
+  data.geometry = stored;
+  geometry = stored == InfoBoxSettings::Panel::INHERIT_GEOMETRY
+    ? CommonInterface::GetUISettings().info_boxes.geometry
+    : static_cast<InfoBoxSettings::Geometry>(id);
+  changed = true;
+
+  UpdateLayout(client_rc);
+  arrange.Move(client_rc);
+  if (layout.info_boxes.count > 0)
+    arrange.FocusSlot(0);
+  else
+    arrange.Invalidate();
+}
+
+void
 InfoBoxesConfigWidget::OnCopy() noexcept
 {
   clipboard = data;
@@ -186,6 +274,7 @@ InfoBoxesConfigWidget::OnPaste() noexcept
       continue;
 
     data.contents[item] = content;
+    data.text[item] = clipboard.text[item];
   }
 
   changed = true;
@@ -212,6 +301,7 @@ dlgConfigInfoboxesShowModal(SingleWindow &parent,
   auto &widget = dialog.GetWidget();
   if (allow_name_change)
     dialog.AddButton(_("Rename"), [&widget]{ widget.OnRename(); });
+  dialog.AddButton(_("InfoBox geometry"), [&widget]{ widget.OnGeometry(); });
   dialog.AddButton(_("Copy Set"), [&widget]{ widget.OnCopy(); });
   widget.SetPasteButton(dialog.AddButton(_("Paste Set"),
                                          [&widget]{ widget.OnPaste(); }));

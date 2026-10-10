@@ -392,6 +392,15 @@ Startup(UI::Display &display)
   CommonInterface::SetUISettings().SetDefaults();
   main_window->Initialise();
 
+#ifdef ANDROID
+  /* surfaceChanged may have reported insets before the event queue
+     existed; ask again and apply them before the Fly/Simulator
+     dialog is created */
+  if (native_view != nullptr)
+    native_view->ReportSize(Java::GetEnv());
+  main_window->PublishSafeAreaInsets();
+#endif
+
 #ifdef SIMULATOR_AVAILABLE
   // prompt for simulator if not set by command line argument "-simulator" or "-fly"
   if (!sim_set_in_cmd_line_flag) {
@@ -450,11 +459,11 @@ Startup(UI::Display &display)
 #endif
 
 #ifdef ANDROID
-  {
-    const auto env = Java::GetEnv();
-    native_view->AcquireWakeLock(env);
-    native_view->SetFullScreen(env, ui_settings.display.full_screen);
-  }
+  native_view->AcquireWakeLock(Java::GetEnv());
+#endif
+
+#ifdef HAVE_FULL_SCREEN_SETTING
+  main_window->ApplyFullScreenSettings();
 #endif
 
   Display::LoadOrientation(operation);
@@ -602,7 +611,7 @@ Startup(UI::Display &display)
 
   GlidePolar &gp = CommonInterface::SetComputerSettings().polar.glide_polar_task;
   gp = GlidePolar(0);
-  gp.SetMC(computer_settings.task.safety_mc);
+  gp.SetMC(computer_settings.task.task_mc);
   gp.SetBugs(computer_settings.polar.degradation_factor);
   gp.SetCrewMass(computer_settings.logger.crew_mass_template);
   PlaneGlue::FromProfile(CommonInterface::SetComputerSettings().plane,

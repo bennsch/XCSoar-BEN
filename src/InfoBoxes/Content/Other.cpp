@@ -5,6 +5,12 @@
 #include "InfoBoxes/Data.hpp"
 #include "Dialogs/Dialogs.h"
 #include "Interface.hpp"
+#include "UIState.hpp"
+#include "InfoBoxes/Panel/Panel.hpp"
+#include "InfoBoxes/Panel/CustomTextEdit.hpp"
+#include "Input/InputEvents.hpp"
+#include "Formatter/UserUnits.hpp"
+#include "Math/Util.hpp"
 #include "Renderer/HorizonRenderer.hpp"
 #include "Hardware/PowerGlobal.hpp"
 #include "system/SystemLoad.hpp"
@@ -303,4 +309,56 @@ InfoBoxContentNbrSat::HandleClick() noexcept
 {
   dlgStatusShowModal(1);
   return true;
+}
+
+void
+InfoBoxContentBallast::Update(InfoBoxData &data) noexcept
+{
+  const auto &polar_settings = CommonInterface::GetComputerSettings().polar;
+  const auto &polar = polar_settings.glide_polar_task;
+
+  /* whole litres, matching Flight Setup */
+  data.FmtValue("{}", iround(polar.GetBallastLitres()));
+  data.SetValueUnit(Unit::LITRE);
+
+  /* blue while ballast is being dumped */
+  data.SetValueColor(polar_settings.ballast_timer_active ? 2 : 0);
+
+  const double wing_loading = polar.GetWingLoading();
+  if (wing_loading > 0) {
+    char buffer[32];
+    FormatUserWingLoading(wing_loading, buffer, sizeof(buffer), true);
+    data.SetComment(buffer);
+  } else
+    data.SetCommentInvalid();
+}
+
+bool
+InfoBoxContentBallast::HandleClick() noexcept
+{
+  InputEvents::eventSetup("Basic");
+  return true;
+}
+
+void
+InfoBoxContentCustomText::Update(InfoBoxData &data) noexcept
+{
+  const auto &settings = CommonInterface::GetUISettings().info_boxes;
+  const unsigned panel = CommonInterface::GetUIState().panel_index;
+  const InfoBoxCustomText &text = settings.panels[panel].text[GetSlot()];
+
+  data.SetTitle(text.title.c_str());
+  data.SetValue(text.value.c_str());
+  data.SetComment(text.comment.c_str());
+}
+
+static constexpr InfoBoxPanel custom_text_infobox_panels[] = {
+  { NC_("Menu", "Setup"), LoadCustomTextEditPanel },
+  { nullptr, nullptr }
+};
+
+const InfoBoxPanel *
+InfoBoxContentCustomText::GetDialogContent() noexcept
+{
+  return custom_text_infobox_panels;
 }

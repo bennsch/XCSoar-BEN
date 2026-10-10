@@ -452,10 +452,15 @@ The following attributes are provided by ``xcsoar.settings``:
  * - ``ballast``
    - Ballast of the glider. 0 means no ballst, 0.3 means 30% of the
      maximum ballast the glider can carry.
+ * - ``ballast_dumping``
+   - ``true`` while water ballast is being dumped.
  * - ``qnh``
    - Area pressure for barometric altimeter calibration [Pascal].
  * - ``max_temp``
    - The forecast ground temperature [Kelvin].
+ * - ``taskmc``
+   - The MacCready setting used at startup for speed-to-fly and task
+     calculations [:math:`m/s`].
  * - ``safetymc``
    - The MacCready setting used, when safety MC is enabled for reach
      calculations, in task abort mode and for determining arrival
@@ -481,6 +486,11 @@ The following attributes are provided by ``xcsoar.settings``:
    - Sets the QNH [Pascal].
  * - ``setballast(float value)``
    - Sets the ballst, 0 means no ballst, 0.5 means 50% of the maximum ballst the glider can carry.
+ * - ``setballastdump(bool active)``
+   - Starts (``true``) or stops (``false``) dumping water ballast over
+     the dump time of the plane profile, like the ballast dump button.
+     Returns whether ballast is being dumped now: starting fails
+     without ballast on board or without a dump time.
  * - ``setmaxtemp(float value)``
    - Sets the maximum temperature [Kelvin].
 

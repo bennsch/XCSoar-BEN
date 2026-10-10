@@ -75,6 +75,11 @@ public:
     Invalidate();
   }
 
+  void PlaceChildBelow(Window &child, Window &sibling) noexcept {
+    children.PlaceBelow(child, sibling);
+    Invalidate();
+  }
+
   /**
    * Locate a child window by its relative coordinates.
    */
@@ -173,4 +178,10 @@ public:
    * rectangle visible in the view port.
    */
   virtual void ScrollTo(const PixelRect &rc) noexcept;
+
+  /**
+   * A child changed how much vertical space it needs, for example a
+   * form row was shown or hidden.  The default does nothing.
+   */
+  virtual void OnChildContentHeightChanged() noexcept {}
 };

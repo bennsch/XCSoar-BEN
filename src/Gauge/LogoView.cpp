@@ -165,6 +165,7 @@ LogoView::draw(Canvas &canvas, const PixelRect &rc,
   }
 
   PixelPoint logo_position, title_position;
+  const PixelPoint origin = rc.GetTopLeft();
 
   // Determine logo and title positions
   switch (orientation) {
@@ -190,6 +191,9 @@ LogoView::draw(Canvas &canvas, const PixelRect &rc,
   default:
     gcc_unreachable();
   }
+
+  logo_position += origin;
+  title_position += origin;
 
   // Draw 'XCSoar N.N' title
   if (orientation != LogoViewOrientation::SQUARE) {
@@ -234,7 +238,7 @@ LogoView::draw(Canvas &canvas, const PixelRect &rc,
 
   canvas.SetTextColor(dark_mode ? COLOR_WHITE : COLOR_BLACK);
   canvas.SetBackgroundTransparent();
-  canvas.DrawText({2, 2}, XCSoar_ProductToken);
+  canvas.DrawText(origin + PixelPoint{2, 2}, XCSoar_ProductToken);
 
 #ifndef NDEBUG
   /* Draw debug build warning banner below logo (like "Remove before flight") */
@@ -249,7 +253,8 @@ LogoView::draw(Canvas &canvas, const PixelRect &rc,
   const int banner_height = text_size.height + padding * 2;
   const int banner_width = text_size.width + padding * 2;
   
-  /* Position banner below the logo/title with some spacing */
+  /* Position banner below the logo/title with some spacing.
+     logo_position and title_position already include origin. */
   int banner_y;
   if (orientation == LogoViewOrientation::PORTRAIT) {
     // Below title in portrait mode
@@ -264,11 +269,11 @@ LogoView::draw(Canvas &canvas, const PixelRect &rc,
   }
   
   /* Only draw if banner fits within the visible area */
-  if (banner_y + banner_height <= int(height)) {
+  if (banner_y + banner_height <= rc.bottom) {
     const PixelRect warning_rect{
-      Center(width, banner_width),
+      origin.x + Center(width, banner_width),
       banner_y,
-      Center(width, banner_width) + banner_width,
+      origin.x + Center(width, banner_width) + banner_width,
       banner_y + banner_height
     };
     

@@ -3873,13 +3873,13 @@
 		5CBFE2222D742FA600F05795 /* AirspaceConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AirspaceConfigPanel.cpp; sourceTree = "<group>"; };
 		5CBFE2232D742FA600F05795 /* AudioConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AudioConfigPanel.hpp; sourceTree = "<group>"; };
 		5CBFE2242D742FA600F05795 /* AudioConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AudioConfigPanel.cpp; sourceTree = "<group>"; };
-		5CBFE2252D742FA600F05795 /* AudioVarioConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = AudioVarioConfigPanel.hpp; sourceTree = "<group>"; };
-		5CBFE2262D742FA600F05795 /* AudioVarioConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = AudioVarioConfigPanel.cpp; sourceTree = "<group>"; };
 		5CBFE2272D742FA600F05795 /* CloudConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CloudConfigPanel.hpp; sourceTree = "<group>"; };
 		5CBFE2282D742FA600F05795 /* CloudConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CloudConfigPanel.cpp; sourceTree = "<group>"; };
 		5CBFE2292D742FA600F05795 /* ConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = ConfigPanel.hpp; sourceTree = "<group>"; };
 		5CBFE22A2D742FA600F05795 /* GaugesConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = GaugesConfigPanel.hpp; sourceTree = "<group>"; };
 		5CBFE22B2D742FA600F05795 /* GaugesConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = GaugesConfigPanel.cpp; sourceTree = "<group>"; };
+		A1BFE2502D742FA600F05795 /* TrafficConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TrafficConfigPanel.hpp; sourceTree = "<group>"; };
+		A1BFE2512D742FA600F05795 /* TrafficConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TrafficConfigPanel.cpp; sourceTree = "<group>"; };
 		5CBFE22C2D742FA600F05795 /* GlideComputerConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = GlideComputerConfigPanel.hpp; sourceTree = "<group>"; };
 		5CBFE22D2D742FA600F05795 /* GlideComputerConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = GlideComputerConfigPanel.cpp; sourceTree = "<group>"; };
 		5CBFE22E2D742FA600F05795 /* InfoBoxesConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = InfoBoxesConfigPanel.hpp; sourceTree = "<group>"; };
@@ -3912,8 +3912,12 @@
 		5CBFE2492D742FA600F05795 /* TerrainDisplayConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TerrainDisplayConfigPanel.cpp; sourceTree = "<group>"; };
 		5CBFE24A2D742FA600F05795 /* TimeConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TimeConfigPanel.hpp; sourceTree = "<group>"; };
 		5CBFE24B2D742FA600F05795 /* TimeConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TimeConfigPanel.cpp; sourceTree = "<group>"; };
-		5CBFE24C2D742FA600F05795 /* TrackingConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TrackingConfigPanel.hpp; sourceTree = "<group>"; };
-		5CBFE24D2D742FA600F05795 /* TrackingConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TrackingConfigPanel.cpp; sourceTree = "<group>"; };
+		5CBFE24C2D742FA600F05795 /* SkyLinesConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = SkyLinesConfigPanel.hpp; sourceTree = "<group>"; };
+		5CBFE24D2D742FA600F05795 /* SkyLinesConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = SkyLinesConfigPanel.cpp; sourceTree = "<group>"; };
+		A1BFE24C2D742FA600F05795 /* LiveTrack24ConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = LiveTrack24ConfigPanel.hpp; sourceTree = "<group>"; };
+		A1BFE24D2D742FA600F05795 /* LiveTrack24ConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = LiveTrack24ConfigPanel.cpp; sourceTree = "<group>"; };
+		A1BFE24E2D742FA600F05795 /* TrackingIntervalChoices.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TrackingIntervalChoices.hpp; sourceTree = "<group>"; };
+		A1BFE24F2D742FA600F05795 /* TrackingIntervalChoices.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TrackingIntervalChoices.cpp; sourceTree = "<group>"; };
 		5CBFE24E2D742FA600F05795 /* UnitsConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = UnitsConfigPanel.hpp; sourceTree = "<group>"; };
 		5CBFE24F2D742FA600F05795 /* UnitsConfigPanel.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = UnitsConfigPanel.cpp; sourceTree = "<group>"; };
 		5CBFE2502D742FA600F05795 /* VarioConfigPanel.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = VarioConfigPanel.hpp; sourceTree = "<group>"; };
@@ -15633,13 +15637,13 @@
 				5CBFE2222D742FA600F05795 /* AirspaceConfigPanel.cpp */,
 				5CBFE2232D742FA600F05795 /* AudioConfigPanel.hpp */,
 				5CBFE2242D742FA600F05795 /* AudioConfigPanel.cpp */,
-				5CBFE2252D742FA600F05795 /* AudioVarioConfigPanel.hpp */,
-				5CBFE2262D742FA600F05795 /* AudioVarioConfigPanel.cpp */,
 				5CBFE2272D742FA600F05795 /* CloudConfigPanel.hpp */,
 				5CBFE2282D742FA600F05795 /* CloudConfigPanel.cpp */,
 				5CBFE2292D742FA600F05795 /* ConfigPanel.hpp */,
 				5CBFE22A2D742FA600F05795 /* GaugesConfigPanel.hpp */,
 				5CBFE22B2D742FA600F05795 /* GaugesConfigPanel.cpp */,
+				A1BFE2502D742FA600F05795 /* TrafficConfigPanel.hpp */,
+				A1BFE2512D742FA600F05795 /* TrafficConfigPanel.cpp */,
 				5CBFE22C2D742FA600F05795 /* GlideComputerConfigPanel.hpp */,
 				5CBFE22D2D742FA600F05795 /* GlideComputerConfigPanel.cpp */,
 				5CBFE22E2D742FA600F05795 /* InfoBoxesConfigPanel.hpp */,
@@ -15650,6 +15654,8 @@
 				5CBFE2332D742FA600F05795 /* LayoutConfigPanel.cpp */,
 				5CBFE2342D742FA600F05795 /* LoggerConfigPanel.hpp */,
 				5CBFE2352D742FA600F05795 /* LoggerConfigPanel.cpp */,
+				A1BFE24C2D742FA600F05795 /* LiveTrack24ConfigPanel.hpp */,
+				A1BFE24D2D742FA600F05795 /* LiveTrack24ConfigPanel.cpp */,
 				5CBFE2362D742FA600F05795 /* MapDisplayConfigPanel.hpp */,
 				5CBFE2372D742FA600F05795 /* MapDisplayConfigPanel.cpp */,
 				5CBFE2382D742FA600F05795 /* PagesConfigPanel.hpp */,
@@ -15672,8 +15678,10 @@
 				5CBFE2492D742FA600F05795 /* TerrainDisplayConfigPanel.cpp */,
 				5CBFE24A2D742FA600F05795 /* TimeConfigPanel.hpp */,
 				5CBFE24B2D742FA600F05795 /* TimeConfigPanel.cpp */,
-				5CBFE24C2D742FA600F05795 /* TrackingConfigPanel.hpp */,
-				5CBFE24D2D742FA600F05795 /* TrackingConfigPanel.cpp */,
+				A1BFE24E2D742FA600F05795 /* TrackingIntervalChoices.hpp */,
+				A1BFE24F2D742FA600F05795 /* TrackingIntervalChoices.cpp */,
+				5CBFE24C2D742FA600F05795 /* SkyLinesConfigPanel.hpp */,
+				5CBFE24D2D742FA600F05795 /* SkyLinesConfigPanel.cpp */,
 				5CBFE24E2D742FA600F05795 /* UnitsConfigPanel.hpp */,
 				5CBFE24F2D742FA600F05795 /* UnitsConfigPanel.cpp */,
 				5CBFE2502D742FA600F05795 /* VarioConfigPanel.hpp */,

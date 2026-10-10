@@ -62,11 +62,18 @@ GlueMapWindow::OnDestroy() noexcept
 }
 
 bool
-GlueMapWindow::OnMouseDouble([[maybe_unused]] PixelPoint p) noexcept
+GlueMapWindow::OnMouseDouble(PixelPoint p) noexcept
 {
   map_item_timer.Cancel();
 
   mouse_down_clock.Update();
+
+  if (HandleCompassTap(p)) {
+    /* rapid repeated taps on the compass are cycling through the map
+       orientations, not requesting the menu */
+    ignore_single_click = true;
+    return true;
+  }
 
   InputEvents::ShowMenu();
   ignore_single_click = true;
@@ -384,6 +391,12 @@ GlueMapWindow::OnMouseUp(PixelPoint p) noexcept
   }
 
   if (arm_mapitem_list) {
+    /* the compass doubles as a button: tapping it resets a rotated
+       map back to north-up while panning and cycles through the map
+       orientations otherwise */
+    if (HandleCompassTap(drag_start))
+      return true;
+
     map_item_timer.Schedule(std::chrono::milliseconds(200));
     return true;
   }
@@ -478,7 +491,6 @@ GlueMapWindow::ResetMultiTouchSessionState() noexcept
   multi_touch_was_panning = false;
   pinch_scaling = false;
   pinch_rotating = false;
-  manual_rotation = false;
 }
 
 void
@@ -621,19 +633,19 @@ GlueMapWindow::OnMultiTouchMove(PixelPoint a, PixelPoint b) noexcept
     /* screen y grows downward, so a visually clockwise finger twist
        increases the measured angle; subtract it so the map content
        rotates with the fingers */
-    manual_rotation_angle = pinch_start_screen_angle - twist;
-    manual_rotation = true;
+    const Angle new_angle = pinch_start_screen_angle - twist;
 
     /* a rotation is a deliberate manipulation; enter pan mode so the
-       chosen angle is held */
+       chosen angle is held (UpdateScreenAngle() leaves the angle alone
+       while panning) */
     if (!multi_touch_pan_ui) {
       CommitMultiTouchPanUI();
       RebasePinchAfterLayoutChange(a, b, distance, centroid);
       pinch_start_finger_angle = finger_angle;
-      pinch_start_screen_angle = manual_rotation_angle;
+      pinch_start_screen_angle = new_angle;
     }
 
-    visible_projection.SetScreenAngle(manual_rotation_angle);
+    visible_projection.SetScreenAngle(new_angle);
     OnProjectionModified();
   }
 
@@ -723,8 +735,9 @@ GlueMapWindow::OnCancelMode() noexcept
 
 #ifdef HAVE_MULTI_TOUCH
     if (was_multi_touch)
-      /* drop a held twist angle and refresh after the session flags
-         were cleared */
+      /* refresh after the session flags were cleared; a twist angle
+         from a cancelled gesture that did not enter pan mode is
+         dropped by UpdateScreenAngle() */
       QuickRedraw();
 #endif
   }
@@ -744,6 +757,10 @@ GlueMapWindow::OnPaint(Canvas &canvas) noexcept
 
   if (IsPanChromeVisible())
     DrawCrossHairs(canvas);
+
+  /* over the buffered map, so fading it out does not render the whole
+     map again */
+  DrawPageIndicator(canvas);
 
   /* the trail may leave this window (the pointer is captured); under
      OpenGL it is painted over the InfoBoxes, and MainWindow::OnPaint()
@@ -780,10 +797,11 @@ GlueMapWindow::OnPaintBuffer(Canvas &canvas) noexcept
 
   MapWindow::OnPaintBuffer(canvas);
 
-  DrawMapScale(canvas, GetClientRect(), render_projection);
+  const auto layout = GetHudLayout();
+  DrawMapScale(canvas, layout, render_projection);
   DrawFlightInfo(canvas);
   if (IsPanChromeVisible() || DEBUG_ALL_MAP_OVERLAYS)
-    DrawPanInfo(canvas);
+    DrawPanInfo(canvas, layout);
 
 #ifdef ENABLE_OPENGL
   LeaveDrawThread();
@@ -828,12 +846,15 @@ GlueMapWindow::Render(Canvas &canvas, const PixelRect &rc) noexcept
 
   if (IsNearSelf() || DEBUG_ALL_MAP_OVERLAYS) {
     draw_sw.Mark("DrawGlueMisc");
+
+    const auto layout = GetHudLayout(GetHudRect(rc));
+
     if (GetMapSettings().show_thermal_profile || DEBUG_ALL_MAP_OVERLAYS)
-      DrawThermalBand(canvas, rc);
-    DrawStallRatio(canvas, rc);
-    DrawFlightMode(canvas, rc);
-    DrawFinalGlide(canvas, rc);
-    DrawVario(canvas, rc);
-    DrawGPSStatus(canvas, rc, Basic());
+      DrawThermalBand(canvas, layout);
+    DrawStallRatio(canvas, layout);
+    DrawFlightMode(canvas, layout);
+    DrawFinalGlide(canvas, layout);
+    DrawVario(canvas, layout);
+    DrawGPSStatus(canvas, layout, Basic());
   }
 }

@@ -114,6 +114,11 @@ to avoid any additional whitespaces around the equal sign or in front of the
 keyword. Which files are supported depends on your operating system and the
 applications that are installed.  Android supports JPEG files and other
 file types, others mostly BMP images. one or several images can be shown.
+The file name is relative to the XCSoar data directory, also for
+waypoints loaded from a \verb|.cupx| file. For those, a section in this
+file replaces the pictures the archive carries for that waypoint, even if
+it lists no image; only a file name that also exists in the archive is
+still taken from the archive.
 
 The text may also specify any document specific to airfields or waypoints using
 \verb|file=| followed by the file name. Such document won't be loaded directly in XCSoar 
@@ -284,6 +289,13 @@ converters at \url{https://xcsoar.readthedocs.io/en/latest/task_file.html}.
 The software flight logger generates IGC files (extension \verb|.igc|)
 according to the long naming convention described in the FAI 
 document {\em Technical Specification for IGC-Approved GNSS Flight Recorders}.  
+The GPS line of its header (\verb|HFGPS|) names the device that supplies
+the GPS fix when the logger starts: the first device in the Devices list
+that delivers a position, the one whose GPS flag is shown in bold.
+If another device takes over the GPS fix during the flight, the file
+notes it in a comment line after the first fix from that device, for
+example \verb|LXCS132015GPS:B FLARM| (UTC time 13:20:15, new source
+device~B with the FLARM driver); the header line itself cannot change.
 
 Log-files are stored in the `logs' subdirectory of the XCSoarData directory.
 These files can be imported into other programs for analysis after flight.

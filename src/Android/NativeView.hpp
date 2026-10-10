@@ -40,8 +40,10 @@ class NativeView {
   static jmethodID getWifiIpAddress_method;
   static jmethodID isAutoRotateEnabled_method;
   static jmethodID getPhysicalOrientation_method;
+  static jmethodID getTopGestureClearance_method;
   static jmethodID startMyService_method;
   static jmethodID launchSAFTreePicker_method;
+  static jmethodID reportSize_method;
 
   static Java::TrivialClass clsBitmap;
   static jmethodID createBitmap_method;
@@ -112,6 +114,16 @@ public:
     env->CallVoidMethod(obj, setFullScreen_method, full_screen);
   }
 
+  /**
+   * Ask Java to report the current surface size and system insets.
+   * Uses the last stored surface size: View.getWidth() is still 0
+   * when this is called from the native thread at startup.
+   */
+  void ReportSize(JNIEnv *env) const noexcept {
+    env->CallVoidMethod(obj, reportSize_method,
+                        (jint)width, (jint)height);
+  }
+
   bool SetRequestedOrientation(JNIEnv *env, ScreenOrientation so) {
     return env->CallBooleanMethod(obj, setRequestedOrientationID, (jint)so);
   }
@@ -133,6 +145,14 @@ public:
   [[gnu::pure]]
   int GetPhysicalOrientation(JNIEnv *env) const noexcept {
     return env->CallIntMethod(obj, getPhysicalOrientation_method);
+  }
+
+  /**
+   * Pixels of the system swipe-down band that still cover this view.
+   * Zero when the view already starts below that band.
+   */
+  int GetTopGestureClearance(JNIEnv *env) const noexcept {
+    return env->CallIntMethod(obj, getTopGestureClearance_method);
   }
 
   Java::LocalObject LoadResourceBitmap(JNIEnv *env, const char *name) {

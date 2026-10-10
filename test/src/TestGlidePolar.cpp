@@ -22,6 +22,7 @@ private:
   void TestBallastOverload();
   void TestBugs();
   void TestMC();
+  void TestSafetyMCPastCruise();
   void TestDensityRatio();
   void TestDensityRatioMC();
   void TestNextLegEqThermal();
@@ -185,6 +186,35 @@ GlidePolarTest::TestMC()
 }
 
 void
+GlidePolarTest::TestSafetyMCPastCruise()
+{
+  const double cruise = Units::ToSysUnit(120, Unit::KILOMETER_PER_HOUR);
+  polar.SetDensityRatio(1.0);
+  polar.SetMC(0);
+  polar.SetVMax(cruise);
+
+  polar.SetMC(4);
+  const double expected = sqrt((polar.polar.c + 4) / polar.polar.a);
+  ok1(expected > cruise);
+  ok1(equals(polar.GetVBestLD(), cruise));
+  ok1(equals(polar.GetVMax(), cruise));
+  const double ld_at_cap = polar.GetBestLD();
+
+  polar.SetMCLimitedByCruise(false);
+  ok1(equals(polar.GetVBestLD(), expected));
+  ok1(equals(polar.GetVBestLD(), polar.GetBestGlideRatioSpeed(0)));
+  ok1(equals(polar.GetVMax(), cruise));
+  ok1(polar.GetBestLD() < ld_at_cap);
+  ok1(equals(polar.SpeedToFly(0, 0), cruise));
+
+  polar.SetMCLimitedByCruise(true);
+  ok1(equals(polar.GetVBestLD(), cruise));
+
+  polar.SetMC(0);
+  polar.SetVMax(Units::ToSysUnit(200, Unit::KILOMETER_PER_HOUR));
+}
+
+void
 GlidePolarTest::TestDensityRatio()
 {
   // Baseline values at sea level (density_ratio == 1.0 by default)
@@ -310,17 +340,43 @@ GlidePolarTest::Run()
   TestBallastOverload();
   TestBugs();
   TestMC();
+  TestSafetyMCPastCruise();
   TestDensityRatio();
   TestDensityRatioMC();
   TestNextLegEqThermal();
 }
 
+/**
+ * The constructor's stand-in polar must be recognisable as such, so
+ * that it is never sent to a device as the pilot's polar (#3269).
+ */
+static void
+TestFallback()
+{
+  GlidePolar polar(0);
+  ok1(polar.IsValid());
+  ok1(polar.IsFallback());
+
+  /* the masses, MC, bugs and ballast do not make it a glider's polar */
+  polar.SetMC(1.5);
+  polar.SetBugs(0.9);
+  polar.SetReferenceMass(383);
+  ok1(polar.IsFallback());
+
+  /* a polar set up for a glider is not the fallback */
+  polar.SetCoefficients(PolarCoefficients(0.0011, -0.07, 1.6));
+  ok1(!polar.IsFallback());
+
+  ok1(!GlidePolar::Invalid().IsFallback());
+}
+
 int main()
 {
-  plan_tests(69 + 3 + 21);
+  plan_tests(69 + 3 + 21 + 5 + 9);
 
   GlidePolarTest test;
   test.Run();
+  TestFallback();
 
   return exit_status();
 }

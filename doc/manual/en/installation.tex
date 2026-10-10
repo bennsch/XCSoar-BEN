@@ -38,8 +38,8 @@ to use them.
 
 If you are a pilot in a hurry, the authors suggest to change to the short form 
 manual \texttt{XCSoar-in-a-Flash} going through the \emph{XCSoar Checklist} 
-step by step. The short form manual is available on \xcsoarwebsite{/
-discover/manual.html}.
+step by step. The short form manual is available on
+\url{https://xcsoar.org/docs/#manual}.
 
 
 
@@ -245,8 +245,9 @@ This is a Debian package and can be installed using
 \begin{center}
 \verb|sudo dpkg -i xcsoar_XXX.deb|.
 \end{center}
-Use \verb|dpkg-query -L xcsoar| to see where the executable and 
-other files are installed,
+Use \verb|dpkg-query -L xcsoar| to see where the executable and
+other files are installed.
+The package adds an XCSoar entry to the desktop menu.
 Additional data files must be placed in the directory
 \verb|~/.xcsoar|.
 If \verb|~/.xcsoar| does not exist, it will be created the first time
@@ -258,12 +259,19 @@ Install the Debian package as described above.  However, unlike on
 ``regular'' Linux, XCSoar will not use X11.  Instead, it runs
 full-screen on the Linux console.
 
-On the Raspberry Pi 4, you need to enable the VC4 display driver by
-adding the following line to \texttt{/boot/config.txt}:
+On the Raspberry Pi 4 and later, Raspberry Pi OS already enables the
+VC4 display driver.  In \texttt{/boot/firmware/config.txt} (on older
+images, \texttt{/boot/config.txt}) the line is:
 
 \begin{verbatim*}
-dtoverlay=vc4-fkms-v3d
+dtoverlay=vc4-kms-v3d
 \end{verbatim*}
+
+Leave that line as it is.  XCSoar draws through this driver.  Do not
+add a second line, \texttt{dtoverlay=vc4-fkms-v3d}: the two overlays
+together stop the Pi from booting.  If the file still has
+\texttt{dtoverlay=vc4-fkms-v3d}, edit that existing line so it reads
+\texttt{dtoverlay=vc4-kms-v3d}.  Do not add another overlay line.
 
 XCSoar requires access to your input devices
 (\texttt{/dev/input/event*}).  By default, only \texttt{root} is
@@ -369,6 +377,8 @@ Useful options include \verb|-datapath=...| for the data directory,
 \verb|-profile=...| to load a profile file, \verb|-simulator| or \verb|-fly|
 when available to skip the startup mode prompt, and geometry switches such as
 \verb|-portrait|, \verb|-square|, and \verb|-small|.
+The window cannot be resized below 320$\times$240 pixels, or
+240$\times$320 when it is taller than it is wide.
 On desktop Unix/macOS builds, \verb|-replay=PATH| may load flight replay data.
 
 \subsection*{Loading data files}\label{sec:loaddatafiles}

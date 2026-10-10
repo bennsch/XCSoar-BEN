@@ -65,6 +65,7 @@ DIALOG_SOURCES = \
 	$(SRC)/Dialogs/Airspace/AirspaceCRendererSettingsPanel.cpp \
 	$(SRC)/Dialogs/Airspace/dlgAirspaceWarnings.cpp \
 	$(if $(filter y,$(HAVE_HTTP)),$(SRC)/Dialogs/Airspace/NOTAMList.cpp) \
+	$(SRC)/Dialogs/Settings/InfoBoxAreaStretchWidget.cpp \
 	$(SRC)/Dialogs/Settings/WindSettingsPanel.cpp \
 	$(SRC)/Dialogs/Settings/WindSettingsDialog.cpp \
 	$(SRC)/Dialogs/Settings/dlgBasicSettings.cpp \
@@ -83,6 +84,8 @@ DIALOG_SOURCES = \
 	$(SRC)/Dialogs/Plane/PolarShapeEditWidget.cpp \
 	$(SRC)/Dialogs/DataField.cpp \
 	$(SRC)/Dialogs/ComboPicker.cpp \
+	$(SRC)/Dialogs/InfoBoxPicker.cpp \
+	$(SRC)/Dialogs/InfoBoxGroupPicker.cpp \
 	$(SRC)/Dialogs/FilePicker.cpp \
 	$(SRC)/Dialogs/EmptyDownloadList.cpp \
 	$(SRC)/Dialogs/MultiFilePicker.cpp \
@@ -116,6 +119,8 @@ DIALOG_SOURCES = \
 	$(if $(filter y,$(HAVE_HTTP)),$(SRC)/Dialogs/Settings/Panels/NOTAMConfigPanel.cpp) \
 	$(if $(filter y,$(HAVE_HTTP)),$(SRC)/Dialogs/NOTAM/NOTAMMessageListener.cpp) \
 	$(SRC)/Dialogs/Settings/Panels/GaugesConfigPanel.cpp \
+	$(SRC)/Dialogs/Settings/Panels/MapOverlaysConfigPanel.cpp \
+	$(SRC)/Dialogs/Settings/Panels/TrafficConfigPanel.cpp \
 	$(SRC)/Dialogs/Settings/Panels/DisplayConfigPanel.cpp \
 	$(SRC)/Dialogs/Settings/Panels/VarioConfigPanel.cpp \
 	$(SRC)/Dialogs/Settings/Panels/GlideComputerConfigPanel.cpp \
@@ -183,7 +188,6 @@ DIALOG_SOURCES = \
 
 ifeq ($(HAVE_PCM_PLAYER),y)
 DIALOG_SOURCES += \
-	$(SRC)/Dialogs/Settings/Panels/AudioVarioConfigPanel.cpp \
 	$(SRC)/Dialogs/Settings/Panels/AudioConfigPanel.cpp
 endif
 
@@ -191,6 +195,7 @@ ifeq ($(HAVE_HTTP),y)
 DIALOG_SOURCES += \
 	$(SRC)/Dialogs/Weather/XCThermDialog.cpp \
 	$(SRC)/Dialogs/Weather/WeatherCredentialGateWidget.cpp \
+	$(SRC)/Dialogs/Weather/MosmixTemperature.cpp \
 	$(SRC)/Dialogs/Weather/PCMetDialog.cpp \
 	$(SRC)/Dialogs/Weather/NOAAList.cpp \
 	$(SRC)/Dialogs/Weather/NOAADetails.cpp
@@ -286,7 +291,6 @@ XCSOAR_SOURCES := \
 	$(SRC)/Logger/FlightLogger.cpp \
 	$(SRC)/Logger/GlueFlightLogger.cpp \
 	$(SRC)/Replay/Replay.cpp \
-	$(SRC)/IGC/IGCParser.cpp \
 	$(SRC)/Replay/IgcReplay.cpp \
 	$(SRC)/Replay/NmeaReplay.cpp \
 	$(SRC)/Replay/DemoReplay.cpp \
@@ -543,6 +547,7 @@ XCSOAR_SOURCES := \
 	$(SRC)/Profile/TerrainConfig.cpp \
 	$(SRC)/Profile/FlarmProfile.cpp \
 	\
+	$(SRC)/Repository/CountryName.cpp \
 	$(SRC)/Repository/FileRepository.cpp \
 	$(SRC)/Repository/FileType.cpp \
 	$(SRC)/Repository/Parser.cpp \
@@ -634,12 +639,20 @@ ifeq ($(HAVE_WIN32),y)
 endif
 
 $(call SRC_TO_OBJ,$(SRC)/Dialogs/Inflate.cpp): CPPFLAGS += $(ZLIB_CPPFLAGS)
+$(call SRC_TO_OBJ,$(SRC)/Weather/OPERA/Radar.cpp): CPPFLAGS += $(ZLIB_CPPFLAGS)
 
 ifeq ($(OPENGL),y)
 ifeq ($(HAVE_HTTP),y)
 XCSOAR_SOURCES += \
 	$(SRC)/Dialogs/Weather/MapOverlayWidget.cpp \
-	$(SRC)/Dialogs/Weather/EdlSettingsWidget.cpp
+	$(SRC)/Dialogs/Weather/EdlSettingsWidget.cpp \
+	$(SRC)/Weather/OPERA/Radar.cpp \
+	$(SRC)/Weather/OPERA/RadarData.cpp \
+	$(SRC)/Weather/OPERA/RadarPageOverlay.cpp \
+	$(SRC)/Weather/EUMETView/Satellite.cpp \
+	$(SRC)/Weather/EUMETView/SatelliteData.cpp \
+	$(SRC)/Weather/EUMETView/Enhance.cpp \
+	$(SRC)/Weather/EUMETView/SatellitePageOverlay.cpp
 endif
 endif
 
@@ -737,9 +750,15 @@ ifeq ($(HAVE_HTTP),y)
 XCSOAR_SOURCES += \
 	$(SRC)/Dialogs/DownloadFileModal.cpp \
 	$(SRC)/Dialogs/DownloadFilePicker.cpp \
+	$(SRC)/Dialogs/DownloadFilter.cpp \
 	$(SRC)/Repository/Glue.cpp \
 	$(SRC)/Renderer/NOAAListRenderer.cpp \
+	$(SRC)/Weather/MOSMIX/Station.cpp \
+	$(SRC)/Weather/MOSMIX/Forecast.cpp \
+	$(SRC)/Weather/MOSMIX/Download.cpp \
+	$(SRC)/Weather/MOSMIX/AutoUpdate.cpp \
 	$(SRC)/Weather/PCMet/Images.cpp \
+	$(SRC)/Weather/PCMet/Georeference.cpp \
 	$(SRC)/Weather/PCMet/Overlays.cpp \
 	$(SRC)/Weather/NOAAGlue.cpp \
 	$(SRC)/Weather/METARParser.cpp \
@@ -761,7 +780,9 @@ XCSOAR_SOURCES += \
 	$(SRC)/Weather/xctherm/XCThermAutoSwitch.cpp \
 
 XCSOAR_SOURCES += \
-	$(SRC)/Dialogs/Settings/Panels/TrackingConfigPanel.cpp \
+	$(SRC)/Dialogs/Settings/Panels/SkyLinesConfigPanel.cpp \
+	$(SRC)/Dialogs/Settings/Panels/LiveTrack24ConfigPanel.cpp \
+	$(SRC)/Dialogs/Settings/Panels/TrackingIntervalChoices.cpp \
 	$(SRC)/Dialogs/Settings/Panels/CloudConfigPanel.cpp
 
 XCSOAR_SOURCES += \

@@ -120,7 +120,7 @@ AbstractTask::UpdateStatsDistances(const GeoPoint &location,
 
   const TaskPoint *active = GetActiveTaskPoint();
   if (active != NULL) {
-    stats.current_leg.location_remaining = active->GetLocationRemaining();
+    stats.current_leg.location_remaining = active->GetLocationNavigation();
     stats.current_leg.vector_remaining = active->GetVectorRemaining(location);
     stats.current_leg.next_leg_vector = active->GetNextLegVector();
   } else {
@@ -313,6 +313,10 @@ AbstractTask::CalcLegGradient(const AircraftState &aircraft) const noexcept
   // Get next turnpoint
   const TaskWaypoint *tp = GetActiveTaskPoint();
   if (!tp)
+    return 0;
+
+  /* Geometric gradient to 0 m would look like a real glide ratio. */
+  if (tp->GetType() == TaskPointType::UNORDERED && !tp->HasElevation())
     return 0;
 
   // Get the distance to the next turnpoint

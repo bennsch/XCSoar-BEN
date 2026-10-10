@@ -35,6 +35,16 @@ void
 SetBallastFraction(double fraction, bool to_devices=true) noexcept;
 
 /**
+ * Start or stop dumping water ballast over the dump time of the
+ * plane profile.  Dumping starts only if the glider carries ballast
+ * and the plane profile has a dump time.
+ *
+ * @return true if ballast is being dumped now
+ */
+bool
+SetBallastDump(bool active) noexcept;
+
+/**
  * Configure a new Bugs setting in #ComputerSettings, and
  * forward it to all XCSoar modules that want it.
  *
@@ -87,6 +97,23 @@ SetManualMacCready(double mc, bool to_devices=true) noexcept;
  */
 void
 OffsetManualMacCready(double offset, bool to_devices=true) noexcept;
+
+/**
+ * Add @p offset to the running Safety MC. The profile value is left
+ * unchanged, as with a Task MC change on the ring. In task abort, a
+ * Safety MC below Task MC is sent to devices; raising Safety MC back
+ * to Task MC restores Task MC on the devices.
+ */
+void
+OffsetSafetyMacCready(double offset) noexcept;
+
+/**
+ * On entering or leaving task abort, send MacCready to devices when
+ * Task MC is above Safety MC. Entering sends Safety MC; leaving sends
+ * Task MC back.
+ */
+void
+PublishAbortDeviceMacCready(bool in_abort) noexcept;
 
 /**
  * Call this after MapSettings has been modified with
