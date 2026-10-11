@@ -106,7 +106,7 @@ TEST_NAMES = \
 	TestFileUtil TestRepository TestFileType TestMarkdownCheckbox TestPath TestPolars TestCSVLine TestGlidePolar \
 	TestLXNAVPolarConversion \
 	test_replay_task TestProjection TestFlatPoint TestFlatLine TestFlatGeoPoint \
-	TestMacCready TestOrderedTask TestAATPoint TestTaskSave \
+	TestMacCready TestTerrainReach TestOrderedTask TestAATPoint TestTaskSave \
 	TestTaskFileSeeYouParsing \
 	TestPlanes \
 	TestTaskPoint \
@@ -122,6 +122,7 @@ TEST_NAMES = \
 	TestNanoFileTransfer \
 	TestTraceBounds \
 	TestStrings TestUnescapeCString TestUTF8 TestWrapText TestLayout \
+	TestContainerWindow \
 	TestInputConfig \
 	TestCRC16 TestCRC8 \
 	TestUnitsFormatter \
@@ -538,6 +539,13 @@ TEST_MAC_CREADY_OBJS = $(call SRC_TO_OBJ,$(TEST_MAC_CREADY_SOURCES))
 TEST_MAC_CREADY_DEPENDS = GLIDE GEO MATH UTIL
 $(eval $(call link-program,TestMacCready,TEST_MAC_CREADY))
 
+TEST_TERRAIN_REACH_SOURCES = \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/FakeLogFile.cpp \
+	$(TEST_SRC_DIR)/TestTerrainReach.cpp
+TEST_TERRAIN_REACH_DEPENDS = TERRAIN OPERATION IO ZZIP OS ROUTE GLIDE GEO MATH UTIL
+$(eval $(call link-program,TestTerrainReach,TEST_TERRAIN_REACH))
+
 TEST_ORDERED_TASK_SOURCES = \
 	$(SRC)/Engine/Navigation/Aircraft.cpp \
 	$(SRC)/Engine/Util/Gradient.cpp \
@@ -935,6 +943,14 @@ TEST_LAYOUT_SOURCES = \
 	$(TEST_SRC_DIR)/TestLayout.cpp
 TEST_LAYOUT_DEPENDS = SCREEN EVENT ASYNC OS IO THREAD MATH UTIL
 $(eval $(call link-program,TestLayout,TEST_LAYOUT))
+
+TEST_CONTAINER_WINDOW_SOURCES = \
+	$(MORE_SCREEN_SOURCES) \
+	$(TEST_SRC_DIR)/FakeAsset.cpp \
+	$(TEST_SRC_DIR)/tap.c \
+	$(TEST_SRC_DIR)/TestContainerWindow.cpp
+TEST_CONTAINER_WINDOW_DEPENDS = SCREEN EVENT ASYNC OS IO THREAD MATH UTIL
+$(eval $(call link-program,TestContainerWindow,TEST_CONTAINER_WINDOW))
 
 ifeq ($(HAVE_WIN32),y)
 TEST_UTF8WIN_SOURCES = \
