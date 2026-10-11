@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Note: Images are stored separately for each user (root or other)
-PRIVGL="" # Requries docker to run in rootless mode
+PRIVGL="" # Requires docker to run in rootless mode
 # PRIVGL=sudo
 
 # Get absolute path of the directory of this script
@@ -36,10 +36,6 @@ error() {
 }
 
 case "$1" in
-    "CLEAN")
-        # sudo required because files created by docker are owned by "root"
-        $PRIVGL make -C $REPO_DIR clean
-    ;;
     "DOCKER-BASH")
         # Enter a bash session in the docker container used for build
         $PRIVGL docker run --mount type=bind,source="$REPO_DIR",target=/opt/xcsoar \
@@ -56,6 +52,10 @@ case "$1" in
     "BUILD")
         # Note: The "xcsoar-compile" script will assign the max. number of CPUs
         case "$2" in
+            "CLEAN")
+                # sudo required because files created by docker are owned by "root"
+                sudo make -C $REPO_DIR clean
+            ;;
             "UNIX")
                 if [[ "$3" == "DEBUG" ]]; then
                     DBG="y"
@@ -65,8 +65,18 @@ case "$1" in
                     echo "Invalid target \"$3\""
                     exit 1
                 fi
+
+                if [[ "$4" == "SDL" ]]; then
+                    # Software rendering with SDL2
+                    # (to avoid problems with running X11 and MESA on WSL through docker)
+                    BUILD_TARGET="UNIX-SDL"
+                else
+                    # Use OpenGL
+                    BUILD_TARGET="UNIX"
+                fi
+
                 $PRIVGL docker run --mount type=bind,source="$REPO_DIR",target=/opt/xcsoar \
-                -it $DOCKER_CONTAINER xcsoar-compile UNIX DEBUG=$DBG WERROR=n
+                -it $DOCKER_CONTAINER xcsoar-compile $BUILD_TARGET DEBUG=$DBG WERROR=n
             ;;
             "ANDROID")
                 if [[ "$3" == "TESTING" ]]; then
