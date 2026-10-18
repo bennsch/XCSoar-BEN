@@ -329,6 +329,7 @@ TestFLARM()
   ok1(nmea_info.flarm.status.rx == 5);
   ok1(nmea_info.flarm.status.alarm_level == FlarmTraffic::AlarmType::IMPORTANT);
   ok1(nmea_info.flarm.status.has_extended);
+  ok1(nmea_info.flarm.status.has_bearing);
   ok1(nmea_info.flarm.status.relative_bearing == 45);
   ok1(nmea_info.flarm.status.alarm_type == 3);
   ok1(nmea_info.flarm.status.relative_vertical == -200);
@@ -359,11 +360,33 @@ TestFLARM()
   ok1(nmea_info.flarm.status.relative_distance == 0);
   ok1(nmea_info.flarm.status.target_id == FlarmId::Parse("A25703", NULL));
 
+  // PFLAU non-directional alarm (PCAS): no bearing, but the vertical
+  // and the distance
+  ok1(parser.ParseLine("$PFLAU,4,1,2,1,3,,2,-120,500,*62",
+                       nmea_info));
+  ok1(nmea_info.flarm.status.alarm_level == FlarmTraffic::AlarmType::URGENT);
+  ok1(nmea_info.flarm.status.has_extended);
+  ok1(!nmea_info.flarm.status.has_bearing);
+  ok1(nmea_info.flarm.status.alarm_type == 2);
+  ok1(nmea_info.flarm.status.has_vertical);
+  ok1(nmea_info.flarm.status.relative_vertical == -120);
+  ok1(nmea_info.flarm.status.relative_distance == 500);
+
+  // PFLAU non-directional alarm with neither bearing nor vertical
+  ok1(parser.ParseLine("$PFLAU,4,1,2,1,3,,2,,,*49",
+                       nmea_info));
+  ok1(nmea_info.flarm.status.alarm_level == FlarmTraffic::AlarmType::URGENT);
+  ok1(nmea_info.flarm.status.alarm_type == 2);
+  ok1(!nmea_info.flarm.status.has_bearing);
+  ok1(!nmea_info.flarm.status.has_vertical);
+  ok1(!nmea_info.flarm.status.has_extended);
+
   // PFLAU with empty bearing fields (no alarm target)
   ok1(parser.ParseLine("$PFLAU,3,1,2,1,0,,0,,*63",
                        nmea_info));
   ok1(nmea_info.flarm.status.alarm_level == FlarmTraffic::AlarmType::NONE);
   ok1(!nmea_info.flarm.status.has_extended);
+  ok1(!nmea_info.flarm.status.has_bearing);
 
   ok1(parser.ParseLine("$PFLAA,0,100,-150,10,2,DDA85C,123,13,24,1.4,2*7f",
                                       nmea_info));
@@ -502,13 +525,14 @@ TestFLARM()
   if (ok1(traffic != NULL)) {
     ok1(traffic->id_type == FlarmTraffic::IdType::FLARM);
     ok1(traffic->source == FlarmTraffic::SourceType::ADSB);
+    ok1(traffic->source_received);
     ok1(traffic->rssi_available);
     ok1(traffic->rssi == -85);
     ok1(!traffic->no_track);
     ok1(traffic->type == FlarmTraffic::AircraftType::GLIDER);
     ok1(equals(traffic->track, 180));
   } else {
-    skip(7, 0, "traffic == NULL");
+    skip(8, 0, "traffic == NULL");
   }
 
   // PFLAA v9+ with Source=Mode-S (6), NoTrack=0, no RSSI
@@ -534,11 +558,12 @@ TestFLARM()
   traffic = nmea_info.flarm.traffic.FindTraffic(id);
   if (ok1(traffic != NULL)) {
     ok1(traffic->source == FlarmTraffic::SourceType::FLARM);
+    ok1(!traffic->source_received);
     ok1(traffic->stealth);
     ok1(traffic->no_track);
     ok1(!traffic->rssi_available);
   } else {
-    skip(4, 0, "traffic == NULL");
+    skip(5, 0, "traffic == NULL");
   }
 
   // PFLAA v8+ with NoTrack=0, out-of-range source (9 -> defaults to FLARM)
@@ -549,8 +574,9 @@ TestFLARM()
   traffic = nmea_info.flarm.traffic.FindTraffic(id);
   if (ok1(traffic != NULL)) {
     ok1(traffic->source == FlarmTraffic::SourceType::FLARM);
+    ok1(!traffic->source_received);
   } else {
-    skip(1, 0, "traffic == NULL");
+    skip(2, 0, "traffic == NULL");
   }
 
   // PFLAE without message (pre-v7 style)
@@ -649,6 +675,21 @@ TestFLARM()
  * chapter 8.18): empty fields are "not computed", not zero, and the
  * number of sectors is not fixed.
  */
+static void
+TestFlarmMinimumRange()
+{
+  /* FTD-041: 2 nm ahead, 1 nm to the sides and behind */
+  ok1(equals(FlarmMinimumRange(Angle::Zero()), 3704));
+  ok1(equals(FlarmMinimumRange(Angle::Degrees(90)), 1852));
+  ok1(equals(FlarmMinimumRange(Angle::Degrees(180)), 1852));
+  ok1(equals(FlarmMinimumRange(Angle::Degrees(270)), 1852));
+
+  /* in between, more than to the side, less than ahead */
+  const double half = FlarmMinimumRange(Angle::Degrees(45));
+  ok1(half > 1852 && half < 3704);
+  ok1(equals(FlarmMinimumRange(Angle::Degrees(-45)), half));
+}
+
 static void
 TestFLARMRangeParser()
 {
@@ -821,11 +862,16 @@ public:
         checksums and a wrong payload; ignores a FILE_OK that does
         not end the current window */
     NANO_302,
+
+    /** as #NANO_302, but its first answer to FILE_DATA_LOST does not
+        arrive, as on a Bluetooth link that drops bytes */
+    NANO_302_LOSSY,
   };
 
 private:
   const std::string flight;
   const Mode mode;
+  const bool ble;
 
   std::string reply;
   std::size_t handled_lines = 0;
@@ -834,10 +880,16 @@ private:
   std::vector<std::string> blocks;
   std::vector<int32_t> chain;
   bool corrupted = false, dropped = false, spliced = false;
+  bool resend_dropped = false, row_spliced = false;
 
 public:
-  NanoLoggerPort(std::string_view _flight, Mode _mode) noexcept
-    :flight(_flight), mode(_mode) {}
+  NanoLoggerPort(std::string_view _flight, Mode _mode,
+                 bool _ble = false) noexcept
+    :flight(_flight), mode(_mode), ble(_ble) {}
+
+  bool IsBleSerial() const noexcept override {
+    return ble;
+  }
 
   std::size_t Write(std::span<const std::byte> src) override {
     const std::size_t result = DumpPort::Write(src);
@@ -859,6 +911,10 @@ public:
   }
 
 private:
+  bool IsNano302() const noexcept {
+    return mode == Mode::NANO_302 || mode == Mode::NANO_302_LOSSY;
+  }
+
   bool Damages() const noexcept {
     return mode != Mode::CLEAN && mode != Mode::NO_FILE;
   }
@@ -929,16 +985,21 @@ private:
         crc.Update(std::string_view{flight});
         reply += MakeSentence(fmt::format("PLXVC,FILE_CRC32,A,{}",
                                           crc.Get()));
-      } else if (mode != Mode::NANO_302 || n == window_start + window)
+      } else if (!IsNano302() || n == window_start + window)
         SendWindow(n);
     } else if (line.starts_with("$PLXVC,FILE_DATA_LOST,R,")) {
       if (mode == Mode::S_VARIO)
         return;
 
+      if (mode == Mode::NANO_302_LOSSY && !resend_dropped) {
+        resend_dropped = true;
+        return;
+      }
+
       const unsigned n = ParseUnsigned(line.c_str() + 24);
       const unsigned end = std::min<unsigned>(window_start + window,
                                               blocks.size());
-      if (mode == Mode::NANO_302) {
+      if (IsNano302()) {
         reply += Block(n, '1', true);
         for (unsigned i = n + 1; i < end; ++i) {
           const std::string junk(blocks[i].size(), '\xe0');
@@ -966,12 +1027,53 @@ private:
         rest = tail;
       }
 
-      for (unsigned r = start; r < end && r <= rows.size(); ++r)
+      for (unsigned r = start; r < end && r <= rows.size(); ++r) {
+        std::string_view row = rows[r - 1];
+        if (Damages() && r == 10 && !row_spliced) {
+          /* lose a character, with a valid NMEA checksum, as a splice
+             does */
+          row_spliced = true;
+          row.remove_suffix(1);
+        }
+
         reply += MakeSentence(fmt::format("PLXVC,FLIGHT,A,,{},{},{}",
-                                          r, rows.size(), rows[r - 1]));
+                                          r, rows.size(), row));
+      }
     }
   }
 };
+
+/**
+ * The first row request is one line.  Every later request is at most
+ * @p chunk lines, and at least one request uses the full chunk.
+ */
+static bool
+FlightRowChunk(const NanoLoggerPort &port, unsigned chunk) noexcept
+{
+  bool first = true, saw_chunk = false;
+  for (const auto &line : port.GetLines()) {
+    if (!line.starts_with("$PLXVC,FLIGHT,R,"))
+      continue;
+
+    NMEAInputLine in(line.c_str() + 16);
+    in.Skip();
+    unsigned start, end;
+    if (!in.ReadChecked(start) || !in.ReadChecked(end) || end <= start)
+      return false;
+
+    const unsigned n = end - start;
+    if (first) {
+      if (n != 1)
+        return false;
+      first = false;
+    } else if (n > chunk)
+      return false;
+    else if (n == chunk)
+      saw_chunk = true;
+  }
+
+  return saw_chunk;
+}
 
 static void
 TestNanoDownloadFlight()
@@ -990,9 +1092,12 @@ TestNanoDownloadFlight()
                                          "nano-download.igc");
 
   using Mode = NanoLoggerPort::Mode;
+  /* BLE uses the block transfer.  A logger that ignores FILE_INFO
+     falls back to 7-line row requests. */
   for (const Mode mode : {Mode::CLEAN, Mode::DAMAGE, Mode::NO_FILE,
-                          Mode::S_VARIO, Mode::NANO_302}) {
-    NanoLoggerPort port{flight, mode};
+                          Mode::S_VARIO, Mode::NANO_302,
+                          Mode::NANO_302_LOSSY}) {
+    NanoLoggerPort port{flight, mode, true};
     NullOperationEnvironment env;
     File::Delete(path);
 
@@ -1003,13 +1108,71 @@ TestNanoDownloadFlight()
     ok1(File::ReadString(path, result.data(), result.size()) &&
         flight == result.data());
 
-    /* only a logger without the file transfer needs the rows */
-    if (mode == Mode::NO_FILE)
+    if (mode == Mode::NO_FILE) {
       ok1(port.FindContaining("PLXVC,FLIGHT,R,") != nullptr);
-    else
+      ok1(FlightRowChunk(port, 7));
+    } else
       ok1(port.FindContaining("PLXVC,FILE_CRC_OK,R") != nullptr &&
           port.FindContaining("PLXVC,FLIGHT,R,") == nullptr);
   }
+
+  /* Classic serial and classic Bluetooth stay on the rows, 50 lines
+     after the first, even when the logger can do the block transfer. */
+  {
+    NanoLoggerPort port{flight, Mode::CLEAN};
+    NullOperationEnvironment env;
+    File::Delete(path);
+
+    ok1(Nano::DownloadFlight(port, info, path, 20, env));
+
+    std::vector<char> result(flight.size() + 2);
+    ok1(File::ReadString(path, result.data(), result.size()) &&
+        flight == result.data());
+    ok1(FlightRowChunk(port, 50));
+    ok1(port.FindContaining("PLXVC,FILE_INFO,R,") == nullptr);
+  }
+
+  File::Delete(path);
+}
+
+/**
+ * The rows of a real IGC file must fit their I and J records.  A row
+ * that does not is asked for again; one that comes back the same is
+ * kept, since the logger stored it like that.
+ */
+static void
+TestNanoDownloadFlightRecordLength()
+{
+  std::string flight = "AXXXTEST\r\nHFDTE170825\r\n"
+    "I013638FXA\r\nJ010810WDI\r\n";
+  for (unsigned i = 1; i <= 60; ++i) {
+    flight += fmt::format("B{:06}4902419N01124877EA0095601102{:03}\r\n",
+                          124400 + i, i);
+    if (i % 20 == 0)
+      flight += fmt::format("K{:06}214\r\n", 124400 + i);
+  }
+
+  /* an LXNAV S10 wrote this K record with a 4-digit wind direction */
+  flight += "K124419-214\r\n";
+  flight += "GABCDEF\r\n";
+
+  RecordedFlightInfo info{};
+  strcpy(info.internal.lx.nano_filename, "TEST0002.igc");
+  info.internal.lx.nano_file_size = flight.size();
+
+  const auto path = AllocatedPath::Build(GetPrimaryDataPath(),
+                                         "nano-download.igc");
+
+  /* row 10 arrives spliced once */
+  NanoLoggerPort port{flight, NanoLoggerPort::Mode::DAMAGE};
+  NullOperationEnvironment env;
+  File::Delete(path);
+
+  ok1(Nano::DownloadFlight(port, info, path, 20, env));
+
+  std::vector<char> result(flight.size() + 2);
+  ok1(File::ReadString(path, result.data(), result.size()) &&
+      flight == result.data());
 
   File::Delete(path);
 }
@@ -1160,6 +1323,11 @@ TestBorgeltB50()
   ok1(nmea_info.switch_state.flight_mode == SwitchState::FlightMode::CIRCLING);
   ok1(nmea_info.temperature_available);
   ok1(equals(nmea_info.temperature.ToKelvin(), 245.15));
+
+  /* 0 is cruise: the Borgelt documentation has the switch the other
+     way round, the devices send it like this (#812) */
+  ok1(device->ParseNMEA("$PBB50,042,-01.1,1.0,12345,10,1.3,0,-28*74", nmea_info));
+  ok1(nmea_info.switch_state.flight_mode == SwitchState::FlightMode::CRUISE);
 
   delete device;
 }
@@ -2528,6 +2696,125 @@ TestLXV7PolarWrite()
   delete device;
 }
 
+/**
+ * An empty-mass send before PLXV0 POLAR is cached must not be reported
+ * as done, and the reply must not replace that mass (#3353).
+ */
+static void
+TestLXEmptyMassBeforePolar()
+{
+  DumpPort dump;
+  Device *device = lx_driver.CreateOnPort(dummy_config, dump);
+  ok1(device != nullptr);
+
+  NMEAInfo basic;
+  basic.Reset();
+  basic.clock = TimeStamp{FloatDuration{1}};
+  ok1(device->ParseNMEA("$LXWP1,S8x,12345,1.0,1.0,12345*1D", basic));
+
+  MoreData more;
+  more.Reset();
+  more.clock = basic.clock;
+  DerivedInfo calculated{};
+  /* Consume vario_just_detected so the flush below is not skipped. */
+  device->OnCalculatedUpdate(more, calculated);
+
+  NullOperationEnvironment env;
+  dump.Clear();
+  ok1(!device->PutEmptyMass(270, env));
+
+  bool any_partial = false;
+  bool any_full = false;
+  for (const auto &line : dump.GetLines()) {
+    if (LXNAVPolar::IsPartialPolarWrite(line))
+      any_partial = true;
+    if (line.find("POLAR,W,") != std::string::npos)
+      any_full = true;
+  }
+  ok1(!any_partial);
+  ok1(!any_full);
+  ok1(dump.FindContaining("PLXV0,POLAR,R") != nullptr);
+
+  basic.clock = TimeStamp{FloatDuration{2}};
+  ok1(device->ParseNMEA(
+        "$PLXV0,POLAR,W,1.780,-3.030,1.930,30.0,292,600,260,90,LS 7,0*24",
+        basic));
+  ok1(equals(basic.settings.polar_empty_weight, 270.));
+
+  dump.Clear();
+  more.clock = basic.clock;
+  device->OnCalculatedUpdate(more, calculated);
+
+  const char *written = dump.FindContaining("PLXV0,POLAR,W,");
+  ok1(written != nullptr &&
+      !LXNAVPolar::IsPartialPolarWrite(written));
+  ok1(written != nullptr && strstr(written, ",270.0,") != nullptr);
+  ok1(written != nullptr && strstr(written, "1.780000") != nullptr);
+  ok1(written != nullptr && strstr(written, "LS 7") != nullptr);
+
+  delete device;
+}
+
+/**
+ * An MTOW send before PLXV0 POLAR is cached must not be reported as
+ * done, and the reply must not replace that weight.
+ */
+static void
+TestLXMaxTakeoffMassBeforePolar()
+{
+  DumpPort dump;
+  Device *device = lx_driver.CreateOnPort(dummy_config, dump);
+  ok1(device != nullptr);
+
+  NMEAInfo basic;
+  basic.Reset();
+  basic.clock = TimeStamp{FloatDuration{1}};
+  ok1(device->ParseNMEA("$LXWP1,S8x,12345,1.0,1.0,12345*1D", basic));
+
+  MoreData more;
+  more.Reset();
+  more.clock = basic.clock;
+  DerivedInfo calculated{};
+  device->OnCalculatedUpdate(more, calculated);
+
+  NullOperationEnvironment env;
+  dump.Clear();
+  ok1(device->PutMaxTakeoffMass(0, env));
+  ok1(dump.GetLines().empty());
+
+  ok1(!device->PutMaxTakeoffMass(550, env));
+
+  bool any_partial = false;
+  bool any_full = false;
+  for (const auto &line : dump.GetLines()) {
+    if (LXNAVPolar::IsPartialPolarWrite(line))
+      any_partial = true;
+    if (line.find("POLAR,W,") != std::string::npos)
+      any_full = true;
+  }
+  ok1(!any_partial);
+  ok1(!any_full);
+  ok1(dump.FindContaining("PLXV0,POLAR,R") != nullptr);
+
+  basic.clock = TimeStamp{FloatDuration{2}};
+  ok1(device->ParseNMEA(
+        "$PLXV0,POLAR,W,1.780,-3.030,1.930,30.0,292,600,260,90,LS 7,0*24",
+        basic));
+  ok1(equals(basic.settings.polar_maximum_mass, 550.));
+
+  dump.Clear();
+  more.clock = basic.clock;
+  device->OnCalculatedUpdate(more, calculated);
+
+  const char *written = dump.FindContaining("PLXV0,POLAR,W,");
+  ok1(written != nullptr &&
+      !LXNAVPolar::IsPartialPolarWrite(written));
+  ok1(written != nullptr && strstr(written, ",550,") != nullptr);
+  ok1(written != nullptr && strstr(written, ",260.0,") != nullptr);
+  ok1(written != nullptr && strstr(written, "1.780000") != nullptr);
+
+  delete device;
+}
 
 static void
 TestLXRadioTransponder()
@@ -2663,19 +2950,19 @@ TestLXNavDeclare()
                                 Angle::Degrees(48.778)));
     wp_start.name = "START";
     wp_start.elevation = 585;
-    wp_start.has_elevation = true;
+    wp_start.elevation_source = Waypoint::ElevationSource::FILE;
 
     Waypoint wp_tp1(GeoPoint(Angle::Degrees(9.702),
                               Angle::Degrees(47.192)));
     wp_tp1.name = "TP1";
     wp_tp1.elevation = 572;
-    wp_tp1.has_elevation = true;
+    wp_tp1.elevation_source = Waypoint::ElevationSource::FILE;
 
     Waypoint wp_finish(GeoPoint(Angle::Degrees(11.552),
                                  Angle::Degrees(47.735)));
     wp_finish.name = "FINISH";
     wp_finish.elevation = 420;
-    wp_finish.has_elevation = true;
+    wp_finish.elevation_source = Waypoint::ElevationSource::FILE;
 
     decl.Append(wp_start);
     decl.Append(wp_tp1);
@@ -2817,7 +3104,7 @@ TestLXNavDeclare()
                           Angle::Degrees(47.811)));
     wp.name = "EBENSEE";
     wp.elevation = 420;
-    wp.has_elevation = true;
+    wp.elevation_source = Waypoint::ElevationSource::FILE;
 
     Declaration::TurnPoint tp(wp);
     const auto c_record = LXNavDeclare::FormatTurnPointCRecord(tp);
@@ -3336,7 +3623,7 @@ TestDeclare(const struct DeviceRegister &driver)
   Waypoint wp(gp);
   wp.name = "Foo";
   wp.elevation = 123;
-  wp.has_elevation = true;
+  wp.elevation_source = Waypoint::ElevationSource::FILE;
   declaration.Append(wp);
   declaration.Append(wp);
   declaration.Append(wp);
@@ -4408,8 +4695,8 @@ int main()
   SetSingleDataPath(data_path);
   CreateDataPath();
 
-  plan_tests(1095 /* drivers */ + 29 /* PFLAU extended */
-             + 37 /* PFLAA v7+ */ + 4 /* PFLAA high speed */
+  plan_tests(1099 /* drivers */ + 45 /* PFLAU extended */
+             + 40 /* PFLAA v7+ */ + 4 /* PFLAA high speed */
              + 12 /* PFLAE */ + 10 /* PFLAJ */
              + 16 /* PFLAQ */
              + 109 /* LXNav protocol 1.05 */
@@ -4425,8 +4712,11 @@ int main()
              + 24 /* TrafficExtensionsWire */
              + 42 /* LK8EX1 */
              + 30 /* LXV7PolarWrite */
+             + 12 /* LXEmptyMassBeforePolar */
+             + 14 /* LXMaxTakeoffMassBeforePolar */
              + 17 /* FLARMRangeParser */ + 8 /* FLARMRangeRequest */
-             + 15 /* NanoDownloadFlight */
+             + 6 /* FlarmMinimumRange */
+             + 23 /* NanoDownloadFlight */
              + 9 /* LXNanoLogbook */
              + 17 /* LXNAVQNH */
              + 25 /* LXNAVQNHModel */
@@ -4435,9 +4725,11 @@ int main()
   TestTasman();
   TestLK8EX1();
   TestFLARM();
+  TestFlarmMinimumRange();
   TestFLARMRangeParser();
   TestFLARMRangeRequest();
   TestNanoDownloadFlight();
+  TestNanoDownloadFlightRecordLength();
   TestAltairRU();
   TestBlueFly();
   TestBorgeltB50();
@@ -4458,6 +4750,8 @@ int main()
   TestLXV7();
   TestLXV7POLAR();
   TestLXV7PolarWrite();
+  TestLXEmptyMassBeforePolar();
+  TestLXMaxTakeoffMassBeforePolar();
   TestLXRadioTransponder();
   TestLXNavDeclare();
   TestILEC();

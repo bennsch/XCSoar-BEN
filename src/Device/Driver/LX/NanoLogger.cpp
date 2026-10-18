@@ -345,11 +345,14 @@ RequestFlight(Port &port, const char *filename,
 /**
  * Write one flight row.  Returns the number of bytes written, or 0
  * when the row is rejected.
+ *
+ * @param rejected the last row rejected for its length; a row that
+ * comes back the same when asked again is kept
  */
 static unsigned
 HandleFlightLine(const char *_line, BufferedOutputStream &os,
                  unsigned &i, unsigned &row_count_r,
-                 RecordLengths &lengths)
+                 RecordLengths &lengths, std::string &rejected)
 {
   NMEAInputLine line(_line);
 
@@ -374,13 +377,23 @@ HandleFlightLine(const char *_line, BufferedOutputStream &os,
 
   const std::string_view payload = line.Rest();
   if (!lengths.Fits(payload)) {
-    LogFormat("NanoLogger: row %u is %u characters, its record type"
-              " declares %u; rejecting it",
-              row, unsigned(payload.size()),
-              payload.front() == 'B' ? lengths.b : lengths.k);
-    return 0;
+    if (payload != rejected) {
+      LogFormat("NanoLogger: row %u is %u characters, its record type"
+                " declares %u; rejecting it",
+                row, unsigned(payload.size()),
+                payload.front() == 'B' ? lengths.b : lengths.k);
+      rejected.assign(payload);
+      return 0;
+    }
+
+    /* A splice does not happen twice the same way.  The logger
+       stored this row like that: an LXNAV S10 has been seen to write
+       a 4-digit wind direction into a 3-digit K record field. */
+    LogFormat("NanoLogger: row %u came back unchanged; keeping it as"
+              " the logger stored it", row);
   }
 
+  rejected.clear();
   lengths.Learn(payload);
   os.Write(AsBytes(payload));
   os.Write("\r\n");
@@ -399,10 +412,15 @@ DownloadFlightInner(Port &port, const char *filename, BufferedOutputStream &os,
   unsigned lines_since_last_flush = 0;
   unsigned bytes_written = 0;
   bool range_set = false;
+  std::string rejected;
 
   while (true) {
-    /* read up to 50 lines at a time */
-    unsigned nrequest = row_count == 0 ? 1 : 50;
+    /* The first request is one line, so the record length is known.
+       Later requests are 50 lines.  On BLE that burst overruns the
+       short buffer, so ask for 7 (#3296).  Classic Bluetooth and
+       serial stay at 50. */
+    const unsigned chunk = port.IsBleSerial() ? 7u : 50u;
+    unsigned nrequest = row_count == 0 ? 1 : chunk;
     if (row_count > 0) {
       assert(i <= row_count);
       const unsigned remaining = row_count - i + 1;
@@ -439,7 +457,7 @@ DownloadFlightInner(Port &port, const char *filename, BufferedOutputStream &os,
 
       const unsigned wrote = line == nullptr
         ? 0
-        : HandleFlightLine(line, os, i, row_count, lengths);
+        : HandleFlightLine(line, os, i, row_count, lengths, rejected);
       if (wrote == 0) {
         if (request_retry_count > MAX_REQUEST_RETRY_COUNT) {
           /* Update resume point before throwing - but note that buffered data
@@ -589,12 +607,21 @@ DownloadFlightFile(Port &port, const char *filename, unsigned file_size,
                                  " no reply from the logger");
       }
 
-      /* repeat the request, as the logger may have missed it; once
-         blocks have arrived, acknowledge up to the first one still
-         missing, which starts a new window there */
+      /* repeat the request, as the logger may have missed it.  At
+         the end of a window, that is the acknowledgement.  For a
+         block missing inside the window, the loggers understand
+         different requests: a Nano sends it again after
+         FILE_DATA_LOST, but ignores an acknowledgement that does not
+         end its window; an S series vario ignores FILE_DATA_LOST and
+         starts a new window at the block an acknowledgement names.
+         So alternate between the two. */
       if (answered) {
-        request = fmt::format("FILE_OK,R,{}", next_block);
-        window_end = next_block + window;
+        if (next_block != window_end && timeouts % 2 == 1)
+          request = fmt::format("FILE_DATA_LOST,R,{}", next_block);
+        else {
+          request = fmt::format("FILE_OK,R,{}", next_block);
+          window_end = next_block + window;
+        }
       }
 
       WriteFileCommand(port, request, env);
@@ -698,10 +725,11 @@ Nano::DownloadFlight(Port &port, const RecordedFlightInfo &flight,
   
   const auto partial_path = AllocatedPath::Build(path.GetParent(), partial_filename);
 
-  /* prefer the verified file transfer; a partial file left by the
-     row protocol is resumed with that protocol instead */
+  /* BLE uses the block transfer.  Classic serial and classic
+     Bluetooth stay on the rows.  A partial file left by the rows is
+     resumed with that protocol on every link. */
   const unsigned file_size = flight.internal.lx.nano_file_size;
-  if (file_size > 0 && !File::Exists(partial_path)) {
+  if (port.IsBleSerial() && file_size > 0 && !File::Exists(partial_path)) {
     FileOutputStream fos(path);
     BufferedOutputStream bos(fos);
     try {

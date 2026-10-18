@@ -577,6 +577,8 @@ public:
                   OperationEnvironment &env) noexcept;
   bool PutCrewMass(double crew_mass, OperationEnvironment &env) noexcept;
   bool PutEmptyMass(double empty_mass, OperationEnvironment &env) noexcept;
+  bool PutMaxTakeoffMass(double max_takeoff_mass,
+                         OperationEnvironment &env) noexcept;
   bool PutPolar(const GlidePolar &polar, OperationEnvironment &env) noexcept;
   bool PutTarget(const GeoPoint &location, const char *name,
                  std::optional<double> elevation,
@@ -643,6 +645,7 @@ private:
   /* virtual methods from class PortListener */
   void PortStateChanged() noexcept override;
   void PortError(const char *msg) noexcept override;
+  void PortLog(const char *msg) noexcept override;
 
   /* virtual methods from DataHandler  */
   bool DataReceived(std::span<const std::byte> s) noexcept override;

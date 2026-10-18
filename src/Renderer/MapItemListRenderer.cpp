@@ -229,7 +229,8 @@ Draw(Canvas &canvas, const PixelRect rc,
      const AirspaceLook &look,
      const AirspaceRendererSettings &renderer_settings)
 {
-  AirspaceListRenderer::Draw(canvas, rc, *item.airspace, row_renderer, look,
+  AirspaceListRenderer::Draw(canvas, rc, *item.airspace,
+                             row_renderer, look,
                              renderer_settings);
 }
 

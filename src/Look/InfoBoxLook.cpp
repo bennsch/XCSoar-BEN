@@ -17,6 +17,19 @@
 
 #include <algorithm>
 
+/** Scale InfoBox auto-size width by the Text size setting (%).
+    Cap at the box so a larger Text size cannot overlap the next one. */
+static unsigned
+AutoSizeTargetWidth(unsigned width) noexcept
+{
+  if (Layout::vdpi == 0)
+    return width;
+
+  const unsigned scaled =
+    unsigned((uint64_t)width * Layout::FontScale(100) * 72u
+             / (100u * Layout::vdpi));
+  return std::min(scaled, width);
+}
 
 void
 InfoBoxLook::Initialise(bool _inverse, bool use_colors,
@@ -85,7 +98,12 @@ InfoBoxLook::ReinitialiseLayout(unsigned width, unsigned scale_title_font)
   unit_fraction_pen.Create(Layout::ScaleFinePenWidth(1), value.fg_color);
 
   FontDescription title_font_d(8);
-  AutoSizeFont(title_font_d, (width * scale_title_font) / 100U,
+  /* scale_title_font can exceed 100%. Cap before AutoSizeTargetWidth(),
+     which only limits the result to the width it is given. */
+  const unsigned title_width =
+    std::min(width, (width * scale_title_font) / 100U);
+  AutoSizeFont(title_font_d,
+               AutoSizeTargetWidth(title_width),
                "1234567890A");
 
   title_font.Load(title_font_d);
@@ -95,15 +113,16 @@ InfoBoxLook::ReinitialiseLayout(unsigned width, unsigned scale_title_font)
                                                     * 2u / 3u, 7u)));
 
   FontDescription value_font_d(10, true);
-  AutoSizeFont(value_font_d, width, "1234m");
+  AutoSizeFont(value_font_d, AutoSizeTargetWidth(width), "1234m");
   value_font.Load(value_font_d);
 
   FontDescription small_value_font_d(10);
-  AutoSizeFont(small_value_font_d, width, "12345m");
+  AutoSizeFont(small_value_font_d, AutoSizeTargetWidth(width), "12345m");
   small_value_font.Load(small_value_font_d);
 
   unsigned unit_font_height = std::max(value_font_d.GetHeight() * 2u / 5u, 7u);
-  unit_font.Load(FontDescription(unit_font_height));
+  FontDescription unit_font_d(unit_font_height);
+  unit_font.Load(unit_font_d);
 
 #ifdef HAVE_TEXT_CACHE
   TextCache::Flush();

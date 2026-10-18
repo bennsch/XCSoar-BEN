@@ -178,6 +178,15 @@ ActionInterface::SetCrewMass(double crew_mass, bool to_devices) noexcept
   if (to_devices && backend_components && backend_components->devices) {
     MessageOperationEnvironment env;
     backend_components->devices->PutCrewMass(crew_mass, env);
+    /* The vario stores ballast as total mass over the reference
+       mass.  A new crew weight changes that factor even when the
+       water is unchanged, so send the factor again or the vario's
+       litres drift by the crew change and the next LXWP2 copies
+       the drift back here. */
+    if (polar.GetReferenceMass() > 0)
+      backend_components->devices->PutBallast(polar.GetBallastFraction(),
+                                              polar.GetBallastOverload(),
+                                              env);
   }
 }
 
@@ -185,6 +194,9 @@ void
 ActionInterface::SetEmptyMass(double empty_mass, bool to_devices) noexcept
 {
   GlidePolar &polar = SetComputerSettings().polar.glide_polar_task;
+  const double previous_empty = polar.GetEmptyMass();
+  const bool empty_changed = previous_empty > empty_mass + 0.1 ||
+                             previous_empty < empty_mass - 0.1;
   polar.SetEmptyMass(empty_mass);
 
   if (backend_components)
@@ -193,7 +205,28 @@ ActionInterface::SetEmptyMass(double empty_mass, bool to_devices) noexcept
   if (to_devices && backend_components && backend_components->devices) {
     MessageOperationEnvironment env;
     backend_components->devices->PutEmptyMass(empty_mass, env);
+    /* Overload is total mass over the reference mass.  Resend ballast
+       only when the empty mass changed.  A save that leaves it alone
+       must not push ballast. */
+    if (empty_changed && polar.GetReferenceMass() > 0)
+      backend_components->devices->PutBallast(polar.GetBallastFraction(),
+                                              polar.GetBallastOverload(),
+                                              env);
   }
+}
+
+void
+ActionInterface::SetMaxTakeoffMass(double max_takeoff_mass,
+                                  bool to_devices) noexcept
+{
+  SetComputerSettings().plane.max_takeoff_mass = max_takeoff_mass;
+
+  if (!(to_devices && max_takeoff_mass > 0 &&
+        backend_components && backend_components->devices))
+    return;
+
+  MessageOperationEnvironment env;
+  backend_components->devices->PutMaxTakeoffMass(max_takeoff_mass, env);
 }
 
 void

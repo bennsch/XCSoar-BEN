@@ -54,6 +54,9 @@ sea level obtained from the terrain file at the current GPS location.}
 elevation (like a QFE reference).\footnotemark[1]}
 \ibi{Flight level}{Flight Level}{Pressure Altitude given as Flight Level. 
 If barometric altitude is not available, FL is calculated from GPS altitude, given that the correct QNH is set. In case the FL is calculated from the GPS altitude, the FL label is coloured red.\footnotemark[1]}
+\ibi{QNH}{QNH}{Current QNH pressure setting. The line below the pressure
+shows the barometric altitude when a pressure sensor is available. Tap the
+InfoBox to open the setup panel and adjust QNH.\footnotemark[1]}
 \ibi{Barogram}{Barogram}{Trace of altitude during flight.}
 
 \footnotetext[1]{In simulator mode an additional dialogue is available to change the value 
@@ -80,8 +83,9 @@ seconds the comment line shows the age of the reading. The value is cleared
 after three minutes.}
 \ibi{Ballast}{Ballast}{Water ballast on board, in litres.  The comment
 shows the resulting wing loading (for example in kg/m$^2$) if the wing
-area of the polar is known.  While ballast is being dumped, the value
-is blue.  Tap the InfoBox to open the flight setup and change the
+area of the polar is known.  That comment is red while the all-up
+weight is above the plane's MTOW.  While ballast is being dumped,
+the value is blue.  Tap the InfoBox to open the flight setup and change the
 ballast.}
 \ibi{Bearing Difference}{Brng. D}{Difference between the glider's track
 bearing, to the bearing of the next waypoint, or for AAT tasks, to the bearing
@@ -91,8 +95,9 @@ heading when there is wind present. Chevrons point to the direction the glider
 needs to alter course to correct the bearing difference, that is, so that the
 glider's course made good is pointing directly at the next waypoint.  This
 bearing takes into account the curvature of the Earth.}
-\ibi{Airspeed TAS}{V TAS}{True Airspeed reported by a supported external 
-intelligent vario.}
+\ibi{Airspeed TAS}{V TAS}{True Airspeed reported by a supported external
+intelligent vario.  The value is blue when it is estimated from ground
+speed and wind.}
 \ibi{Attitude indicator}{Horizon}{Attitude indicator (artificial horizon) display 
 calculated from flightpath, supplemented with acceleration and variometer data if 
 available.}
@@ -136,11 +141,15 @@ circling.}
 \section{Variometer}
 
 \ibi{Last Thermal Average}{TL Avg}{Total altitude gain/loss in the last thermal
-divided by the time spent circling.} 
+divided by the time spent circling. The seconds in smaller font reflect the
+time spent circling.}
 \ibi{Last thermal gain}{TL Gain}{Total altitude gain/loss in the last thermal.}
-\ibi{Last thermal time}{TL Time}{Time spent circling in the last thermal.}
+\ibi{Last thermal duration}{TL duration}{Time spent circling in the last thermal.
+The number in smaller font reflects the overall climb rate for the last
+thermal.}
 \ibi{Thermal climb, last 30 s}{TC 30s}{30 second rolling average climb rate based
-of the reported GPS altitude, or vario if available.}
+of the reported GPS altitude, or vario if available. The value is red when
+it is less than half the risk MacCready.}
 \ibi{Thermal average}{TC Avg}{Altitude gained/lost in the current thermal,
 divided by time spent thermalling.}
 \ibi{Thermal gain}{TC Gain}{Altitude gained/lost in the current thermal.}

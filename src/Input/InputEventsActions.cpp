@@ -81,7 +81,7 @@ https://xcsoar.readthedocs.io/en/latest/input_events.html
 
 #include <cassert>
 #include <algorithm>
-#include <limits>
+#include <optional>
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>
@@ -704,7 +704,7 @@ InputEvents::eventAddWaypoint(const char *misc)
     if (!location.IsValid())
       return;
 
-    double elevation = std::numeric_limits<double>::quiet_NaN();
+    std::optional<double> elevation;
     if (data_components->terrain != nullptr) {
       const auto h = data_components->terrain->GetTerrainHeight(location);
       if (!h.IsSpecial()) {
@@ -718,7 +718,7 @@ InputEvents::eventAddWaypoint(const char *misc)
     Waypoint edit_waypoint = way_points.Create(basic.location);
     if (calculated.terrain_valid) {
       edit_waypoint.elevation = calculated.terrain_altitude;
-      edit_waypoint.has_elevation = true;
+      edit_waypoint.elevation_source = Waypoint::ElevationSource::FILE;
     }
     if (dlgWaypointEditShowModal(edit_waypoint) == WaypointEditResult::CANCEL ||
         edit_waypoint.name.empty()) {

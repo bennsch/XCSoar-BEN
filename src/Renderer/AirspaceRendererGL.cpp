@@ -27,9 +27,21 @@
 static constexpr GLuint FILL_STENCIL = 1;
 static constexpr GLuint OUTLINE_STENCIL = 2;
 static constexpr GLuint POLYGON_STENCIL = 4;
+/** Cleared-airspace interior.  Bit 2 is already POLYGON_STENCIL. */
+static constexpr GLuint CLEARANCE_STENCIL = 8;
+/** Thick-pen ring along a cleared boundary. */
+static constexpr GLuint CLEARED_RING_STENCIL = 16;
+/** Pixels already painted, or stamped as cleared interior or ring. */
+static constexpr GLuint CLEARED_RING_PADDING_MASK =
+  FILL_STENCIL | OUTLINE_STENCIL |
+  CLEARANCE_STENCIL | CLEARED_RING_STENCIL;
 static constexpr GLint EVEN_ODD_STENCIL_BITS = 3;
 
 static_assert(POLYGON_STENCIL < (1u << EVEN_ODD_STENCIL_BITS));
+static_assert((FILL_STENCIL | OUTLINE_STENCIL | POLYGON_STENCIL |
+               CLEARANCE_STENCIL | CLEARED_RING_STENCIL) ==
+              FILL_STENCIL + OUTLINE_STENCIL + POLYGON_STENCIL +
+              CLEARANCE_STENCIL + CLEARED_RING_STENCIL);
 
 /**
  * The maximum number of vertices handled by the allocation-free even-odd
@@ -191,11 +203,16 @@ BuildPaddingLoop(const BulkPixelPoint *src, unsigned src_size,
  * initialized polygon_stencil to zero.  The temporary bit is cleared again
  * before returning.
  */
-static void
-DrawEvenOddPolygon(Canvas &canvas, const BulkPixelPoint *points,
-                   unsigned num_points, GLuint polygon_stencil,
-                   GLuint stencil_value,
-                   GLuint stencil_mask) noexcept
+struct EvenOddCoverage {
+  const FloatPoint2D *vertices;
+  unsigned num_vertices;
+  BulkPixelPoint bounds[4];
+};
+
+/** Fan and cover rectangle shared by the fill and the clearance stamp. */
+static EvenOddCoverage
+PrepareEvenOddCoverage(const BulkPixelPoint *points,
+                       unsigned num_points) noexcept
 {
   auto min_x = points[0].x;
   auto max_x = points[0].x;
@@ -221,27 +238,69 @@ DrawEvenOddPolygon(Canvas &canvas, const BulkPixelPoint *points,
     fan[i + 1] = {float(points[i].x), float(points[i].y)};
   fan[num_points + 1] = fan[1];
 
+  // Extend the cover by one pixel so its edge rules also clear every stencil
+  // fragment written along the polygon's maximum coordinates.
+  return {
+    fan.data(),
+    num_points + 2,
+    {
+      {int(min_x) - 1, int(min_y) - 1},
+      {int(max_x) + 1, int(min_y) - 1},
+      {int(max_x) + 1, int(max_y) + 1},
+      {int(min_x) - 1, int(max_y) + 1},
+    },
+  };
+}
+
+static void
+DrawEvenOddPolygon(Canvas &canvas, const BulkPixelPoint *points,
+                   unsigned num_points, GLuint polygon_stencil,
+                   GLuint stencil_value,
+                   GLuint stencil_mask) noexcept
+{
+  const auto coverage = PrepareEvenOddCoverage(points, num_points);
+
   glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
   glStencilFunc(GL_ALWAYS, polygon_stencil, polygon_stencil);
   glStencilMask(polygon_stencil);
   glStencilOp(GL_KEEP, GL_KEEP, GL_INVERT);
-  canvas.DrawFilledTriangleFan(fan.data(), num_points + 2);
-
-  // Extend the cover by one pixel so its edge rules also clear every stencil
-  // fragment written along the polygon's maximum coordinates.
-  const BulkPixelPoint bounds[] = {
-    {int(min_x) - 1, int(min_y) - 1},
-    {int(max_x) + 1, int(min_y) - 1},
-    {int(max_x) + 1, int(max_y) + 1},
-    {int(min_x) - 1, int(max_y) + 1},
-  };
+  canvas.DrawFilledTriangleFan(coverage.vertices, coverage.num_vertices);
 
   glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
   glStencilFunc(GL_EQUAL, stencil_value | polygon_stencil,
                 stencil_mask | polygon_stencil);
   glStencilMask(polygon_stencil);
   glStencilOp(GL_ZERO, GL_ZERO, GL_ZERO);
-  canvas.DrawTriangleFan(bounds, 4);
+  canvas.DrawTriangleFan(coverage.bounds, 4);
+}
+
+/**
+ * Set CLEARANCE_STENCIL where the polygon has odd coverage.
+ * POLYGON_STENCIL is scratch and is left clear.  Colour writes stay off.
+ * REPLACE keeps a union when several cleared airspaces overlap.
+ */
+static void
+StampEvenOddClearance(Canvas &canvas, const BulkPixelPoint *points,
+                      unsigned num_points) noexcept
+{
+  const auto coverage = PrepareEvenOddCoverage(points, num_points);
+
+  glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+  glStencilFunc(GL_ALWAYS, POLYGON_STENCIL, POLYGON_STENCIL);
+  glStencilMask(POLYGON_STENCIL);
+  glStencilOp(GL_KEEP, GL_KEEP, GL_INVERT);
+  canvas.DrawFilledTriangleFan(coverage.vertices, coverage.num_vertices);
+
+  glStencilFunc(GL_EQUAL, POLYGON_STENCIL | CLEARANCE_STENCIL,
+                POLYGON_STENCIL);
+  glStencilMask(CLEARANCE_STENCIL);
+  glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+  canvas.DrawTriangleFan(coverage.bounds, 4);
+
+  glStencilFunc(GL_ALWAYS, 0, 0);
+  glStencilMask(POLYGON_STENCIL);
+  glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
+  canvas.DrawTriangleFan(coverage.bounds, 4);
 }
 
 /** Restore the OpenGL state changed by a fill-enabled airspace pass. */
@@ -311,6 +370,8 @@ class AirspaceVisitorRenderer final
   const AirspaceRendererSettings &settings;
   const bool use_even_odd;
   const bool use_outline_stencil;
+  /** CLEARED_RING_STENCIL is bit 4, so it needs five stencil bits. */
+  const bool use_cleared_ring;
   unsigned num_padding_vertices = 0;
 
 public:
@@ -318,11 +379,13 @@ public:
                           const AirspaceLook &_look,
                           const AirspaceWarningCopy &_warnings,
                           const AirspaceRendererSettings &_settings,
-                          bool _use_even_odd, bool _use_outline_stencil)
+                          bool _use_even_odd, bool _use_outline_stencil,
+                          bool _use_cleared_ring)
     :MapCanvas(_canvas, _projection,
                _projection.GetScreenBounds().Scale(1.1)),
      look(_look), warning_manager(_warnings), settings(_settings),
-     use_even_odd(_use_even_odd), use_outline_stencil(_use_outline_stencil)
+     use_even_odd(_use_even_odd), use_outline_stencil(_use_outline_stencil),
+     use_cleared_ring(_use_cleared_ring)
   {
     if (use_outline_stencil || use_even_odd) {
       glStencilMask(0xff);
@@ -334,6 +397,24 @@ public:
   }
 
 private:
+  /**
+   * Continue a neighbour's inside padding across a cleared boundary.
+   * Informative airspaces and the cleared airspace itself do not.
+   */
+  [[nodiscard]]
+  bool WantsClearedBoundaryPadding(const AbstractAirspace &airspace,
+                                   bool fill_airspace) const noexcept {
+    return use_cleared_ring && !fill_airspace &&
+           warning_manager.IsWarningCapable(airspace) &&
+           !warning_manager.IsClearedAtCurrentAltitude(airspace);
+  }
+
+  /** Draw only pixels stamped as the cleared-boundary ring. */
+  void SelectClearedRingPadding() noexcept {
+    glStencilFunc(GL_EQUAL, CLEARED_RING_STENCIL,
+                  CLEARED_RING_PADDING_MASK);
+  }
+
   void VisitCircle(const AirspaceCircle &airspace) {
     const auto type_or_class = airspace.GetTypeOrClass();
     AirspaceClass as_type_or_class = settings.classes[type_or_class].display
@@ -368,6 +449,13 @@ private:
         canvas.Select(pen_donut);
         canvas.DrawCircle(screen_center,
                           screen_radius - look.thick_pen.GetWidth() / 4);
+
+        if (WantsClearedBoundaryPadding(airspace, false)) {
+          canvas.Select(Brush(color.WithAlpha(90)));
+          canvas.SelectNullPen();
+          SelectClearedRingPadding();
+          canvas.DrawCircle(screen_center, screen_radius);
+        }
       }
     }
 
@@ -421,7 +509,15 @@ private:
         DrawEvenOddPolygon(canvas, raster_points.data(), num_raster_points,
                            fill_airspace ? FILL_STENCIL : POLYGON_STENCIL,
                            fill_airspace ? 0 : FILL_STENCIL,
-                           FILL_STENCIL | OUTLINE_STENCIL);
+                           FILL_STENCIL | OUTLINE_STENCIL |
+                           CLEARANCE_STENCIL);
+
+        if (WantsClearedBoundaryPadding(airspace, fill_airspace)) {
+          DrawEvenOddPolygon(canvas, raster_points.data(),
+                             num_raster_points, POLYGON_STENCIL,
+                             CLEARED_RING_STENCIL,
+                             CLEARED_RING_PADDING_MASK);
+        }
       }
 
       if (!fill_airspace) {
@@ -449,6 +545,60 @@ public:
     }
   }
 
+  /**
+   * Pre-pass: stamp each cleared airspace's interior into
+   * CLEARANCE_STENCIL and its thick-pen ring into
+   * CLEARED_RING_STENCIL.  The interior suppresses warning fill.
+   * The ring extends a neighbour's padding across the boundary.
+   */
+  void VisitClearance(const AbstractAirspace &airspace) {
+    if (!warning_manager.IsClearedAtCurrentAltitude(airspace))
+      return;
+
+    const GLEnable<GL_STENCIL_TEST> stencil;
+
+    switch (airspace.GetShape()) {
+    case AbstractAirspace::Shape::CIRCLE: {
+      const auto &circle = (const AirspaceCircle &)airspace;
+      auto screen_center =
+        projection.GeoToScreen(circle.GetReferenceLocation());
+      unsigned screen_radius =
+        projection.GeoToScreenDistance(circle.GetRadius());
+
+      SetClearanceStencil();
+      canvas.DrawCircle(screen_center, screen_radius);
+
+      if (use_cleared_ring) {
+        SetClearedRingStencil();
+        canvas.DrawCircle(screen_center, screen_radius);
+      }
+      break;
+    }
+
+    case AbstractAirspace::Shape::POLYGON: {
+      const auto &polygon = (const AirspacePolygon &)airspace;
+      if (!PreparePolygon(polygon.GetPoints()))
+        break;
+
+      if (use_even_odd && num_raster_points <= MAX_AIRSPACE_VERTICES)
+        StampEvenOddClearance(canvas, raster_points.data(),
+                              num_raster_points);
+      else {
+        SetClearanceStencil();
+        DrawPrepared();
+      }
+
+      if (use_cleared_ring) {
+        SetClearedRingStencil();
+        DrawPrepared();
+      }
+      break;
+    }
+    }
+
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+  }
+
 private:
   void VisitPreparedPolygon(const AirspacePolygon &airspace,
                             AirspaceClass as_type_or_class) {
@@ -473,6 +623,11 @@ private:
         SetupInterior(airspace, !fill_airspace);
         const GLEnable<GL_BLEND> blend;
         DrawPrepared();
+
+        if (WantsClearedBoundaryPadding(airspace, fill_airspace)) {
+          SelectClearedRingPadding();
+          DrawPrepared();
+        }
       }
 
       if (!fill_airspace) {
@@ -541,16 +696,39 @@ private:
       ? type_or_class : airspace.GetClass();
     const AirspaceClassLook &class_look = look.classes[as_type_or_class];
 
-    // restrict drawing area and don't paint over previously drawn outlines
+    /* Restrict drawing area: don't paint over previously drawn
+       outlines and don't paint inside cleared airspaces
+       (CLEARANCE_STENCIL, set by VisitClearance). */
     if (check_fillstencil)
       glStencilFunc(GL_EQUAL, FILL_STENCIL,
-                    FILL_STENCIL | OUTLINE_STENCIL);
+                    FILL_STENCIL | OUTLINE_STENCIL | CLEARANCE_STENCIL);
     else
-      glStencilFunc(GL_EQUAL, 0, OUTLINE_STENCIL);
+      glStencilFunc(GL_EQUAL, 0, OUTLINE_STENCIL | CLEARANCE_STENCIL);
     glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
 
     canvas.Select(Brush(class_look.fill_color.WithAlpha(90)));
     canvas.SelectNullPen();
+  }
+
+  void SetClearanceStencil() {
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    glStencilFunc(GL_ALWAYS, CLEARANCE_STENCIL, CLEARANCE_STENCIL);
+    glStencilMask(CLEARANCE_STENCIL);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+    canvas.SelectNullPen();
+    canvas.SelectBlackBrush();
+  }
+
+  /** Write the thick-pen ring along a cleared boundary. */
+  void SetClearedRingStencil() {
+    glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+    glStencilFunc(GL_ALWAYS, CLEARED_RING_STENCIL, CLEARED_RING_STENCIL);
+    glStencilMask(CLEARED_RING_STENCIL);
+    glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+
+    canvas.SelectHollowBrush();
+    canvas.Select(look.thick_pen);
   }
 
   void SetFillStencil() {
@@ -778,8 +956,24 @@ AirspaceRenderer::DrawInternal(Canvas &canvas,
         renderer.Visit(airspace);
     }
   } else {
+    /* CLEARANCE_STENCIL is bit 3 (four bits).  The cleared-boundary
+       ring is bit 4 and needs a fifth. */
+    const bool use_cleared_ring = stencil_bits >= 5;
     AirspaceVisitorRenderer renderer(canvas, projection, look, awc, settings,
-                                     use_even_odd, use_outline_stencil);
+                                     use_even_odd, use_outline_stencil,
+                                     use_cleared_ring);
+
+    /* Stamp visible cleared airspaces so the warning fill leaves
+       those areas empty.  Needs a fourth stencil bit; bit 2 is
+       POLYGON_STENCIL. */
+    if (stencil_bits >= 4) {
+      for (const auto &i : range) {
+        const AbstractAirspace &airspace = i.GetAirspace();
+        if (visible(airspace))
+          renderer.VisitClearance(airspace);
+      }
+    }
+
     for (const auto &i : range) {
       const AbstractAirspace &airspace = i.GetAirspace();
       if (visible(airspace))

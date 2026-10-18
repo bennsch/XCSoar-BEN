@@ -24,6 +24,7 @@ import android.view.WindowMetrics;
 import android.graphics.Insets;
 import android.graphics.Rect;
 import android.widget.TextView;
+import android.widget.Toast;
 import android.os.Build;
 import android.os.Environment;
 import android.os.PowerManager;
@@ -38,6 +39,7 @@ import android.content.BroadcastReceiver;
 import android.content.ServiceConnection;
 import android.content.ComponentName;
 import android.content.pm.PackageManager;
+import android.hardware.usb.UsbManager;
 import android.content.res.Configuration;
 import android.util.Log;
 import android.provider.Settings;
@@ -369,6 +371,18 @@ public class XCSoar extends Activity implements PermissionManager {
       nativeView.setHapticFeedback(hapticFeedbackEnabled);
   }
 
+  @Override protected void onNewIntent(Intent intent) {
+    super.onNewIntent(intent);
+
+    /* an IOIO plugged in while XCSoar runs (launchMode singleInstance
+       delivers USB_*_ATTACHED here); wake the connect attempt that is
+       waiting for it */
+    final String action = intent.getAction();
+    if (UsbManager.ACTION_USB_ACCESSORY_ATTACHED.equals(action) ||
+        UsbManager.ACTION_USB_DEVICE_ATTACHED.equals(action))
+      IOIOHelper.onUsbAttached();
+  }
+
   @Override protected void onResume() {
     super.onResume();
 
@@ -502,6 +516,18 @@ public class XCSoar extends Activity implements PermissionManager {
   @Override
   public synchronized void onRequestPermissionsResult(int requestCode, String[] permissions,
                                                       int[] grantResults) {
+    if (requestCode == REQUEST_CODE_CAMERA) {
+      if (grantResults.length > 0 &&
+          grantResults[0] == PackageManager.PERMISSION_GRANTED)
+        startQRScanner();
+      else
+        /* say so rather than returning to the map with no explanation
+           for why nothing happened */
+        Toast.makeText(this, "No camera permission",
+                       Toast.LENGTH_LONG).show();
+      return;
+    }
+
     if (permissionHelper != null) {
       permissionHelper.onRequestPermissionsResult(requestCode, permissions, grantResults);
     }
@@ -588,6 +614,43 @@ public class XCSoar extends Activity implements PermissionManager {
       launch.run();
     } else {
       runOnUiThread(launch);
+    }
+  }
+
+  // ---- Task QR code scanner ----
+
+  /**
+   * Called from native code to open the camera and scan a task QR
+   * code.  Acquires the camera permission first if necessary.
+   *
+   * Like launchSAFTreePicker(), this never blocks: the scanner
+   * Activity delivers the decoded task to native code itself.
+   */
+  private static final int REQUEST_CODE_CAMERA = 0x7101;
+
+  public void scanQRCode() {
+    runOnUiThread(() -> {
+      /* request the camera directly instead of going through
+         PermissionHelper: that shortcuts every request to "granted"
+         in simulator mode without actually asking, which would leave
+         the scanner staring at a camera it may not open */
+      if (Build.VERSION.SDK_INT >= 23 &&
+          checkSelfPermission(Manifest.permission.CAMERA)
+          != PackageManager.PERMISSION_GRANTED) {
+        requestPermissions(new String[]{Manifest.permission.CAMERA},
+                           REQUEST_CODE_CAMERA);
+        return;
+      }
+
+      startQRScanner();
+    });
+  }
+
+  private void startQRScanner() {
+    try {
+      startActivity(new Intent(this, QRScannerActivity.class));
+    } catch (Exception e) {
+      Log.e(TAG, "Failed to start QR scanner", e);
     }
   }
 

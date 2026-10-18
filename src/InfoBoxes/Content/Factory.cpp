@@ -191,7 +191,7 @@ static constexpr MetaData meta_data[] = {
     Group::VARIO,
     N_("Last thermal average"),
     N_("TL Avg"),
-    N_("Total altitude gain/loss in the last thermal divided by the time spent circling."),
+    N_("Total altitude gain/loss in the last thermal divided by the time spent circling. The seconds in smaller font reflect the time spent circling."),
     UpdateInfoBoxThermalLastAvg,
   },
 
@@ -209,7 +209,7 @@ static constexpr MetaData meta_data[] = {
     Group::VARIO,
     N_("Last thermal duration"),
     N_("TL duration"),
-    N_("Time spent circling in the last thermal."),
+    N_("Time spent circling in the last thermal. The number in smaller font reflects the overall climb rate for the last thermal."),
     UpdateInfoBoxThermalLastTime,
   },
 
@@ -615,7 +615,7 @@ static constexpr MetaData meta_data[] = {
     Group::SPEED,
     N_("Airspeed TAS"),
     N_("V TAS"),
-    N_("True Airspeed reported by a supported external intelligent vario."),
+    N_("True Airspeed reported by a supported external intelligent vario. The value is blue when estimated from ground speed and wind."),
     UpdateInfoBoxSpeed,
   },
 
@@ -1343,7 +1343,7 @@ static constexpr MetaData meta_data[] = {
     Group::ALTITUDE,
     N_("QNH"),
     N_("QNH"),
-    N_("Current QNH pressure setting used for barometric altitude calculation. Tap the infobox to open the setup panel and adjust QNH manually."),
+    N_("Current QNH pressure setting used for barometric altitude calculation. The line below shows that altitude when a pressure sensor is available. Tap the infobox to open the setup panel and adjust QNH manually."),
     UpdateInfoBoxAltitudeQNH,
     altitude_infobox_panels,
   },
@@ -1380,7 +1380,7 @@ static constexpr MetaData meta_data[] = {
     Group::TASK,
     N_("Ballast"),
     N_("Ballast"),
-    N_("Water ballast on board, in litres. The comment shows the wing loading. The value is blue while ballast is being dumped. Tap to change the ballast."),
+    N_("Water ballast on board, in litres. The comment shows the wing loading, in red when the glider is heavier than its MTOW. The value is blue while ballast is being dumped. Tap to change the ballast."),
     IBFHelper<InfoBoxContentBallast>::Create,
   },
 

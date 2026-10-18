@@ -19,6 +19,29 @@ namespace Display {
    */
   void SetForcedDPI(unsigned x_dpi, unsigned y_dpi);
 
+/**
+ * Pair each DPI axis with the matching pixel axis.
+ *
+ * Some Android panels report portrait pixels with landscape physical
+ * size (or the reverse), so fonts scale from the long-edge DPI.
+ * Unchanged when the pixel and inch orientations already agree, or
+ * when the buffer is square.
+ */
+[[gnu::const]]
+UnsignedPoint2D
+AlignDpiToPixelAxes(PixelSize size, UnsignedPoint2D dpi) noexcept;
+
+/**
+ * Align physical DPI to the pixel axes, then fall back to
+ * #density_dpi when either axis is more than 20% away from it.
+ * Android's density is what the OEM tuned; xdpi/ydpi are often
+ * garbage.  density_dpi 0 skips the fallback.
+ */
+[[gnu::const]]
+UnsignedPoint2D
+SanitizeDisplayDpi(PixelSize size, UnsignedPoint2D physical,
+                   unsigned density_dpi) noexcept;
+
 #ifdef HAVE_DPI_DETECTION
 /**
  * This function gets called by our UI toolkit (the "Screen" library)

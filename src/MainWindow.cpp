@@ -34,6 +34,9 @@
 #include "UIReceiveBlackboard.hpp"
 #include "UISettings.hpp"
 #include "Interface.hpp"
+#ifdef HAVE_TEXT_CACHE
+#include "ui/canvas/custom/Cache.hpp"
+#endif
 
 #include <algorithm>
 #include <utility>
@@ -46,14 +49,15 @@
 #include "Storage/win/WinHotplugForward.hpp"
 #endif
 
-#ifdef ANDROID
-#include "Android/ReceiveTask.hpp"
-#include "Android/Main.hpp"
-#include "Android/NativeView.hpp"
+#include "Task/ReceiveTask.hpp"
 #include "Engine/Task/Ordered/OrderedTask.hpp"
 #include "Dialogs/Task/TaskDialogs.hpp"
 #include "ui/event/Globals.hpp"
 #include "ui/event/Queue.hpp"
+
+#ifdef ANDROID
+#include "Android/Main.hpp"
+#include "Android/NativeView.hpp"
 #include "java/Global.hxx"
 #endif
 
@@ -70,6 +74,14 @@ GetActiveInfoBoxGeometry() noexcept
   const InfoBoxSettings &settings = CommonInterface::GetUISettings().info_boxes;
   const unsigned panel_index = CommonInterface::GetUIState().panel_index;
   return settings.ResolveGeometry(settings.panels[panel_index]);
+}
+
+/** Size the dial and its labels to the gauge window. */
+static void
+FitVarioLook(Look &look, const InfoBoxLayout::Layout &layout) noexcept
+{
+  look.vario.ReinitialiseLayout(layout.vario.GetWidth(),
+                               layout.control_size.width);
 }
 
 [[gnu::pure]]
@@ -704,13 +716,17 @@ MainWindow::Initialise()
 {
   Layout::Initialise(GetDisplay(), GetSize(),
                      CommonInterface::GetUISettings().GetPercentScale(),
-                     CommonInterface::GetUISettings().custom_dpi);
+                     CommonInterface::GetUISettings().custom_dpi,
+                     CommonInterface::GetUISettings().viewing_distance);
 #ifdef DRAW_MOUSE_CURSOR
   SetCursorSize(CommonInterface::GetDisplaySettings().cursor_size);
   SetCursorColorsInverted(CommonInterface::GetDisplaySettings().invert_cursor_colors);
 #endif
 
   Fonts::Initialize();
+#ifdef HAVE_TEXT_CACHE
+  TextCache::Flush();
+#endif
 
   if (look == nullptr)
     look = new Look();
@@ -721,11 +737,11 @@ MainWindow::Initialise()
 void
 MainWindow::InitialiseConfigured()
 {
-  const UISettings &ui_settings = CommonInterface::GetUISettings();
+  /* Reload fonts after Display type, Text size, and DPI are known.
+     The first Initialise() ran before the profile. */
+  Initialise();
 
-  if ((ui_settings.scale != 100) || (ui_settings.info_boxes.scale_title_font != 100) || (ui_settings.custom_dpi != 0))
-    /* call Initialise() again to reload fonts with the new scale */
-    Initialise();
+  const UISettings &ui_settings = CommonInterface::GetUISettings();
 
   PixelRect rc = GetClientRect();
   const PixelRect infobox_area_rc = GetInfoBoxAreaRect();
@@ -760,9 +776,8 @@ MainWindow::InitialiseConfigured()
      DEFAULT (not forced) and the system auto-rotate setting is
      enabled; the button appears temporarily when the Java
      OrientationEventListener detects a physical orientation change */
-  const UISettings &settings = CommonInterface::GetUISettings();
   const PixelRect map_area_rect = GetMapAreaRect();
-  if (settings.display.orientation == DisplayOrientation::DEFAULT &&
+  if (ui_settings.display.orientation == DisplayOrientation::DEFAULT &&
       native_view != nullptr &&
       native_view->IsAutoRotateEnabled(Java::GetEnv())) {
     show_rotate_button = new ShowRotateButton();
@@ -874,9 +889,13 @@ MainWindow::ReinitialiseLayout_vario(const InfoBoxLayout::Layout &layout) noexce
     return;
   }
 
+  FitVarioLook(*look, layout);
+
   if (!vario.IsDefined())
     vario.Set(new GlueGaugeVario(CommonInterface::GetLiveBlackboard(),
                                  look->vario));
+  else
+    static_cast<GlueGaugeVario *>(vario.Get())->ReinitialiseLook();
 
   vario.Move(layout.vario);
   vario.Show();
@@ -1172,6 +1191,18 @@ MainWindow::ReinitialiseLook() noexcept
                              Fonts::map, Fonts::map_bold,
                              ib_layout.control_size.width);
 
+  /* InitialiseConfigured fits the dial to an InfoBox. Size it to the
+     gauge that is actually on screen. */
+  const PixelRect rc = GetClientRect();
+  const InfoBoxLayout::Layout placed =
+    InfoBoxLayout::Calculate(GetInfoBoxAreaRect(), GetActiveInfoBoxGeometry(),
+                             ib_settings.scale_title_font, rc.GetSize());
+  if (placed.HasVario()) {
+    FitVarioLook(*look, placed);
+    if (vario.IsDefined())
+      static_cast<GlueGaugeVario *>(vario.Get())->ReinitialiseLook();
+  }
+
   InfoBoxManager::ScheduleRedraw();
 }
 
@@ -1183,6 +1214,8 @@ MainWindow::OnLook() noexcept
   ReinitialiseLook();
 }
 
+#endif // ANDROID
+
 void
 MainWindow::OnTaskReceived() noexcept
 {
@@ -1190,8 +1223,18 @@ MainWindow::OnTaskReceived() noexcept
     /* postpone until XCSoar is running */
     return;
 
+  if (HasVisibleTaskManager()) {
+    /* the task manager may be the dialog that started the scan in the
+       first place; give the task straight to it rather than stacking a
+       second one on top */
+    if (auto task = GetReceivedTask())
+      TaskManagerReceiveTask(std::move(task));
+    return;
+  }
+
   if (HasDialog())
-    /* don't intercept an existing modal dialog */
+    /* don't intercept an existing modal dialog; the task stays
+       pending and RunTimer() offers it again later */
     return;
 
   auto task = GetReceivedTask();
@@ -1201,7 +1244,23 @@ MainWindow::OnTaskReceived() noexcept
   dlgTaskManagerShowModal(std::move(task));
 }
 
-#endif // ANDROID
+/**
+ * Trampoline for PostReceivedTask(): the event loop calls this on the
+ * UI thread, where opening a dialog is safe.
+ */
+static void
+ShowReceivedTask(void *ctx) noexcept
+{
+  ((MainWindow *)ctx)->OnTaskReceived();
+}
+
+void
+PostReceivedTask() noexcept
+{
+  if (UI::event_queue != nullptr && CommonInterface::main_window != nullptr)
+    UI::event_queue->InjectCall(ShowReceivedTask,
+                                CommonInterface::main_window);
+}
 
 void
 MainWindow::Destroy() noexcept
@@ -1327,7 +1386,8 @@ MainWindow::OnResize(PixelSize new_size) noexcept
 {
   Layout::Initialise(GetDisplay(), new_size,
                      CommonInterface::GetUISettings().GetPercentScale(),
-                     CommonInterface::GetUISettings().custom_dpi);
+                     CommonInterface::GetUISettings().custom_dpi,
+                     CommonInterface::GetUISettings().viewing_distance);
 
   SingleWindow::OnResize(new_size);
 
@@ -1478,14 +1538,12 @@ MainWindow::RunTimer() noexcept
 
   CheckSafeAreaChange();
 
-#ifdef ANDROID
   /* if we still havn't processed the task that was received from a QR
-     code, re-post the TASK_RECEIVED event to invoke OnTaskReceived()
-     again; we must not open the task manager dialog here because it
-     would block the timer while the dialog is open */
+     code, ask the event loop for OnTaskReceived() again; we must not
+     open the task manager dialog here because it would block the timer
+     while the dialog is open */
   if (IsRunning() && !HasDialog() && HasReceivedTask())
-    UI::event_queue->Inject(UI::Event::TASK_RECEIVED);
-#endif
+    PostReceivedTask();
 
   ProcessTimer();
 

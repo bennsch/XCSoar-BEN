@@ -16,13 +16,7 @@
 CalculationThread::CalculationThread(DeviceBlackboard &_device_blackboard,
                                      GlideComputer &_glide_computer) noexcept
   :WorkerThread("CalcThread",
-#ifdef KOBO
-                /* throttle more on the Kobo, because the EPaper
-                   screen cannot be updated that often */
-                std::chrono::milliseconds{900},
-#else
                 std::chrono::milliseconds{450},
-#endif
                 std::chrono::milliseconds{100},
                 std::chrono::milliseconds{50}),
    force(false),
@@ -169,5 +163,11 @@ CalculationThread::GetPeriodMin() const noexcept
      slow CPUs keep the limit; 1x replay already matches it. */
   if (replay_active && !HasEPaper() && !IsSlowCPU())
     return Duration{};
+
+  /* E-paper cannot usefully refresh faster than this.  Kobo defaults
+     to that display type, so it takes this path too. */
+  if (HasEPaper())
+    return std::chrono::milliseconds{900};
+
   return WorkerThread::GetPeriodMin();
 }

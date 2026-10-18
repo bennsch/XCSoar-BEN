@@ -23,6 +23,8 @@
 #include <cstdint>
 
 #include <queue>
+#include <vector>
+#include <sys/types.h>
 
 enum class DisplayOrientation : uint8_t;
 struct PixelSize;
@@ -60,6 +62,7 @@ class EventQueue final {
   Mutex mutex;
 
   std::queue<Event> events;
+  std::vector<pid_t> children_to_reap;
 
   InjectEvent wake_event{event_loop, BIND_THIS_METHOD(OnWakeUp)};
 
@@ -142,6 +145,14 @@ public:
   void SetSurfaceScale120(unsigned scale_120) noexcept {
     input_queue.SetSurfaceScale120(scale_120);
   }
+
+  void SetResizeToplevel(struct xdg_toplevel *toplevel) noexcept {
+    input_queue.SetResizeToplevel(toplevel);
+  }
+
+  void SetResizeEnabled(bool enabled) noexcept {
+    input_queue.SetResizeEnabled(enabled);
+  }
 #endif
 
   void SetScreenSize([[maybe_unused]] const PixelSize &screen_size) noexcept {
@@ -149,6 +160,9 @@ public:
     input_queue.SetScreenSize(screen_size);
 #elif defined(ENABLE_OPENGL) && defined(SOFTWARE_ROTATE_DISPLAY) && defined(USE_WAYLAND)
     input_queue.SetScreenSize(screen_size);
+#endif
+#ifdef USE_WAYLAND
+    input_queue.SetResizeSize(screen_size);
 #endif
   }
 
@@ -212,6 +226,9 @@ public:
    */
   void Push(const Event &event) noexcept;
 
+  /** Take ownership of this child's exit status; UI thread only. */
+  void ReapChild(pid_t pid) noexcept;
+
   /**
    * Ensure that the next Wait() call finishes by injecting a NOP
    * event.  This method is not thread-safe.
@@ -239,6 +256,8 @@ public:
   void Purge(Event::Callback callback, void *ctx) noexcept;
 
 private:
+  void OnChildExit() noexcept;
+
   void OnQuitSignal() noexcept {
     Quit();
     WakeUp();

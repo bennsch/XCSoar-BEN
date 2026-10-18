@@ -438,7 +438,6 @@ class NativeView extends SurfaceView
     final Context context = getContext();
 
     android.graphics.Rect r = getHolder().getSurfaceFrame();
-    android.util.Log.d(TAG, "runNative: getSurfaceFrame() size=" + r.width() + "x" + r.height());
     DisplayMetrics metrics = new DisplayMetrics();
     /* Physical display size and xdpi/ydpi; getMetrics() can follow reduced
        application window metrics on some devices (XCSoar #1784). */
@@ -460,7 +459,9 @@ class NativeView extends SurfaceView
       try {
         runNative(context, permissionManager,
                   r.width(), r.height(),
+                  metrics.widthPixels, metrics.heightPixels,
                   (int)metrics.xdpi, (int)metrics.ydpi,
+                  metrics.densityDpi,
                   Build.PRODUCT);
       } finally {
         /* Set shutdown flag before stopping service so it does not
@@ -535,10 +536,31 @@ class NativeView extends SurfaceView
 
   static native String onReceiveXCTrackTask(String data);
 
+  /**
+   * Hand the raw text of a scanned QR code to native code, which
+   * inspects the URI scheme prefix itself.
+   *
+   * @return null on success, or a human-readable error message
+   */
+  static native String onReceiveTaskQRCode(String text);
+
+  /**
+   * Open the camera to scan a task QR code.  Called from native code
+   * when the pilot picks "Scan QR Code".  The scanner Activity
+   * reports its own result, so there is nothing to return here.
+   */
+  void scanQRCode() {
+    final Context ctx = getContext();
+    if (ctx instanceof XCSoar) {
+      ((XCSoar) ctx).scanQRCode();
+    }
+  }
+
   protected native void runNative(Context context,
                                   PermissionManager permissionManager,
                                   int width, int height,
-                                  int xdpi, int ydpi,
+                                  int displayWidth, int displayHeight,
+                                  int xdpi, int ydpi, int densityDpi,
                                   String product);
 
   protected native void resizedNative(int width, int height,

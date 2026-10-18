@@ -11,11 +11,14 @@
 #include "Language/Language.hpp"
 #include "UIGlobals.hpp"
 #include "MainWindow.hpp"
+#include "Monitor/TrafficMonitor.hpp"
 
 enum ControlIndex {
   TrafficRadar,
   AutoCloseFlarmDialog,
   NoPositionTargetDistanceRing,
+  SpokenAlerts,
+  TestSpokenAlert,
 };
 
 /** Not a GaugeLocation; used only in this panel's Off/position enum. */
@@ -114,6 +117,17 @@ TrafficConfigPanel::Prepare(ContainerWindow &parent,
              _("This parameter enables or disables the No Position Target Distance Ring in Flarm Radar"),
              ui_settings.traffic.no_position_target_distance_ring);
 
+  AddBoolean(_("Spoken alerts"),
+             _("Speak the collision alarms of FLARM, with the urgency, the "
+               "clock position and whether the traffic is above or below: "
+               "\"Traffic urgent! Three o'clock. Above.\" Obstacle and "
+               "alert zone alarms are not spoken."),
+             ui_settings.traffic.spoken_alerts);
+
+  AddButton(_("Test spoken alert"), [](){
+    PlaySpokenAlertExample();
+  });
+
   SetRadarEnabled(ui_settings.traffic.enable_gauge);
 }
 
@@ -150,6 +164,9 @@ TrafficConfigPanel::Save(bool &_changed) noexcept
   changed |= SaveValue(NoPositionTargetDistanceRing,
                        ProfileKeys::NoPositionTargetDistanceRing,
                        ui_settings.traffic.no_position_target_distance_ring);
+
+  changed |= SaveValue(SpokenAlerts, ProfileKeys::FlarmSpokenAlerts,
+                       ui_settings.traffic.spoken_alerts);
 
   _changed |= changed;
 

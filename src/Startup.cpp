@@ -84,6 +84,7 @@
 #include "NMEA/Aircraft.hpp"
 #include "Waypoint/Waypoints.hpp"
 #include "Waypoint/WaypointGlue.hpp"
+#include "Waypoint/Factory.hpp"
 #include "Storage/StorageManager.hpp"
 #include "DataLayoutMigration.hpp"
 
@@ -311,6 +312,11 @@ try {
 
   DataGlobals::UnsetTerrain();
   DataGlobals::SetTerrain(std::move(new_terrain));
+
+  /* the waypoints were usually read before the terrain was there */
+  if (data_components->terrain && data_components->waypoints)
+    UpdateTerrainElevations(*data_components->waypoints,
+                            *data_components->terrain);
   DataGlobals::UpdateHome(false);
 
   SetAirspaceGroundLevels(*data_components->airspaces,
@@ -449,6 +455,16 @@ Startup(UI::Display &display)
   InitializeAppleBackgroundSave();
 #endif
 
+  /* Display type and Text size come from the profile.  The first
+     MainWindow::Initialise() ran with defaults; apply profile layout
+     now so post-profile startup UI (progress, orientation reload)
+     uses e-paper / OEM text compensation.  Look fonts reload again at
+     InitialiseConfigured(). */
+  SetDisplayType(ui_settings.display.display_type);
+  Layout::Initialise(main_window->GetDisplay(), main_window->GetSize(),
+                     ui_settings.GetPercentScale(), ui_settings.custom_dpi,
+                     ui_settings.viewing_distance);
+
   operation.SetText(_("Initialising"));
 
   /* create XCSoarData on the first start */
@@ -468,8 +484,6 @@ Startup(UI::Display &display)
 
   Display::LoadOrientation(operation);
   main_window->CheckResize();
-
-  SetDisplayType(CommonInterface::GetUISettings().display.display_type);
 
   {
     const PixelSize size = main_window->GetSize();
@@ -586,6 +600,8 @@ Startup(UI::Display &display)
   backend_components->glide_computer->SetTerrain(data_components->terrain.get());
   backend_components->glide_computer->SetLogger(backend_components->igc_logger.get());
   backend_components->glide_computer->Initialise();
+  backend_components->glide_computer->GetFlarmRange()
+    .Load(LocalPath("flarm-range.txt"));
 
   backend_components->replay =
     std::make_unique<Replay>(*backend_components->device_blackboard,
@@ -948,6 +964,9 @@ Shutdown()
       backend_components->calculation_thread->Join();
       backend_components->calculation_thread.reset();
     }
+
+    if (backend_components->glide_computer)
+      backend_components->glide_computer->GetFlarmRange().Close();
   }
 
   //  Wait for the drawing thread to finish

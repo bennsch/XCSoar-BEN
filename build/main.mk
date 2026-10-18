@@ -54,6 +54,8 @@ DIALOG_SOURCES = \
 	$(SRC)/Dialogs/Device/Vega/SwitchesDialog.cpp \
 	$(SRC)/Dialogs/Device/FLARM/ConfigWidget.cpp \
 	$(SRC)/Dialogs/Device/FLARM/RangeConfigWidget.cpp \
+	$(SRC)/Dialogs/Device/FLARM/RangePlot.cpp \
+	$(SRC)/Dialogs/Device/FLARM/RangeStatisticsDialog.cpp \
 	$(SRC)/Dialogs/MapItemListDialog.cpp \
 	$(SRC)/Dialogs/MapItemListSettingsDialog.cpp \
 	$(SRC)/Dialogs/MapItemListSettingsPanel.cpp \
@@ -164,6 +166,7 @@ DIALOG_SOURCES = \
 	$(SRC)/Dialogs/Task/Manager/TaskActionsPanel.cpp \
 	$(SRC)/Dialogs/Task/Manager/TaskListPanel.cpp \
 	$(SRC)/Dialogs/Task/Manager/WeGlideTasksPanel.cpp \
+	$(SRC)/Dialogs/Task/Manager/WeGlidePanel.cpp \
 	$(SRC)/Dialogs/Task/OptionalStartsDialog.cpp \
 	$(SRC)/Dialogs/Task/TaskPointDialog.cpp \
 	$(SRC)/Dialogs/Task/MutateTaskPointDialog.cpp \
@@ -611,6 +614,7 @@ XCSOAR_SOURCES := \
 	\
 	$(SRC)/Monitor/WindMonitor.cpp \
 	$(SRC)/Monitor/AirspaceWarningMonitor.cpp \
+	$(SRC)/Monitor/CurrentAirspacesWidget.cpp \
 	$(SRC)/Monitor/TaskConstraintsMonitor.cpp \
 	$(SRC)/Monitor/TaskAdvanceMonitor.cpp \
 	$(SRC)/Monitor/MatTaskMonitor.cpp \
@@ -620,6 +624,8 @@ XCSOAR_SOURCES := \
 	$(SRC)/Hardware/PowerGlobal.cpp \
 	$(SRC)/Hardware/Battery.cpp \
 	$(SRC)/Hardware/DisplayBrightness.cpp \
+	\
+	$(SRC)/Task/ReceiveTask.cpp \
 
 ifneq ($(TARGET),ANDROID)
 ifeq ($(TARGET_IS_LINUX),y)
@@ -678,6 +684,7 @@ XCSOAR_SOURCES += \
 	$(SRC)/Apple/KeyboardDetection.cpp \
 	$(SRC)/Apple/Vibrator.cpp \
 	$(SRC)/Apple/Share.cpp \
+	$(SRC)/Apple/QRScanner.cpp \
 	$(SRC)/Device/SmartDeviceSensors.cpp
 endif
 
@@ -731,7 +738,7 @@ XCSOAR_SOURCES += \
 	$(SRC)/Android/UsbSerialHelper.cpp \
 	$(SRC)/Android/TextEntryDialog.cpp \
 	$(SRC)/Android/FileProvider.cpp \
-	$(SRC)/Android/ReceiveTask.cpp \
+	$(SRC)/Android/QRScanner.cpp \
 	$(SRC)/Android/SAFHelper.cpp \
 	$(SRC)/Storage/android/SAFReader.cpp \
 	$(SRC)/Storage/android/SAFOutputStream.cpp \
@@ -745,6 +752,12 @@ else
 XCSOAR_SOURCES += \
 	$(SRC)/CommandLine.cpp \
 	$(SRC)/XCSoar.cpp
+
+# No camera here.  Apple links Apple/QRScanner.cpp instead; a new
+# port does the same with its own file (see Task/QRScanner.hpp).
+ifneq ($(TARGET_IS_DARWIN),y)
+XCSOAR_SOURCES += $(SRC)/Task/QRScanner.cpp
+endif
 endif
 
 ifeq ($(HAVE_HTTP),y)
@@ -822,11 +835,23 @@ ifeq ($(HAVE_PCM_PLAYER),y)
 XCSOAR_SOURCES += $(SRC)/Audio/VarioGlue.cpp
 endif
 
-# Selected systemd unit controls for desktop/embedded Linux.
+# Installed system tools and selected systemd unit controls for Linux.
 ifeq ($(TARGET_IS_LINUX)$(TARGET_IS_KOBO)$(TARGET_IS_ANDROID),ynn)
 XCSOAR_SOURCES += \
 	$(SRC)/Dialogs/Settings/Panels/SystemdConfigPanel.cpp \
 	$(SRC)/Linux/SystemdServiceList.cpp
+
+ifeq ($(USE_POLL_EVENT),y)
+SYSTEM_TOOLS_DIRECTORY ?= /usr/libexec/xcsoar/system-tools
+LOCAL_SYSTEM_TOOLS_DIRECTORY ?= /usr/local/libexec/xcsoar/system-tools
+XCSOAR_CPPFLAGS += \
+	-DSYSTEM_TOOLS_DIRECTORY=\"$(SYSTEM_TOOLS_DIRECTORY)\" \
+	-DLOCAL_SYSTEM_TOOLS_DIRECTORY=\"$(LOCAL_SYSTEM_TOOLS_DIRECTORY)\"
+XCSOAR_SOURCES += \
+	$(SRC)/Dialogs/ProcessDialog.cpp \
+	$(SRC)/Dialogs/Settings/Panels/SystemToolsPanel.cpp \
+	$(SRC)/SystemTools.cpp
+endif
 endif
 
 include $(topdir)/build/net-wifi.mk
@@ -875,6 +900,16 @@ endif
 
 ifeq ($(HAVE_HTTP),y)
 XCSOAR_LDLIBS += $(NETCDF_LDLIBS)
+endif
+
+ifeq ($(ZXING),y)
+XCSOAR_SOURCES += \
+	$(SRC)/QR/QRCode.cpp \
+	$(SRC)/Renderer/QRCodeRenderer.cpp \
+	$(SRC)/Dialogs/Task/TaskQRCodeDialog.cpp
+
+$(call SRC_TO_OBJ,$(SRC)/QR/QRCode.cpp): CPPFLAGS += $(ZXING_CPPFLAGS)
+XCSOAR_LDLIBS += $(ZXING_LDLIBS)
 endif
 
 XCSOAR_STRIP = y
