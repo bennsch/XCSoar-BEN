@@ -17,7 +17,7 @@ REPO_DIR=$(dirname $SCRIPT_DIR)
 
 # Docker container specific to this commit
 # (visit "ghcr.io/xcsoar/xcsoar/xcsoar-build:latest" to find the latest SHA)
-DOCKER_CONTAINER=ghcr.io/xcsoar/xcsoar/xcsoar-build@sha256:9e8bf4804e67f00246807fe0940390cec02505086c39ab5d7cc78f888c1a4833
+DOCKER_CONTAINER=ghcr.io/xcsoar/xcsoar/xcsoar-build@sha256:882442c84506c116583a73153d480ef3ad9d7ea149bc80b599e62c1058f0bb91
 
 # Keystores can be created with Android Studio.
 # The script expects "debug.keystore" and "signing-key.jks" to be in the parent directory of XCSoar-BEN 
