@@ -114,14 +114,16 @@ struct InfoBoxSettings {
     BOTTOM_RIGHT_10 = 22,
     /** 10 infoboxes split bottom/top or left/right */
     SPLIT_10 = 23,
-    /** 12 infoboxes 3X4 split bottom/top or left/right */
-    SPLIT_3X4 = 24,
+    /** 12 infoboxes, 8 top/left, 4 bottom/right*/
+    TOP_LEFT_8_BOTTOM_RIGHT_4 = 24,
+    /** 12 infoboxes, 4 top/left, 8 bottom/right*/
+    TOP_LEFT_4_BOTTOM_RIGHT_8 = 25,
     /** 15 infoboxes 3X5 split bottom/top or left/right */
-    SPLIT_3X5 = 25,
+    SPLIT_3X5 = 26,
     /** 18 infoboxes 3X6 split bottom/top or left/right */
-    SPLIT_3X6 = 26,
+    SPLIT_3X6 = 27,
     /** 6 infoboxes split bottom/top or left/right */
-    SPLIT_6 = 27,
+    SPLIT_6 = 28,
 
   } geometry;
 
