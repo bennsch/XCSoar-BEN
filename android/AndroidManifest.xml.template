@@ -3,7 +3,7 @@
           package="@PACKAGE_NAME@"
           android:installLocation="auto"
           android:versionCode="5"
-          android:versionName="7.46_BEN_v1.3.1">
+          android:versionName="7.46_BEN_v1.3.4">
   <!--
     versionCode / versionName are replaced for CI Android jobs in
     .github/workflows/build-native.yml (master and release tags only).
