@@ -312,24 +312,13 @@ UpdateInfoBoxNextAltitudeDiff(InfoBoxData &data) noexcept
 
   const auto &task_stats = CommonInterface::Calculated().task_stats;
   const auto &next_solution = task_stats.current_leg.solution_remaining;
-  const GeoVector &vector_remaining = task_stats.current_leg.vector_remaining;
+  const auto wp = GetActiveWaypoint();
 
-  // Set title to waypoint name
-  if (backend_components->protected_task_manager){
-    const auto wp = backend_components->protected_task_manager->GetActiveWaypoint();
-    if (wp){
-      data.SetTitle(wp->name.c_str());    
-    } else {
-      data.SetTitle(_("WP AltD"));
-    }
-  }
-
-  // Set value to altitude difference
   SetValueFromAltDiff(data, task_stats, next_solution);
 
-  // Set comment to waypoint distance
-  if (task_stats.task_valid && vector_remaining.IsValid()) {
-    data.SetCommentFromDistance(vector_remaining.distance);
+  // Set comment to waypoint name
+  if (wp) {
+    data.SetComment(wp->name.c_str());
   } else {
     data.SetCommentInvalid();
   }
