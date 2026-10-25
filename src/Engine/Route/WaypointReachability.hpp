@@ -37,6 +37,13 @@ IsReachable(WaypointReachability r) noexcept
   return false;
 }
 
+[[nodiscard]]
+static constexpr bool
+IsReachableAtBestGlide(WaypointReachability r) noexcept
+{
+  return IsReachable(r) || (r == WaypointReachability::BEST_GLIDE);
+}
+
 /**
  * The reachability of a waypoint (arrival heights plus how they were
  * obtained).  Renderers paint this; they do not compute it.
@@ -52,5 +59,9 @@ struct WaypointReach {
 
   constexpr bool IsReachable() const noexcept {
     return ::IsReachable(reachability);
+  }
+
+  constexpr bool IsReachableAtBestGlide() const noexcept {
+    return ::IsReachableAtBestGlide(reachability);
   }
 };

@@ -9,6 +9,7 @@
 #include "Task/ProtectedTaskManager.hpp"
 #include "Dialogs/Dialogs.h"
 #include "Dialogs/Waypoint/WaypointDialogs.hpp"
+#include "Dialogs/Waypoint/GetWaypointReachability.hpp"
 #include "Geo/SpeedVector.hpp"
 #include "Engine/Util/Gradient.hpp"
 #include "Engine/Waypoint/Waypoint.hpp"
@@ -27,6 +28,7 @@
 #include <algorithm>
 #include <cmath>
 #include <string>
+#include <optional>
 
 static void
 UpdateStartOpenInfobox(InfoBoxData &data, const TimeStamp &projected_start_time_s,
@@ -290,19 +292,20 @@ UpdateInfoBoxNextETA(InfoBoxData &data) noexcept
   data.FmtComment("{:02}", t.second);
 }
 
-static void
+static std::optional<double>
 SetValueFromAltDiff(InfoBoxData &data, const TaskStats &task_stats,
                     const GlideResult &solution)
 {
   if (!task_stats.task_valid || !solution.IsAchievable()) {
     data.SetInvalid();
-    return;
+    return std::nullopt;
   }
 
   const auto &settings = CommonInterface::GetComputerSettings();
   auto altitude_difference =
     solution.SelectAltitudeDifference(settings.task.glide);
   data.SetValueFromArrival(altitude_difference);
+  return altitude_difference;
 }
 
 void
@@ -314,7 +317,24 @@ UpdateInfoBoxNextAltitudeDiff(InfoBoxData &data) noexcept
   const auto &next_solution = task_stats.current_leg.solution_remaining;
   const auto wp = GetActiveWaypoint();
 
-  SetValueFromAltDiff(data, task_stats, next_solution);
+  auto alt_diff = SetValueFromAltDiff(data, task_stats, next_solution);
+
+  // Set value color
+  if (alt_diff.has_value()) {
+    if (alt_diff >= 0.0) {
+      // Waypoint reachable with current MC setting.
+      // Set to "next waypoint" color (magenta)
+      data.SetValueColor(5);
+    } else if (wp && (GetWaypointReach(*wp).IsReachableAtBestGlide())) {
+      // Waypoint still reachable with MC0
+      data.SetValueColor(6);
+    } else {
+      // Waypoint unreachable
+      data.SetValueColor(1);
+    }
+  } else {
+    // Data has already been set to invalid and the respective color applied
+  }
 
   // Set comment to waypoint name
   if (wp) {
