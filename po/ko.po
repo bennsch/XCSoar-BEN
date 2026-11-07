@@ -11979,13 +11979,9 @@ msgstr ""
 "IMU가 들어 있는 계기가 영구히 고정되어 있고 그 축이 기체 축과 정렬되어 있는지입니다. 단단히 장착된 경우에만 「고정 및 정렬」로 "
 "두세요. 의심되면 「정렬 안 됨」。"
 
-#, no-c-format
+#, c-format
 msgid "XCSoar uses the first device that supplies each value (device A before B, and so on). Bold flags are the values XCSoar is using from this device. Flags that are not bold mean an earlier device already supplies the same data. Baro is height with the current QNH; QNE is pressure altitude; Alt IGC is the altitude the logger writes. QNE and Pressure are the same ambient pressure, so only the earlier of those two is bold. Bad GPS and a battery below 10% are shown in red on a colour display, and in bold on e-paper."
 msgstr ""
-"XCSoar는 각 값을 공급하는 첫 기기를 사용합니다(기기 A가 B보다 앞, 이하 같음). 굵은 표시는 XCSoar가 이 기기에서 쓰는"
-" 값입니다. 굵지 않은 표시는 앞선 기기가 이미 같은 자료를 공급한다는 뜻입니다. Baro는 현재 QNH의 고도, QNE는 기압 고도,"
-" Alt IGC는 기록기가 쓰는 고도입니다. QNE와 Pressure는 같은 주변 기압이므로 더 앞선 쪽만 굵습니다. 나쁜 GPS와 1"
-"0퍼센트 미만 배터리는 컬러 화면에서 빨강, 전자 종이에서 굵게 표시됩니다."
 
 msgid "QNE"
 msgstr "QNE"
@@ -12442,4 +12438,22 @@ msgid "Water ballast on board, in litres. The comment shows the wing loading, in
 msgstr ""
 "탑재된 물 밸러스트, 리터. 설명에는 날개 하중이 보이며, 최대 이륙 중량보다 무거우면 빨간색입니다. 투기 중에는 값이 파란색입니다. "
 "눌러 밸러스트를 바꿉니다."
+
+#, no-c-format
+msgid "Takeoff altitude difference"
+msgstr ""
+
+#, no-c-format
+msgid "Takeoff AltD"
+msgstr ""
+
+#, no-c-format
+msgid "Arrival altitude at the takeoff waypoint relative to the safety arrival height."
+msgstr ""
+
+msgid "Terrain!"
+msgstr ""
+
+msgid "Glide result not ok"
+msgstr ""
 

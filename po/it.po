@@ -12368,18 +12368,9 @@ msgstr ""
 " sono allineati a quelli dell'aeromobile. «Fisso e allineato» solo se è mon"
 "tato rigidamente. Nel dubbio, «Non allineato»."
 
-#, no-c-format
+#, c-format
 msgid "XCSoar uses the first device that supplies each value (device A before B, and so on). Bold flags are the values XCSoar is using from this device. Flags that are not bold mean an earlier device already supplies the same data. Baro is height with the current QNH; QNE is pressure altitude; Alt IGC is the altitude the logger writes. QNE and Pressure are the same ambient pressure, so only the earlier of those two is bold. Bad GPS and a battery below 10% are shown in red on a colour display, and in bold on e-paper."
 msgstr ""
-"XCSoar usa il primo dispositivo che fornisce ciascun valore (il dispositivo"
-" A prima di B, e così via). I contrassegni in grassetto sono i valori che X"
-"CSoar prende da questo dispositivo. Quelli non in grassetto significano che"
-" un dispositivo precedente fornisce già gli stessi dati. Baro è la quota co"
-"n il QNH attuale; QNE è l'altitudine di pressione; Alt IGC è l'altitudine c"
-"he scrive il logger. QNE e Pressure sono la stessa pressione ambiente, quin"
-"di solo il precedente dei due è in grassetto. Un GPS scadente e una batteri"
-"a sotto il 10 per cento sono rossi su uno schermo a colori e in grassetto s"
-"u carta elettronica."
 
 msgid "QNE"
 msgstr "QNE"
@@ -12916,4 +12907,22 @@ msgstr ""
 "osso quando l'aliante è più pesante della sua massa massima al decollo. Il "
 "valore è blu mentre la zavorra viene scaricata. Toccare per cambiare la zav"
 "orra."
+
+#, no-c-format
+msgid "Takeoff altitude difference"
+msgstr ""
+
+#, no-c-format
+msgid "Takeoff AltD"
+msgstr ""
+
+#, no-c-format
+msgid "Arrival altitude at the takeoff waypoint relative to the safety arrival height."
+msgstr ""
+
+msgid "Terrain!"
+msgstr ""
+
+msgid "Glide result not ok"
+msgstr ""
 

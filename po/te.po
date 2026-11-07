@@ -12048,15 +12048,9 @@ msgstr ""
 "ాయా. గట్టిగా అమర్చినప్పుడు మాత్రమే «స్థిరంగా మరియు సమలేఖనం». సందేహమైతే «సమల"
 "ేఖనం కాలేదు»."
 
-#, no-c-format
+#, c-format
 msgid "XCSoar uses the first device that supplies each value (device A before B, and so on). Bold flags are the values XCSoar is using from this device. Flags that are not bold mean an earlier device already supplies the same data. Baro is height with the current QNH; QNE is pressure altitude; Alt IGC is the altitude the logger writes. QNE and Pressure are the same ambient pressure, so only the earlier of those two is bold. Bad GPS and a battery below 10% are shown in red on a colour display, and in bold on e-paper."
 msgstr ""
-"ప్రతి విలువను ఇచ్చే మొదటి పరికరాన్ని XCSoar ఉపయోగిస్తుంది (పరికరం A, B కంటే"
-" ముందు, అలాగే). బొద్దు గుర్తులు ఈ పరికరం నుండి XCSoar తీసుకునే విలువలు. బొద"
-"్దు కానివి ముందరి పరికరం అదే డేటా ఇస్తోందని అర్థం. Baro ప్రస్తుత QNHతో ఎత్త"
-"ు; QNE పీడన ఎత్తు; Alt IGC లాగర్ రాసే ఎత్తు. QNE మరియు Pressure ఒకే పరిసర ప"
-"ీడనం, కాబట్టి రెండింటిలో ముందరిది మాత్రమే బొద్దు. చెడు GPS మరియు 10 శాతం కం"
-"టే తక్కువ బ్యాటరీ రంగు తెరపై ఎరుపు, ఇ-పేపర్‌పై బొద్దు."
 
 msgid "QNE"
 msgstr "QNE"
@@ -12577,4 +12571,22 @@ msgstr ""
 "బోర్డులో నీటి బ్యాలస్ట్, లీటర్లలో. వ్యాఖ్య వింగ్ లోడింగ్‌ను చూపుతుంది, గ్లై"
 "డర్ గరిష్ఠ టేకాఫ్ బరువు కంటే ఎక్కువైతే ఎరుపు. బ్యాలస్ట్ పోస్తున్నప్పుడు విల"
 "ువ నీలం. మార్చడానికి నొక్కండి."
+
+#, no-c-format
+msgid "Takeoff altitude difference"
+msgstr ""
+
+#, no-c-format
+msgid "Takeoff AltD"
+msgstr ""
+
+#, no-c-format
+msgid "Arrival altitude at the takeoff waypoint relative to the safety arrival height."
+msgstr ""
+
+msgid "Terrain!"
+msgstr ""
+
+msgid "Glide result not ok"
+msgstr ""
 

@@ -11808,12 +11808,9 @@ msgstr "內建 IMU"
 msgid "Whether the instrument housing the IMU is permanently fixed and its axes are aligned to the aircraft axes. Set to 'Fixed & aligned' only when the device is rigidly mounted. If in doubt, use 'Not aligned'."
 msgstr "裝有 IMU 的儀表是否永久固定，且其軸與飛機軸對齊。僅在剛性安裝時設為「固定並對準」。有疑問時用「未對準」。"
 
-#, no-c-format
+#, c-format
 msgid "XCSoar uses the first device that supplies each value (device A before B, and so on). Bold flags are the values XCSoar is using from this device. Flags that are not bold mean an earlier device already supplies the same data. Baro is height with the current QNH; QNE is pressure altitude; Alt IGC is the altitude the logger writes. QNE and Pressure are the same ambient pressure, so only the earlier of those two is bold. Bad GPS and a battery below 10% are shown in red on a colour display, and in bold on e-paper."
 msgstr ""
-"XCSoar 使用最先提供每個數值的裝置（裝置 A 先於 B，依此類推）。粗體標誌是 XCSoar 正在使用的、來自該裝置的數值。非粗體標誌表示更早的"
-"裝置已經提供相同資料。Baro 是目前 QNH 下的高度；QNE 是氣壓高度；Alt IGC 是紀錄器寫入的高度。QNE 與 Pressure 是同一"
-"環境氣壓，因此二者中只有更早的那個為粗體。GPS 不良和電量低於 百分之十 在彩色螢幕上顯示為紅色，在電子紙上顯示為粗體。"
 
 msgid "QNE"
 msgstr "QNE"
@@ -12251,4 +12248,22 @@ msgstr "滑翔機的最大起飛重量。"
 #, no-c-format
 msgid "Water ballast on board, in litres. The comment shows the wing loading, in red when the glider is heavier than its MTOW. The value is blue while ballast is being dumped. Tap to change the ballast."
 msgstr "機上水壓載，單位為公升。註解顯示機翼載荷，滑翔機超過最大起飛重量時為紅色。拋放時數值為藍色。點按可更改壓載。"
+
+#, no-c-format
+msgid "Takeoff altitude difference"
+msgstr ""
+
+#, no-c-format
+msgid "Takeoff AltD"
+msgstr ""
+
+#, no-c-format
+msgid "Arrival altitude at the takeoff waypoint relative to the safety arrival height."
+msgstr ""
+
+msgid "Terrain!"
+msgstr ""
+
+msgid "Glide result not ok"
+msgstr ""
 

@@ -56,6 +56,10 @@ case "$1" in
                 # sudo required because files created by docker are owned by "root"
                 sudo make -C $REPO_DIR clean
             ;;
+            "UPDATE-PO")
+                $PRIVGL docker run --mount type=bind,source="$REPO_DIR",target=/opt/xcsoar \
+                -it $DOCKER_CONTAINER make update-po
+            ;;
             "UNIX")
                 if [[ "$3" == "DEBUG" ]]; then
                     DBG="y"

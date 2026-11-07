@@ -12240,17 +12240,9 @@ msgstr ""
 "rlaivio ašimis. «Fiksuotas ir sulygiuotas» tik kai tvirtai sumontuotas. Abe"
 "jojant «Nesulygiuota»."
 
-#, no-c-format
+#, c-format
 msgid "XCSoar uses the first device that supplies each value (device A before B, and so on). Bold flags are the values XCSoar is using from this device. Flags that are not bold mean an earlier device already supplies the same data. Baro is height with the current QNH; QNE is pressure altitude; Alt IGC is the altitude the logger writes. QNE and Pressure are the same ambient pressure, so only the earlier of those two is bold. Bad GPS and a battery below 10% are shown in red on a colour display, and in bold on e-paper."
 msgstr ""
-"XCSoar naudoja pirmą prietaisą, kuris teikia kiekvieną reikšmę (prietaisą A"
-" prieš B ir taip toliau). Paryškintos žymos yra reikšmės, kurias XCSoar ima"
-" iš šio prietaiso. Neparyškintos reiškia, kad ankstesnis prietaisas jau tei"
-"kia tuos pačius duomenis. Baro yra aukštis su dabartiniu QNH; QNE yra slėgi"
-"o aukštis; Alt IGC yra aukštis, kurį rašo registratorius. QNE ir Pressure y"
-"ra tas pats aplinkos slėgis, todėl paryškintas tik ankstesnis iš jų. Blogas"
-" GPS ir baterija žemiau 10 проценtų spalvotame ekrane rodomi raudonai, o e."
-" popieriuje paryškintai."
 
 msgid "QNE"
 msgstr "QNE"
@@ -12768,4 +12760,22 @@ msgstr ""
 "Vandens balastas laive, litrais. Komentaras rodo sparno apkrovą raudonai, k"
 "ai sklandytuvas sunkesnis už didžiausią kilimo masę. Vertė mėlyna išleidžia"
 "nt balastą. Bakstelėkite balastui keisti."
+
+#, no-c-format
+msgid "Takeoff altitude difference"
+msgstr ""
+
+#, no-c-format
+msgid "Takeoff AltD"
+msgstr ""
+
+#, no-c-format
+msgid "Arrival altitude at the takeoff waypoint relative to the safety arrival height."
+msgstr ""
+
+msgid "Terrain!"
+msgstr ""
+
+msgid "Glide result not ok"
+msgstr ""
 

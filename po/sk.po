@@ -12225,16 +12225,9 @@ msgstr ""
 "la. «Pevne a zarovnané» len pri tuhom uchytení. Pri pochybnosti «Nezarovnan"
 "é»."
 
-#, no-c-format
+#, c-format
 msgid "XCSoar uses the first device that supplies each value (device A before B, and so on). Bold flags are the values XCSoar is using from this device. Flags that are not bold mean an earlier device already supplies the same data. Baro is height with the current QNH; QNE is pressure altitude; Alt IGC is the altitude the logger writes. QNE and Pressure are the same ambient pressure, so only the earlier of those two is bold. Bad GPS and a battery below 10% are shown in red on a colour display, and in bold on e-paper."
 msgstr ""
-"XCSoar použije prvé zariadenie, ktoré dodáva každú hodnotu (zariadenie A pr"
-"ed B a tak ďalej). Tučné príznaky sú hodnoty, ktoré XCSoar z tohto zariaden"
-"ia berie. Netučné znamenajú, že skoršie zariadenie už tie isté údaje dodáva"
-". Baro je výška s aktuálnym QNH; QNE je tlaková výška; Alt IGC je výška, kt"
-"orú zapisuje záznamník. QNE a Pressure sú ten istý okolitý tlak, takže tučn"
-"é je len skoršie z nich. Zlé GPS a batéria pod 10 percent sa na farebnom di"
-"spleji ukazujú červeno a na elektronickom papieri tučne."
 
 msgid "QNE"
 msgstr "QNE"
@@ -12748,4 +12741,22 @@ msgstr ""
 "Vodná záťaž na palube v litroch. Komentár ukazuje zaťaženie krídla načerven"
 "o, keď je vetroň ťažší ako jeho maximálna vzletová hmotnosť. Hodnota je mod"
 "rá pri vypúšťaní. Klepnutím zmeníte záťaž."
+
+#, no-c-format
+msgid "Takeoff altitude difference"
+msgstr ""
+
+#, no-c-format
+msgid "Takeoff AltD"
+msgstr ""
+
+#, no-c-format
+msgid "Arrival altitude at the takeoff waypoint relative to the safety arrival height."
+msgstr ""
+
+msgid "Terrain!"
+msgstr ""
+
+msgid "Glide result not ok"
+msgstr ""
 

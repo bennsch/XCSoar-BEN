@@ -12218,16 +12218,9 @@ msgstr ""
 "ksenleriyle hizalı olup olmadığı. «Sabit ve hizalı» yalnızca rijit montajda"
 ". Kuşkuda «Hizalı değil»."
 
-#, no-c-format
+#, c-format
 msgid "XCSoar uses the first device that supplies each value (device A before B, and so on). Bold flags are the values XCSoar is using from this device. Flags that are not bold mean an earlier device already supplies the same data. Baro is height with the current QNH; QNE is pressure altitude; Alt IGC is the altitude the logger writes. QNE and Pressure are the same ambient pressure, so only the earlier of those two is bold. Bad GPS and a battery below 10% are shown in red on a colour display, and in bold on e-paper."
 msgstr ""
-"XCSoar her değeri veren ilk aygıtı kullanır (aygıt A, B'den önce ve böyle d"
-"evam eder). Kalın işaretler XCSoar'ın bu aygıttan kullandığı değerlerdir. K"
-"alın olmayanlar daha önceki bir aygıtın aynı veriyi zaten verdiği anlamına "
-"gelir. Baro geçerli QNH ile yüksekliktir; QNE basınç irtifasıdır; Alt IGC k"
-"aydedicinin yazdığı irtifadır. QNE ve Pressure aynı ortam basıncıdır, bu yü"
-"zden ikisinden yalnızca önceki olan kalındır. Kötü GPS ve yüzde 10 altındak"
-"i pil renkli ekranda kırmızı, e-kâğıtta kalın gösterilir."
 
 msgid "QNE"
 msgstr "QNE"
@@ -12747,4 +12740,22 @@ msgstr ""
 "Gemideki su balastı, litre. Yorum kanat yükünü gösterir; planör azami kalkı"
 "ş ağırlığından ağırsa kırmızı. Balast boşaltılırken değer mavidir. Değiştir"
 "mek için dokunun."
+
+#, no-c-format
+msgid "Takeoff altitude difference"
+msgstr ""
+
+#, no-c-format
+msgid "Takeoff AltD"
+msgstr ""
+
+#, no-c-format
+msgid "Arrival altitude at the takeoff waypoint relative to the safety arrival height."
+msgstr ""
+
+msgid "Terrain!"
+msgstr ""
+
+msgid "Glide result not ok"
+msgstr ""
 
