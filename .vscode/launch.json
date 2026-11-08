@@ -8,7 +8,7 @@
             "name": "Launch",
             "request": "launch",
             "type": "node-terminal",
-            "command": "./PERFORM BUILD UNIX DEBUG && ./PERFORM RUN UNIX ",
+            "command": "./ben/helper BUILD UNIX DEBUG SDL && ./ben/helper RUN UNIX",
         }
     ]
 }

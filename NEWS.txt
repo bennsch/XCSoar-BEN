@@ -1,3 +1,9 @@
+Version 7.46-BEN-v1.4 (2026-11-14)
+  - hey
+  - ho
+
+  based on XCSoar v7.46 (git [d80b219](https://github.com/XCSoar/XCSoar/tree/d80b21991fd5858176d7bdbb79dcb0a1013edde4), 2026-10-19)
+
 Version 1.3 
 * InfoBox "Altitude (Auto)": Show AGL altitude in comment
 * InfoBox "Next altitude difference": Show waypoint name and distance
