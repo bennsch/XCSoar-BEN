@@ -3,7 +3,7 @@ FULL_VERSION = $(VERSION)
 
 # Everything before the `-` is the original XCSoar version, everything after is the BEN version
 VERSION_XCSOAR := $(word 1,$(subst -, ,$(VERSION)))
-VERSION_BEN    := $(word 2,$(subst -, ,$(VERSION)))
+VERSION_BEN    := $(word 2,$(subst -, ,$(VERSION)))-$(word 3,$(subst -, ,$(VERSION)))
 
 # VERSION.txt is major.minor or major.minor.patch (policy.rst / release.rst).
 VERSION_WORDS := $(subst ., ,$(VERSION_XCSOAR))
