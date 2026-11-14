@@ -42,12 +42,13 @@
 
 
 ##########################################################################################################
-							RELEASE (GITHUB)
+							RELEASE TODO
 ##########################################################################################################
 
 - update NEWS.txt
 - update VERSION.txt 
-- update debian/changelog 
+- update debian/changelog
+- update src/Dialogs/dlgQuickGuide.cpp::GetFeaturesAndNewsText() 
 - Create tag and push
 
 ##########################################################################################################

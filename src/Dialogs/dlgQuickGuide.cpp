@@ -137,6 +137,26 @@ GetDisclaimerText() noexcept
   return text.c_str();
 }
 
+static const char *
+GetFeaturesAndNewsText() noexcept
+{
+  static StaticString<8192> text;
+  text.Format(
+    "%s%s",
+      quick_guide_news_markdown,
+    _(
+      "\n\n**XCSoar-BEN is a fork of XCSoar, adding various features and improvements:**\n"
+      "- New InfoBox \"Takeoff Altitude Difference\"\n"
+      "- New InfoBox geometries (\"6 Split\", \"6 Top, 3 Bottom\", \"8 Top, 4 Bottom\")\n"
+      "- Active plane and pilot weight are displayed in bottom right corner\n"
+      "- Battery warning threshold set to 30% (was 10%)\n"
+      "- Infobox \"Altitude (Auto)\" displays MSL and AGL\n"
+      "- Infobox \"Next altitude difference\" uses colors to indicate reachability and displays the waypoint name\n"
+      "\n\nNavigate to **Info -> Credits -> News**, to view the XCSoar release notes"
+    ));
+  return text.c_str();
+}
+
 /* ---- Configuration help text (dynamic, with checkbox status) ---- */
 
 /**
@@ -589,7 +609,7 @@ dlgQuickGuideShowModal(bool force_info)
     state.news_page_index = pager->GetSize();
 
     auto page = QuickGuidePageWidget::CreateCheckboxPage(
-      look, quick_guide_news_markdown,
+      look, GetFeaturesAndNewsText(),
       _("Don't show these release notes again"),
       false,
       [](bool) { /* state is read on dialog close */ });
