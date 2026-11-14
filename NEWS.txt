@@ -1,6 +1,8 @@
 Version 7.46-BEN-v1.4 (2026-11-14)
-  - hey
-  - ho
+  - Infobox "Takeoff AltD": Show waypoint name as comment
+  - Infobox "WP AltD": Show waypoint name and set color based on reachability
+  - New InfoBox geometries: "8 Top or Left + 4 Bottom or Right", "4 Top or Left + 8 Bottom or Right", "6 Top or Left + 3 Bottom or Right", "3 Top or Left + 6 Bottom or Right"
+  - Show "N/A" if no plane is selected
 
   based on XCSoar v7.46 (git [d80b219](https://github.com/XCSoar/XCSoar/tree/d80b21991fd5858176d7bdbb79dcb0a1013edde4), 2026-10-19)
 
