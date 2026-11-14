@@ -49,6 +49,7 @@
 - update VERSION.txt 
 - update debian/changelog
 - update src/Dialogs/dlgQuickGuide.cpp::GetFeaturesAndNewsText() 
+- update *.po files (helper: BUILD UPDATE-PO)
 - Create tag and push
 
 ##########################################################################################################
